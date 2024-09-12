@@ -111,15 +111,21 @@ func main() {
 
 	// Register handlers for all the configured logs using the correct RPC
 	// client.
-	// TODO(phboneff): setupAndRegister can probably be inlined / removed later
-	_, err = setupAndRegister(ctx,
-		*rpcDeadline,
-		vCfg,
-		corsMux,
-		*maskInternalErrors,
-	)
+	opts := sctfe.InstanceOptions{
+		Validated:          vCfg,
+		Deadline:           *rpcDeadline,
+		MetricFactory:      prometheus.MetricFactory{},
+		RequestLog:         new(sctfe.DefaultRequestLog),
+		MaskInternalErrors: *maskInternalErrors,
+		CreateStorage:      newGCPStorage,
+	}
+
+	inst, err := sctfe.SetUpInstance(ctx, opts)
 	if err != nil {
 		klog.Exitf("Failed to set up log instance for %+v: %v", vCfg, err)
+	}
+	for path, handler := range inst.Handlers {
+		corsMux.Handle(path, handler)
 	}
 
 	// Return a 200 on the root, for GCE default health checking :/
@@ -219,26 +225,6 @@ func awaitSignal(doneFn func()) {
 	klog.Flush()
 
 	doneFn()
-}
-
-func setupAndRegister(ctx context.Context, deadline time.Duration, vCfg *sctfe.ValidatedLogConfig, mux *http.ServeMux, maskInternalErrors bool) (*sctfe.Instance, error) {
-	opts := sctfe.InstanceOptions{
-		Validated:          vCfg,
-		Deadline:           deadline,
-		MetricFactory:      prometheus.MetricFactory{},
-		RequestLog:         new(sctfe.DefaultRequestLog),
-		MaskInternalErrors: maskInternalErrors,
-		CreateStorage:      newGCPStorage,
-	}
-
-	inst, err := sctfe.SetUpInstance(ctx, opts)
-	if err != nil {
-		return nil, err
-	}
-	for path, handler := range inst.Handlers {
-		mux.Handle(path, handler)
-	}
-	return inst, nil
 }
 
 func newGCPStorage(ctx context.Context, signer note.Signer) (*sctfe.CTStorage, error) {
