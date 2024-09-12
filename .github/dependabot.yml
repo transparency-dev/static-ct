@@ -1,0 +1,21 @@
+version: 2
+updates:
+- package-ecosystem: gomod
+  directory: /
+  schedule:
+    interval: weekly
+  groups:
+    all-deps:
+      applies-to: version-updates
+      patterns:
+        - "*"
+
+- package-ecosystem: github-actions
+  directory: /
+  schedule:
+    interval: weekly
+  groups:
+    all-deps:
+      applies-to: version-updates
+      patterns:
+        - "*"
