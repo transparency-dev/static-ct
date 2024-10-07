@@ -34,8 +34,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/rs/cors"
 	sctfe "github.com/transparency-dev/static-ct"
-	"github.com/transparency-dev/static-ct/modules/dedup"
-	"github.com/transparency-dev/static-ct/storage/bbolt"
 	gcpSCTFE "github.com/transparency-dev/static-ct/storage/gcp"
 	tessera "github.com/transparency-dev/trillian-tessera"
 	gcpTessera "github.com/transparency-dev/trillian-tessera/storage/gcp"
@@ -62,11 +60,11 @@ var (
 	tracing            = flag.Bool("tracing", false, "If true opencensus Stackdriver tracing will be enabled. See https://opencensus.io/.")
 	tracingProjectID   = flag.String("tracing_project_id", "", "project ID to pass to stackdriver. Can be empty for GCP, consult docs for other platforms.")
 	tracingPercent     = flag.Int("tracing_percent", 0, "Percent of requests to be traced. Zero is a special case to use the DefaultSampler.")
-	dedupPath          = flag.String("dedup_path", "", "Path to the deduplication database.")
 	origin             = flag.String("origin", "", "Origin of the log, for checkpoints and the monitoring prefix.")
 	projectID          = flag.String("project_id", "", "GCP ProjectID.")
 	bucket             = flag.String("bucket", "", "Name of the bucket to store the log in.")
 	spannerDB          = flag.String("spanner_db_path", "", "Spanner database path: projects/{projectId}/instances/{instanceId}/databases/{databaseId}.")
+	spannerDedupDB     = flag.String("spanner_dedup_db_path", "", "Spanner deduplication database path: projects/{projectId}/instances/{instanceId}/databases/{databaseId}.")
 	rootsPemFile       = flag.String("roots_pem_file", "", "Path to the file containing root certificates that are acceptable to the log. The certs are served through get-roots endpoint.")
 	rejectExpired      = flag.Bool("reject_expired", false, "If true then the certificate validity period will be checked against the current time during the validation of submissions. This will cause expired certificates to be rejected.")
 	rejectUnexpired    = flag.Bool("reject_unexpired", false, "If true then CTFE rejects certificates that are either currently valid or not yet valid.")
@@ -241,18 +239,10 @@ func newGCPStorage(ctx context.Context, signer note.Signer) (*sctfe.CTStorage, e
 		return nil, fmt.Errorf("Failed to initialize GCP issuer storage: %v", err)
 	}
 
-	// TODO: replace with a global dedup storage for GCP
-	beDedupStorage, err := bbolt.NewStorage(*dedupPath)
+	beDedupStorage, err := gcpSCTFE.NewDedupeStorage(ctx, *spannerDedupDB)
 	if err != nil {
-		return nil, fmt.Errorf("failed to initialize BBolt deduplication database: %v", err)
+		return nil, fmt.Errorf("failed to initialize GCP Spanner deduplication database: %v", err)
 	}
-
-	fetcher, err := gcpSCTFE.GetFetcher(ctx, *bucket)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get a log fetcher: %v", err)
-	}
-
-	go dedup.UpdateFromLog(ctx, beDedupStorage, time.Second, fetcher, sctfe.DedupFromBundle)
 
 	return sctfe.NewCTSTorage(tesseraStorage, issuerStorage, beDedupStorage)
 }
