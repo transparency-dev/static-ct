@@ -53,12 +53,11 @@ var (
 	notAfterStart timestampFlag
 	notAfterLimit timestampFlag
 
-	httpEndpoint    = flag.String("http_endpoint", "localhost:6962", "Endpoint for HTTP (host:port).")
-	tlsCert         = flag.String("tls_certificate", "", "Path to server TLS certificate.")
-	tlsKey          = flag.String("tls_key", "", "Path to server TLS private key.")
-	metricsEndpoint = flag.String("metrics_endpoint", "", "Endpoint for serving metrics; if left empty, metrics will be visible on --http_endpoint.")
-	// TODO(phboneff): delete / rename
-	rpcDeadline        = flag.Duration("rpc_deadline", time.Second*10, "Deadline for backend RPC requests.")
+	httpEndpoint       = flag.String("http_endpoint", "localhost:6962", "Endpoint for HTTP (host:port).")
+	tlsCert            = flag.String("tls_certificate", "", "Path to server TLS certificate.")
+	tlsKey             = flag.String("tls_key", "", "Path to server TLS private key.")
+	metricsEndpoint    = flag.String("metrics_endpoint", "", "Endpoint for serving metrics; if left empty, metrics will be visible on --http_endpoint.")
+	tesseraDeadline    = flag.Duration("tessera_deadline", time.Second*10, "Deadline for backend RPC requests.")
 	maskInternalErrors = flag.Bool("mask_internal_errors", false, "Don't return error strings with Internal Server Error HTTP responses.")
 	tracing            = flag.Bool("tracing", false, "If true opencensus Stackdriver tracing will be enabled. See https://opencensus.io/.")
 	tracingProjectID   = flag.String("tracing_project_id", "", "project ID to pass to stackdriver. Can be empty for GCP, consult docs for other platforms.")
@@ -113,7 +112,7 @@ func main() {
 	// client.
 	opts := sctfe.InstanceOptions{
 		Validated:          vCfg,
-		Deadline:           *rpcDeadline,
+		Deadline:           *tesseraDeadline,
 		MetricFactory:      prometheus.MetricFactory{},
 		RequestLog:         new(sctfe.DefaultRequestLog),
 		MaskInternalErrors: *maskInternalErrors,

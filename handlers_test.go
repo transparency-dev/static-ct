@@ -35,9 +35,9 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/google/trillian/monitoring"
-	"github.com/transparency-dev/trillian-tessera/ctonly"
 	"github.com/transparency-dev/static-ct/mockstorage"
 	"github.com/transparency-dev/static-ct/testdata"
+	"github.com/transparency-dev/trillian-tessera/ctonly"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
@@ -532,7 +532,7 @@ func (d dlMatcher) Matches(x interface{}) bool {
 
 	deadlineTime, ok := ctx.Deadline()
 	if !ok {
-		return false // we never make RPC calls without a deadline set
+		return false // we never make calls without a deadline set
 	}
 
 	return deadlineTime == fakeDeadlineTime

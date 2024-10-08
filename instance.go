@@ -39,9 +39,6 @@ type InstanceOptions struct {
 	Deadline time.Duration
 	// MetricFactory allows creating metrics.
 	MetricFactory monitoring.MetricFactory
-	// ErrorMapper converts an error from an RPC request to an HTTP status, plus
-	// a boolean to indicate whether the conversion succeeded.
-	ErrorMapper func(error) (int, bool)
 	// RequestLog provides structured logging of CTFE requests.
 	RequestLog         RequestLog
 	MaskInternalErrors bool
