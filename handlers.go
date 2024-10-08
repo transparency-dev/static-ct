@@ -128,7 +128,7 @@ func (a AppHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// impose a deadline on this onward request.
-	ctx, cancel := context.WithDeadline(logCtx, getDeadlineTime(a.Info))
+	ctx, cancel := context.WithDeadline(logCtx, deadlineTime(a.Info))
 	defer cancel()
 
 	var err error
@@ -413,8 +413,8 @@ func getRoots(_ context.Context, li *logInfo, w http.ResponseWriter, _ *http.Req
 	return http.StatusOK, nil
 }
 
-// getDeadlineTime calculates the future time an RPC should expire based on our config
-func getDeadlineTime(li *logInfo) time.Time {
+// deadlineTime calculates the future time an RPC should expire based on our config
+func deadlineTime(li *logInfo) time.Time {
 	return li.TimeSource.Now().Add(li.instanceOpts.Deadline)
 }
 
