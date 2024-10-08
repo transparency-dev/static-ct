@@ -57,7 +57,7 @@ var (
 	tlsCert            = flag.String("tls_certificate", "", "Path to server TLS certificate.")
 	tlsKey             = flag.String("tls_key", "", "Path to server TLS private key.")
 	metricsEndpoint    = flag.String("metrics_endpoint", "", "Endpoint for serving metrics; if left empty, metrics will be visible on --http_endpoint.")
-	tesseraDeadline    = flag.Duration("tessera_deadline", time.Second*10, "Deadline for backend RPC requests.")
+	tesseraDeadline    = flag.Duration("tessera_deadline", time.Second*10, "Deadline for Tessera requests.")
 	maskInternalErrors = flag.Bool("mask_internal_errors", false, "Don't return error strings with Internal Server Error HTTP responses.")
 	tracing            = flag.Bool("tracing", false, "If true opencensus Stackdriver tracing will be enabled. See https://opencensus.io/.")
 	tracingProjectID   = flag.String("tracing_project_id", "", "project ID to pass to stackdriver. Can be empty for GCP, consult docs for other platforms.")
@@ -108,8 +108,7 @@ func main() {
 	corsHandler := cors.AllowAll().Handler(corsMux)
 	http.Handle("/", corsHandler)
 
-	// Register handlers for all the configured logs using the correct RPC
-	// client.
+	// Register handlers for all the configured logs.
 	opts := sctfe.InstanceOptions{
 		Validated:          vCfg,
 		Deadline:           *tesseraDeadline,
