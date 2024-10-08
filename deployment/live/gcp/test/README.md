@@ -44,6 +44,30 @@ go run ./cmd/gcp/ --project_id=${GOOGLE_PROJECT} --bucket=${GOOGLE_PROJECT}-${TE
 
 In a different terminal you can either mint and submit certificates manually, or use the hammer tool to do this.
 
+#### Generate chains manually
+First, save the SCTFE repo's path:
+
+```bash
+export SCTFE_REPO=$(pwd)
+```
+
+Clone the [certificate-transparenct-go](https://github.com/google/certificate-transparency-go) repo.
+Then, generate a chain manually. The password for the private key is `gently`:
+
+```bash
+mkdir -p /tmp/httpschain
+openssl genrsa -out /tmp/httpschain/cert.key 2048
+openssl req -new -key /tmp/httpschain/cert.key -out /tmp/httpschain/cert.csr -config=${SCTFE_REPO}/testdata/fake-ca.cfg
+openssl x509 -req -days 3650 -in /tmp/httpschain/cert.csr -CAkey ${SCTFE_REPO}/testdata/fake-ca.privkey.pem -CA  ${SCTFE_REPO}/testdata/fake-ca.cert -outform pem -out /tmp/httpschain/chain.pem -provider legacy -provider default
+cat ${SCTFE_REPO}/testdata/fake-ca.cert >> /tmp/httpschain/chain.pem
+```
+
+Finally, submit the chain to the SCTFE:
+
+```bash
+go run ./client/ctclient upload --cert_chain=/tmp/httpschain/chain.pem --skip_https_verify --log_uri=http://localhost:6962/${TESSERA_BASE_NAME}
+```
+
 #### Automatically generate chains
 Save the SCTFE repo's path:
 
