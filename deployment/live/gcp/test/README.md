@@ -81,3 +81,40 @@ Clone the [certificate-transparenct-go](https://github.com/google/certificate-tr
 go run ./trillian/integration/ct_hammer/ --ct_http_servers=localhost:6962/${TESSERA_BASE_NAME} --max_retry=2m --invalid_chance=0 --get_sth=0 --get_sth_consistency=0 --get_proof_by_hash=0 --get_entries=0 --get_roots=0 --get_entry_and_proof=0 --max_parallel_chains=4 --skip_https_verify=true --operations=10000 --rate_limit=150 --log_config=${SCTFE_REPO}/testdata/hammer.cfg --testdata_dir=./trillian/testdata/
 ```
 
+### With real HTTPS certificates
+We'll run a SCTFE and copy certificates from an existing RFC6962 log to it.
+It uses the [ct_hammer tool from certificate-transparency-go](https://github.com/google/certificate-transparency-go/tree/aceb1d4481907b00c087020a3930c7bd691a0110/trillian/integration/ct_hammer).
+
+First, set a few environment variables:
+
+```bash
+export SCTFE_REPO=$(pwd)
+export SRC_LOG_URI=https://ct.googleapis.com/logs/xenon2022
+```
+
+Then, get fetch the roots the source logs accepts, and edit configs accordingly.
+To do so, clone the [certificate-transparenct-go](https://github.com/google/certificate-transparency-go) repo, and from there run:
+
+```bash
+export CTGO_REPO=$(pwd)
+mkdir -p /tmp/hammercfg
+cp ${SCTFE_REPO}/testdata/hammer.cfg /tmp/hammercfg
+go run ./client/ctclient get-roots --log_uri=${SRC_LOG_URI} --text=false > /tmp/hammercfg/roots.pem
+sed -i 's-""-"/tmp/hammercfg/roots.pem-g"' /tmp/hammercfg/hammer.cfg
+```
+
+
+Run the SCTFE with the same roots:
+
+```bash
+cd ${STCFE_REPO}
+go run ./cmd/gcp/ --project_id=${GOOGLE_PROJECT} --bucket=${GOOGLE_PROJECT}-${TESSERA_BASE_NAME}-bucket --spanner_db_path=projects/${GOOGLE_PROJECT}/instances/${TESSERA_BASE_NAME}/databases/${TESSERA_BASE_NAME}-db --private_key=./testdata/ct-http-server.privkey.pem  --password=dirk --roots_pem_file=/tmp/hammercfg/roots.pem --origin=${TESSERA_BASE_NAME} --spanner_dedup_db_path=projects/${GOOGLE_PROJECT}/instances/${TESSERA_BASE_NAME}/databases/${TESSERA_BASE_NAME}-dedup-db -v=3
+```
+
+Run `ct_hammer`:
+
+```bash
+cd ${CTGO_REPO}
+go run ./trillian/integration/ct_hammer/ --ct_http_servers=localhost:6962/${TESSERA_BASE_NAME} --max_retry=2m --invalid_chance=0 --get_sth=0 --get_sth_consistency=0  --get_proof_by_hash=0 --get_entries=0 --get_roots=0 --get_entry_and_proof=0 --max_parallel_chains=4 --skip_https_verify=true --operations=10000 --rate_limit=150 --log_config=/tmp/hammercfg/hammer.cfg --src_log_uri=${SRC_LOG_URI}
+```
+
