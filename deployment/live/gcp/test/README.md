@@ -2,7 +2,7 @@
 
 ## Prerequisites
 You'll need to have a VM running in the same GCP project that you can SSH to,
-with go installed.
+with Go installed.
 
 ## Overview
 
