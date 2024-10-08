@@ -10,13 +10,12 @@ This config uses the [gcp/storage](/deployment/modules/gcp/conformance) module t
 define a test environment to run the SCTFE, backed by Trillian Tessera.
 
 At a high level, this environment consists of:
-- Spanner DB
-- GCS Bucket
-- VM to run the code
+- One Spanner instance with two databases:
+  - one for Tessera
+  - one for deduplication
+- A GCS Bucket
 
 ## Manual deployment 
-
-This 
 
 First authenticate via `gcloud` as a principle with sufficient ACLs for
 the project:
@@ -37,7 +36,7 @@ Terraforming the project can be done by:
 
 ## Run the SCTFE
 
-Run the following command:
+On the VM, run the following command:
 ```bash
 go run ./cmd/gcp/ --project_id=${GOOGLE_PROJECT} --bucket=${GOOGLE_PROJECT}-${TESSERA_BASE_NAME}-bucket --spanner_db_path=projects/${GOOGLE_PROJECT}/instances/${TESSERA_BASE_NAME}/databases/${TESSERA_BASE_NAME}-db --spanner_db_path=projects/${GOOGLE_PROJECT}/instances/${TESSERA_BASE_NAME}/databases/${TESSERA_BASE_NAME}-dedup-db --private_key=./testdata/ct-http-server.privkey.pem  --password=dirk --roots_pem_file=./testdata/fake-ca.cert --origin=${TESSERA_BASE_NAME}
 ```
