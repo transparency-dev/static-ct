@@ -2,7 +2,7 @@
 
 ## Prerequisites
 You'll need to have a VM running in the same GCP project that you can SSH to,
-with Go installed, and you favourite terminal multiplexer.
+with Go installed, and your favourite terminal multiplexer.
 
 ## Overview
 
@@ -111,7 +111,7 @@ cd ${STCFE_REPO}
 go run ./cmd/gcp/ --project_id=${GOOGLE_PROJECT} --bucket=${GOOGLE_PROJECT}-${TESSERA_BASE_NAME}-bucket --spanner_db_path=projects/${GOOGLE_PROJECT}/instances/${TESSERA_BASE_NAME}/databases/${TESSERA_BASE_NAME}-db --private_key=./testdata/ct-http-server.privkey.pem  --password=dirk --roots_pem_file=/tmp/hammercfg/roots.pem --origin=${TESSERA_BASE_NAME} --spanner_dedup_db_path=projects/${GOOGLE_PROJECT}/instances/${TESSERA_BASE_NAME}/databases/${TESSERA_BASE_NAME}-dedup-db -v=3
 ```
 
-Run `ct_hammer`:
+Run `ct_hammer` in a different terminal:
 
 ```bash
 cd ${CTGO_REPO}
