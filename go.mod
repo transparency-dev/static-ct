@@ -3,21 +3,21 @@ module github.com/transparency-dev/static-ct
 go 1.23.1
 
 require (
-	cloud.google.com/go/spanner v1.69.0
-	cloud.google.com/go/storage v1.44.0
+	cloud.google.com/go/spanner v1.70.0
+	cloud.google.com/go/storage v1.45.0
 	github.com/golang/mock v1.6.0
 	github.com/google/certificate-transparency-go v1.2.1
 	github.com/google/go-cmp v0.6.0
 	github.com/google/trillian v1.6.1
 	github.com/kylelemons/godebug v1.1.0
-	github.com/prometheus/client_golang v1.20.4
+	github.com/prometheus/client_golang v1.20.5
 	github.com/rs/cors v1.11.1
 	github.com/transparency-dev/formats v0.0.0-20240909113624-7ce4ea605e8b
 	github.com/transparency-dev/trillian-tessera v0.0.0-20240911103714-727b99dc32a7
 	go.etcd.io/bbolt v1.3.11
 	golang.org/x/crypto v0.28.0
 	golang.org/x/mod v0.21.0
-	google.golang.org/api v0.200.0
+	google.golang.org/api v0.201.0
 	google.golang.org/grpc v1.67.1
 	google.golang.org/protobuf v1.35.1
 	k8s.io/klog/v2 v2.130.1
@@ -25,7 +25,7 @@ require (
 
 require (
 	cel.dev/expr v0.16.1 // indirect
-	cloud.google.com/go v0.115.1 // indirect
+	cloud.google.com/go v0.116.0 // indirect
 	cloud.google.com/go/auth v0.9.8 // indirect
 	cloud.google.com/go/auth/oauth2adapt v0.2.4 // indirect
 	cloud.google.com/go/compute/metadata v0.5.2 // indirect
