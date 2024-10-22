@@ -42,7 +42,10 @@ On the VM, run the following command to bring up the SCTFE:
 go run ./cmd/gcp/ --project_id=${GOOGLE_PROJECT} --bucket=${GOOGLE_PROJECT}-${TESSERA_BASE_NAME}-bucket --spanner_db_path=projects/${GOOGLE_PROJECT}/instances/${TESSERA_BASE_NAME}/databases/${TESSERA_BASE_NAME}-db --spanner_db_path=projects/${GOOGLE_PROJECT}/instances/${TESSERA_BASE_NAME}/databases/${TESSERA_BASE_NAME}-dedup-db --private_key=./testdata/ct-http-server.privkey.pem  --password=dirk --roots_pem_file=./testdata/fake-ca.cert --origin=${TESSERA_BASE_NAME}
 ```
 
-In a different terminal you can either mint and submit certificates manually, or use the hammer tool to do this.
+In a different terminal you can either mint and submit certificates manually, or
+use the [ct_hammer
+tool](https://github.com/google/certificate-transparency-go/blob/master/trillian/integration/ct_hammer/main.go)
+to do this.
 
 #### Generate chains manually
 First, save the SCTFE repo's path:
@@ -51,7 +54,7 @@ First, save the SCTFE repo's path:
 export SCTFE_REPO=$(pwd)
 ```
 
-Clone the [certificate-transparenct-go](https://github.com/google/certificate-transparency-go) repo.
+Clone the [certificate-transparency-go](https://github.com/google/certificate-transparency-go) repo.
 Then, generate a chain manually. The password for the private key is `gently`:
 
 ```bash
@@ -75,7 +78,7 @@ Save the SCTFE repo's path:
 export SCTFE_REPO=$(pwd)
 ```
 
-Clone the [certificate-transparenct-go](https://github.com/google/certificate-transparency-go) repo, and from there run:
+Clone the [certificate-transparency-go](https://github.com/google/certificate-transparency-go) repo, and from there run:
 
 ```bash
 go run ./trillian/integration/ct_hammer/ --ct_http_servers=localhost:6962/${TESSERA_BASE_NAME} --max_retry=2m --invalid_chance=0 --get_sth=0 --get_sth_consistency=0 --get_proof_by_hash=0 --get_entries=0 --get_roots=0 --get_entry_and_proof=0 --max_parallel_chains=4 --skip_https_verify=true --operations=10000 --rate_limit=150 --log_config=${SCTFE_REPO}/testdata/hammer.cfg --testdata_dir=./trillian/testdata/
@@ -93,7 +96,7 @@ export SRC_LOG_URI=https://ct.googleapis.com/logs/xenon2022
 ```
 
 Then, get fetch the roots the source logs accepts, and edit configs accordingly.
-To do so, clone the [certificate-transparenct-go](https://github.com/google/certificate-transparency-go) repo, and from there run:
+To do so, clone the [certificate-transparency-go](https://github.com/google/certificate-transparency-go) repo, and from there run:
 
 ```bash
 export CTGO_REPO=$(pwd)
