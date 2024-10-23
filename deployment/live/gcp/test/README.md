@@ -110,7 +110,7 @@ sed -i 's-""-"/tmp/hammercfg/roots.pem"-g' /tmp/hammercfg/hammer.cfg
 Run the SCTFE with the same roots:
 
 ```bash
-cd ${STCFE_REPO}
+cd ${SCTFE_REPO}
 go run ./cmd/gcp/ --project_id=${GOOGLE_PROJECT} --bucket=${GOOGLE_PROJECT}-${TESSERA_BASE_NAME}-bucket --spanner_db_path=projects/${GOOGLE_PROJECT}/instances/${TESSERA_BASE_NAME}/databases/${TESSERA_BASE_NAME}-db --private_key=./testdata/ct-http-server.privkey.pem  --password=dirk --roots_pem_file=/tmp/hammercfg/roots.pem --origin=${TESSERA_BASE_NAME} --spanner_dedup_db_path=projects/${GOOGLE_PROJECT}/instances/${TESSERA_BASE_NAME}/databases/${TESSERA_BASE_NAME}-dedup-db -v=3
 ```
 
