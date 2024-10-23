@@ -103,7 +103,7 @@ export CTGO_REPO=$(pwd)
 mkdir -p /tmp/hammercfg
 cp ${SCTFE_REPO}/testdata/hammer.cfg /tmp/hammercfg
 go run ./client/ctclient get-roots --log_uri=${SRC_LOG_URI} --text=false > /tmp/hammercfg/roots.pem
-sed -i 's-""-"/tmp/hammercfg/roots.pem-g"' /tmp/hammercfg/hammer.cfg
+sed -i 's-""-"/tmp/hammercfg/roots.pem"-g' /tmp/hammercfg/hammer.cfg
 ```
 
 
