@@ -21,9 +21,8 @@ import (
 	"path"
 
 	gcs "cloud.google.com/go/storage"
-	"github.com/transparency-dev/static-ct"
+	sctfe "github.com/transparency-dev/static-ct"
 	"google.golang.org/api/googleapi"
-	"google.golang.org/api/iterator"
 	"k8s.io/klog/v2"
 )
 
@@ -43,19 +42,6 @@ func NewIssuerStorage(ctx context.Context, projectID string, bucket string, pref
 		return nil, fmt.Errorf("failed to create GCS client: %v", err)
 	}
 
-	it := c.Buckets(ctx, projectID)
-	for {
-		bAttrs, err := it.Next()
-		if err == iterator.Done {
-			return nil, fmt.Errorf("bucket %q does not exist, please create it", bucket)
-		}
-		if err != nil {
-			return nil, fmt.Errorf("error scanning buckets: %v", err)
-		}
-		if bAttrs.Name == bucket {
-			break
-		}
-	}
 	r := &IssuersStorage{
 		bucket:      c.Bucket(bucket),
 		prefix:      prefix,
