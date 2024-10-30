@@ -179,6 +179,9 @@ func main() {
 	})
 
 	err = srv.ListenAndServe()
+	if err != http.ErrServerClosed {
+		klog.Warningf("Server exited: %v", err)
+	}
 	// Wait will only block if the function passed to awaitSignal was called,
 	// in which case it'll block until the HTTP server has gracefully shutdown
 	shutdownWG.Wait()
