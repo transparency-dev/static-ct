@@ -1,7 +1,9 @@
 # SCTFE
 
-This personality implements [CT Static API](https://c2sp.org/static-ct-api) using
-Trillian Tessera to store data. It is based on [Trillian's CTFE](https://github.com/google/certificate-transparency-go/tree/master/trillian/ctfe).
+This personality implements [CT Static API](https://c2sp.org/static-ct-api) 
+using [Trillian Tessera](https://github.com/transparency-dev/trillian-tessera) 
+to store data. It is based on 
+[Trillian's CTFE](https://github.com/google/certificate-transparency-go/tree/master/trillian/ctfe).
 
 It is under active development.
 
@@ -21,6 +23,7 @@ To re-generate these files, first install the right tools:
  - [mockgen](https://github.com/golang/mock?tab=readme-ov-file#installation)
 
 Then, generate the files:
+
 ```bash
 cd $(go list -f '{{ .Dir }}' github.com/transparency-dev/static-ct); \
 go generate -x ./...  # hunts for //go:generate comments and runs them

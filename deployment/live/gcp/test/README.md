@@ -2,7 +2,9 @@
 
 ## Prerequisites
 You'll need to have a VM running in the same GCP project that you can SSH to,
-with Go installed, and your favourite terminal multiplexer.
+with [Go](https://go.dev/doc/install) and 
+[terragrunt](https://terragrunt.gruntwork.io/docs/getting-started/install/) 
+installed, and your favourite terminal multiplexer.
 
 ## Overview
 
@@ -19,11 +21,13 @@ At a high level, this environment consists of:
 
 First authenticate via `gcloud` as a principle with sufficient ACLs for
 the project:
+
 ```bash
 gcloud auth application-default login
 ```
 
 Set the required environment variables:
+
 ```bash
 export GOOGLE_PROJECT={VALUE}
 export GOOGLE_REGION={VALUE} # e.g: us-central1
