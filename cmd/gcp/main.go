@@ -178,8 +178,7 @@ func main() {
 		klog.Info("HTTP server shutdown")
 	})
 
-	err = srv.ListenAndServe()
-	if err != http.ErrServerClosed {
+	if err := srv.ListenAndServe(); err != http.ErrServerClosed {
 		klog.Warningf("Server exited: %v", err)
 	}
 	// Wait will only block if the function passed to awaitSignal was called,
