@@ -17,7 +17,6 @@ package main
 
 import (
 	"context"
-	"crypto/tls"
 	"flag"
 	"fmt"
 	"net/http"
@@ -52,8 +51,6 @@ var (
 	notAfterLimit timestampFlag
 
 	httpEndpoint       = flag.String("http_endpoint", "localhost:6962", "Endpoint for HTTP (host:port).")
-	tlsCert            = flag.String("tls_certificate", "", "Path to server TLS certificate.")
-	tlsKey             = flag.String("tls_key", "", "Path to server TLS private key.")
 	metricsEndpoint    = flag.String("metrics_endpoint", "", "Endpoint for serving metrics; if left empty, metrics will be visible on --http_endpoint.")
 	tesseraDeadline    = flag.Duration("tessera_deadline", time.Second*10, "Deadline for Tessera requests.")
 	maskInternalErrors = flag.Bool("mask_internal_errors", false, "Don't return error strings with Internal Server Error HTTP responses.")
@@ -165,20 +162,7 @@ func main() {
 	}
 
 	// Bring up the HTTP server and serve until we get a signal not to.
-	srv := http.Server{}
-	if *tlsCert != "" && *tlsKey != "" {
-		cert, err := tls.LoadX509KeyPair(*tlsCert, *tlsKey)
-		if err != nil {
-			klog.Errorf("failed to load TLS certificate/key: %v", err)
-		}
-		tlsConfig := &tls.Config{
-			Certificates: []tls.Certificate{cert},
-			MinVersion:   tls.VersionTLS12,
-		}
-		srv = http.Server{Addr: *httpEndpoint, Handler: handler, TLSConfig: tlsConfig}
-	} else {
-		srv = http.Server{Addr: *httpEndpoint, Handler: handler}
-	}
+	srv := http.Server{Addr: *httpEndpoint, Handler: handler}
 	shutdownWG := new(sync.WaitGroup)
 	go awaitSignal(func() {
 		shutdownWG.Add(1)
@@ -194,12 +178,7 @@ func main() {
 		klog.Info("HTTP server shutdown")
 	})
 
-	if *tlsCert != "" && *tlsKey != "" {
-		err = srv.ListenAndServeTLS("", "")
-	} else {
-		err = srv.ListenAndServe()
-	}
-	if err != http.ErrServerClosed {
+	if err := srv.ListenAndServe(); err != http.ErrServerClosed {
 		klog.Warningf("Server exited: %v", err)
 	}
 	// Wait will only block if the function passed to awaitSignal was called,
