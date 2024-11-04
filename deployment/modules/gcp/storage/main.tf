@@ -65,3 +65,27 @@ resource "google_spanner_database" "dedup_db" {
     "CREATE TABLE IDSeq (id INT64 NOT NULL, h BYTES(MAX) NOT NULL, idx INT64 NOT NULL,) PRIMARY KEY (id, h)",
   ]
 }
+
+# KMS
+
+resource "google_kms_key_ring" "sctfe-keyring" {
+  name     = var.base_name
+  location = var.kms_location
+}
+
+resource "google_kms_crypto_key" "sctfe-asymmetric-sign-key-p256-sha256" {
+  name     = "sctfe-p256-sha256"
+  key_ring = google_kms_key_ring.sctfe-keyring.id
+  purpose  = "ASYMMETRIC_SIGN"
+
+  version_template {
+    algorithm        = "EC_SIGN_P256_SHA256"
+    protection_level = "SOFTWARE"
+  }
+
+  lifecycle {
+    prevent_destroy = true
+  }
+
+  depends_on = [google_kms_key_ring.sctfe-keyring]
+}

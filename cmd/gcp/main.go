@@ -27,7 +27,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/google/trillian/crypto/keys/pem"
 	"github.com/google/trillian/monitoring/opencensus"
 	"github.com/google/trillian/monitoring/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -67,8 +66,7 @@ var (
 	rejectUnexpired    = flag.Bool("reject_unexpired", false, "If true then CTFE rejects certificates that are either currently valid or not yet valid.")
 	extKeyUsages       = flag.String("ext_key_usages", "", "If set, will restrict the set of such usages that the server will accept. By default all are accepted. The values specified must be ones known to the x509 package.")
 	rejectExtensions   = flag.String("reject_extension", "", "A list of X.509 extension OIDs, in dotted string form (e.g. '2.3.4.5') which, if present, should cause submissions to be rejected.")
-	privKey            = flag.String("private_key", "", "Path to a private key .der file. Used to sign checkpoints and SCTs.")
-	privKeyPass        = flag.String("password", "", "private_key password.")
+	kmsKeyName         = flag.String("kms_key", "", "GCP KMS key name for signing checkpoints and SCTs. Format: projects/{projectId}/locations/{kmsRegion}/keyRings/{kmsKeyRing}/cryptoKeys/{keyName}/cryptoKeyVersions/{keyVersion}.")
 )
 
 // nolint:staticcheck
@@ -77,10 +75,9 @@ func main() {
 	flag.Parse()
 	ctx := context.Background()
 
-	// TODO(phboneff): move to something else, like KMS
-	signer, err := pem.ReadPrivateKeyFile(*privKey, *privKeyPass)
+	signer, err := NewKMSSigner(ctx, *kmsKeyName)
 	if err != nil {
-		klog.Exitf("Can't open key: %v", err)
+		klog.Exitf("Can't create KMS signer: %v", err)
 	}
 
 	vCfg, err := sctfe.ValidateLogConfig(*origin, *projectID, *bucket, *spannerDB, *rootsPemFile, *rejectExpired, *rejectUnexpired, *extKeyUsages, *rejectExtensions, notAfterStart.t, notAfterLimit.t, signer)

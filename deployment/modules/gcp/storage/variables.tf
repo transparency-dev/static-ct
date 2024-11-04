@@ -12,3 +12,9 @@ variable "location" {
   description = "Location in which to create resources"
   type        = string
 }
+
+variable "kms_location" {
+  type        = string
+  description = "Location of KMS keyring"
+  default     = "global"
+}

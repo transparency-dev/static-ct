@@ -16,6 +16,8 @@ package sctfe
 
 import (
 	"crypto"
+	"crypto/ecdsa"
+	"crypto/rsa"
 	"errors"
 	"fmt"
 	"strings"
@@ -32,7 +34,6 @@ type ValidatedLogConfig struct {
 	// is also its submission prefix, as per https://c2sp.org/static-ct-api.
 	Origin string
 	// Used to sign the checkpoint and SCTs.
-	// TODO(phboneff): check that this is RSA or ECDSA only.
 	Signer crypto.Signer
 	// If set, ExtKeyUsages will restrict the set of such usages that the
 	// server will accept. By default all are accepted. The values specified
@@ -88,6 +89,16 @@ func ValidateLogConfig(origin string, projectID string, bucket string, spannerDB
 
 	if rootsPemFile == "" {
 		return nil, errors.New("empty rootsPemFile")
+	}
+
+	// Validate signer that only RSA or ECDSA are supported.
+	if signer == nil {
+		return nil, errors.New("empty signer")
+	}
+	switch keyType := signer.Public().(type) {
+	case *rsa.PublicKey, *ecdsa.PublicKey:
+	default:
+		return nil, fmt.Errorf("unsupported key type: %v", keyType)
 	}
 
 	lExtKeyUsages := []string{}
