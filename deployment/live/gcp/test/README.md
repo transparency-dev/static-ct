@@ -38,6 +38,12 @@ Terraforming the project can be done by:
  1. `cd` to the relevant directory for the environment to deploy/change (e.g. `ci`)
  2. Run `terragrunt apply`
 
+Store the KMS key resource ID into the enviroenment variable:
+
+```sh
+export SCTFE_KMS_KEY=$(terragrunt output -json kms_key | jq --raw-output ".id")
+```
+
 ## Run the SCTFE
 
 ### With fake chains
@@ -45,7 +51,7 @@ Terraforming the project can be done by:
 On the VM, run the following command to bring up the SCTFE:
 
 ```bash
-go run ./cmd/gcp/ --project_id=${GOOGLE_PROJECT} --bucket=${GOOGLE_PROJECT}-${TESSERA_BASE_NAME}-bucket --spanner_db_path=projects/${GOOGLE_PROJECT}/instances/${TESSERA_BASE_NAME}/databases/${TESSERA_BASE_NAME}-db --spanner_dedup_db_path=projects/${GOOGLE_PROJECT}/instances/${TESSERA_BASE_NAME}/databases/${TESSERA_BASE_NAME}-dedup-db --private_key=./testdata/ct-http-server.privkey.pem  --password=dirk --roots_pem_file=./testdata/fake-ca.cert --origin=${TESSERA_BASE_NAME} --kms_key=projects/${GOOGLE_PROJECT}/locations/global/keyRings/${TESSERA_BASE_NAME}/cryptoKeys/sctfe-p256-sha256/cryptoKeyVersions/1
+go run ./cmd/gcp/ --project_id=${GOOGLE_PROJECT} --bucket=${GOOGLE_PROJECT}-${TESSERA_BASE_NAME}-bucket --spanner_db_path=projects/${GOOGLE_PROJECT}/instances/${TESSERA_BASE_NAME}/databases/${TESSERA_BASE_NAME}-db --spanner_dedup_db_path=projects/${GOOGLE_PROJECT}/instances/${TESSERA_BASE_NAME}/databases/${TESSERA_BASE_NAME}-dedup-db --roots_pem_file=./testdata/fake-ca.cert --origin=${TESSERA_BASE_NAME} --kms_key=${SCTFE_KMS_KEY}
 ```
 
 In a different terminal you can either mint and submit certificates manually, or
@@ -67,7 +73,7 @@ Then, generate a chain manually. The password for the private key is `gently`:
 mkdir -p /tmp/httpschain
 openssl genrsa -out /tmp/httpschain/cert.key 2048
 openssl req -new -key /tmp/httpschain/cert.key -out /tmp/httpschain/cert.csr -config=${SCTFE_REPO}/testdata/fake-ca.cfg
-openssl x509 -req -days 3650 -in /tmp/httpschain/cert.csr -CAkey ${SCTFE_REPO}/testdata/fake-ca.privkey.pem -CA  ${SCTFE_REPO}/testdata/fake-ca.cert -outform pem -out /tmp/httpschain/chain.pem -provider legacy -provider default
+openssl x509 -req -days 3650 -in /tmp/httpschain/cert.csr -CAkey ${SCTFE_REPO}/testdata/fake-ca.privkey.pem -CA ${SCTFE_REPO}/testdata/fake-ca.cert -outform pem -out /tmp/httpschain/chain.pem -provider legacy -provider default
 cat ${SCTFE_REPO}/testdata/fake-ca.cert >> /tmp/httpschain/chain.pem
 ```
 
@@ -117,7 +123,7 @@ Run the SCTFE with the same roots:
 
 ```bash
 cd ${SCTFE_REPO}
-go run ./cmd/gcp/ --project_id=${GOOGLE_PROJECT} --bucket=${GOOGLE_PROJECT}-${TESSERA_BASE_NAME}-bucket --spanner_db_path=projects/${GOOGLE_PROJECT}/instances/${TESSERA_BASE_NAME}/databases/${TESSERA_BASE_NAME}-db --roots_pem_file=/tmp/hammercfg/roots.pem --origin=${TESSERA_BASE_NAME} --spanner_dedup_db_path=projects/${GOOGLE_PROJECT}/instances/${TESSERA_BASE_NAME}/databases/${TESSERA_BASE_NAME}-dedup-db --kms_key=projects/${GOOGLE_PROJECT}/locations/global/keyRings/${TESSERA_BASE_NAME}/cryptoKeys/sctfe-p256-sha256/cryptoKeyVersions/1 -v=3
+go run ./cmd/gcp/ --project_id=${GOOGLE_PROJECT} --bucket=${GOOGLE_PROJECT}-${TESSERA_BASE_NAME}-bucket --spanner_db_path=projects/${GOOGLE_PROJECT}/instances/${TESSERA_BASE_NAME}/databases/${TESSERA_BASE_NAME}-db --roots_pem_file=/tmp/hammercfg/roots.pem --origin=${TESSERA_BASE_NAME} --spanner_dedup_db_path=projects/${GOOGLE_PROJECT}/instances/${TESSERA_BASE_NAME}/databases/${TESSERA_BASE_NAME}-dedup-db  --kms_key=${SCTFE_KMS_KEY} -v=3
 ```
 
 Run `ct_hammer` in a different terminal:
