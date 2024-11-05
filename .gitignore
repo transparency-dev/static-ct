@@ -26,3 +26,18 @@ go.work.sum
 
 # Project IDX
 .idx/
+
+# Terraform
+
+## Local .terraform directories
+**/.terraform/*
+
+## .tfstate files
+*.tfstate
+*.tfstate.*
+
+## Ignore transient lock info files created by terraform apply
+.terraform.tfstate.lock.info
+
+# Terragrunt
+.terragrunt-cache
