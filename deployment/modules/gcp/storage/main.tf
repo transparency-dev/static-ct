@@ -65,3 +65,47 @@ resource "google_spanner_database" "dedup_db" {
     "CREATE TABLE IDSeq (id INT64 NOT NULL, h BYTES(MAX) NOT NULL, idx INT64 NOT NULL,) PRIMARY KEY (id, h)",
   ]
 }
+
+# Secret Manager
+
+# ECDSA key with P256 elliptic curve
+resource "tls_private_key" "sctfe-ecdsa-p256" {
+  algorithm   = "ECDSA"
+  ecdsa_curve = "P256"
+}
+
+resource "google_secret_manager_secret" "sctfe-ecdsa-p256-public-key" {
+  secret_id = "sctfe-ecdsa-p256-public-key"
+
+  labels = {
+    label = "sctfe-public-key"
+  }
+
+  replication {
+    auto {}
+  }
+}
+
+resource "google_secret_manager_secret_version" "sctfe-ecdsa-p256-public-key" {
+  secret = google_secret_manager_secret.sctfe-ecdsa-p256-public-key.id
+
+  secret_data = tls_private_key.sctfe-ecdsa-p256.public_key_pem
+}
+
+resource "google_secret_manager_secret" "sctfe-ecdsa-p256-private-key" {
+  secret_id = "sctfe-ecdsa-p256-private-key"
+
+  labels = {
+    label = "sctfe-private-key"
+  }
+
+  replication {
+    auto {}
+  }
+}
+
+resource "google_secret_manager_secret_version" "sctfe-ecdsa-p256-private-key" {
+  secret = google_secret_manager_secret.sctfe-ecdsa-p256-private-key.id
+
+  secret_data = tls_private_key.sctfe-ecdsa-p256.private_key_pem
+}

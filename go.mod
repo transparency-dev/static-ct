@@ -3,6 +3,7 @@ module github.com/transparency-dev/static-ct
 go 1.23.1
 
 require (
+	cloud.google.com/go/secretmanager v1.14.2
 	cloud.google.com/go/spanner v1.71.0
 	cloud.google.com/go/storage v1.46.0
 	github.com/golang/mock v1.6.0
