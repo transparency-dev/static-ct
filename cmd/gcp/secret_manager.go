@@ -32,8 +32,8 @@ import (
 // ECDSAWithSHA256Signer implements crypto.Signer using Google Cloud Secret Manager.
 // Only crypto.SHA256 and ECDSA are supported.
 type ECDSAWithSHA256Signer struct {
-	publicKey  crypto.PublicKey
-	privateKey crypto.PrivateKey
+	publicKey  *ecdsa.PublicKey
+	privateKey *ecdsa.PrivateKey
 }
 
 // Public returns the public key stored in the Signer object.
@@ -54,12 +54,7 @@ func (s *ECDSAWithSHA256Signer) Sign(rand io.Reader, digest []byte, opts crypto.
 		return nil, fmt.Errorf("digest bytes length %d does not match hash function bytes length %d", len(digest), opts.HashFunc().Size())
 	}
 
-	privateKey, ok := s.privateKey.(*ecdsa.PrivateKey)
-	if !ok {
-		return nil, fmt.Errorf("the key stored in Secret Manager is not an ECDSA key")
-	}
-
-	return ecdsa.SignASN1(rand, privateKey, digest)
+	return ecdsa.SignASN1(rand, s.privateKey, digest)
 }
 
 // NewSecretManagerSigner creates a new signer that uses the ECDSA P-256 key pair in
@@ -86,16 +81,21 @@ func NewSecretManagerSigner(ctx context.Context, publicKeySecretName, privateKey
 	if err != nil {
 		return nil, err
 	}
+	var ecdsaPublicKey *ecdsa.PublicKey
+	ecdsaPublicKey, ok := publicKey.(*ecdsa.PublicKey)
+	if !ok {
+		return nil, fmt.Errorf("the public key stored in Secret Manager is not an ECDSA key")
+	}
 
 	// Private Key
-	var privateKey crypto.PrivateKey
+	var ecdsaPrivateKey *ecdsa.PrivateKey
 	pemBlock, err = secretPEM(ctx, client, privateKeySecretName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get private key secret PEM (%s): %w", privateKeySecretName, err)
 	}
 	switch pemBlock.Type {
 	case "EC PRIVATE KEY":
-		privateKey, err = x509.ParseECPrivateKey(pemBlock.Bytes)
+		ecdsaPrivateKey, err = x509.ParseECPrivateKey(pemBlock.Bytes)
 	default:
 		return nil, fmt.Errorf("unsupported PEM type: %s", pemBlock.Type)
 	}
@@ -104,13 +104,13 @@ func NewSecretManagerSigner(ctx context.Context, publicKeySecretName, privateKey
 	}
 
 	// Verify the correctness of the signer key pair
-	if !privateKey.(*ecdsa.PrivateKey).PublicKey.Equal(publicKey) {
+	if !ecdsaPrivateKey.PublicKey.Equal(ecdsaPublicKey) {
 		return nil, errors.New("signer key pair doesn't match")
 	}
 
 	return &ECDSAWithSHA256Signer{
-		publicKey:  publicKey,
-		privateKey: privateKey,
+		publicKey:  ecdsaPublicKey,
+		privateKey: ecdsaPrivateKey,
 	}, nil
 }
 
