@@ -44,7 +44,10 @@ func (s *ECDSAWithSHA256Signer) Public() crypto.PublicKey {
 // Sign signs digest with the private key stored in Google Cloud Secret Manager.
 func (s *ECDSAWithSHA256Signer) Sign(rand io.Reader, digest []byte, opts crypto.SignerOpts) ([]byte, error) {
 	// Verify hash function and digest bytes length.
-	if opts == nil || opts.HashFunc() != crypto.SHA256 {
+	if opts == nil {
+		return nil, errors.New("opts cannot be nil")
+	}
+	if opts.HashFunc() != crypto.SHA256 {
 		return nil, fmt.Errorf("unsupported hash func: %v", opts.HashFunc())
 	}
 	if len(digest) != opts.HashFunc().Size() {
