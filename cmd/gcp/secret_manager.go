@@ -29,20 +29,20 @@ import (
 	"cloud.google.com/go/secretmanager/apiv1/secretmanagerpb"
 )
 
-// Signer implements crypto.Signer using Google Cloud Secret Manager.
-type Signer struct {
+// ECDSAWithSHA256Signer implements crypto.Signer using Google Cloud Secret Manager.
+// Only crypto.SHA256 and ECDSA are supported.
+type ECDSAWithSHA256Signer struct {
 	publicKey  crypto.PublicKey
 	privateKey crypto.PrivateKey
 }
 
 // Public returns the public key stored in the Signer object.
-func (s *Signer) Public() crypto.PublicKey {
+func (s *ECDSAWithSHA256Signer) Public() crypto.PublicKey {
 	return s.publicKey
 }
 
 // Sign signs digest with the private key stored in Google Cloud Secret Manager.
-// Only crypto.SHA256 and ECDSA are supported.
-func (s *Signer) Sign(rand io.Reader, digest []byte, opts crypto.SignerOpts) ([]byte, error) {
+func (s *ECDSAWithSHA256Signer) Sign(rand io.Reader, digest []byte, opts crypto.SignerOpts) ([]byte, error) {
 	// Verify hash function and digest bytes length.
 	if opts == nil || opts.HashFunc() != crypto.SHA256 {
 		return nil, fmt.Errorf("unsupported hash func: %v", opts.HashFunc())
@@ -61,7 +61,7 @@ func (s *Signer) Sign(rand io.Reader, digest []byte, opts crypto.SignerOpts) ([]
 
 // NewSecretManagerSigner creates a new signer that uses the ECDSA P-256 key pair in
 // Google Cloud Secret Manager for signing digests.
-func NewSecretManagerSigner(ctx context.Context, publicKeySecretName, privateKeySecretName string) (*Signer, error) {
+func NewSecretManagerSigner(ctx context.Context, publicKeySecretName, privateKeySecretName string) (*ECDSAWithSHA256Signer, error) {
 	client, err := secretmanager.NewClient(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create secret manager client: %w", err)
@@ -114,7 +114,7 @@ func NewSecretManagerSigner(ctx context.Context, publicKeySecretName, privateKey
 		return nil, err
 	}
 
-	return &Signer{
+	return &ECDSAWithSHA256Signer{
 		publicKey:  publicKey,
 		privateKey: privateKey,
 	}, nil
