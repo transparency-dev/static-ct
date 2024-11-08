@@ -71,7 +71,7 @@ func NewSecretManagerSigner(ctx context.Context, publicKeySecretName, privateKey
 	// Public Key
 	publicKeyRaw, err := accessSecretVersion(ctx, client, publicKeySecretName)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to access public key secret (%s): %w", publicKeySecretName, err)
 	}
 	pemBlock, rest := pem.Decode([]byte(publicKeyRaw))
 	if pemBlock == nil {
@@ -94,7 +94,7 @@ func NewSecretManagerSigner(ctx context.Context, publicKeySecretName, privateKey
 	// Private Key
 	privateKeyRaw, err := accessSecretVersion(ctx, client, privateKeySecretName)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to access private key secret (%s): %w", privateKeySecretName, err)
 	}
 	pemBlock, rest = pem.Decode([]byte(privateKeyRaw))
 	if pemBlock == nil {
