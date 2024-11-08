@@ -77,12 +77,12 @@ resource "google_spanner_database" "dedup_db" {
 # distribute it securely to the system where Terraform will be run.
 #
 # See https://registry.terraform.io/providers/hashicorp/tls/latest/docs/resources/private_key.
-resource "tls_private_key" "sctfe-ecdsa-p256" {
+resource "tls_private_key" "sctfe_ecdsa_p256" {
   algorithm   = "ECDSA"
   ecdsa_curve = "P256"
 }
 
-resource "google_secret_manager_secret" "sctfe-ecdsa-p256-public-key" {
+resource "google_secret_manager_secret" "sctfe_ecdsa_p256_public_key" {
   secret_id = "sctfe-ecdsa-p256-public-key"
 
   labels = {
@@ -94,13 +94,13 @@ resource "google_secret_manager_secret" "sctfe-ecdsa-p256-public-key" {
   }
 }
 
-resource "google_secret_manager_secret_version" "sctfe-ecdsa-p256-public-key" {
-  secret = google_secret_manager_secret.sctfe-ecdsa-p256-public-key.id
+resource "google_secret_manager_secret_version" "sctfe_ecdsa_p256_public_key" {
+  secret = google_secret_manager_secret.sctfe_ecdsa_p256_public_key.id
 
-  secret_data = tls_private_key.sctfe-ecdsa-p256.public_key_pem
+  secret_data = tls_private_key.sctfe_ecdsa_p256.public_key_pem
 }
 
-resource "google_secret_manager_secret" "sctfe-ecdsa-p256-private-key" {
+resource "google_secret_manager_secret" "sctfe_ecdsa_p256_private_key" {
   secret_id = "sctfe-ecdsa-p256-private-key"
 
   labels = {
@@ -112,8 +112,8 @@ resource "google_secret_manager_secret" "sctfe-ecdsa-p256-private-key" {
   }
 }
 
-resource "google_secret_manager_secret_version" "sctfe-ecdsa-p256-private-key" {
-  secret = google_secret_manager_secret.sctfe-ecdsa-p256-private-key.id
+resource "google_secret_manager_secret_version" "sctfe_ecdsa_p256_private_key" {
+  secret = google_secret_manager_secret.sctfe_ecdsa_p256_private_key.id
 
-  secret_data = tls_private_key.sctfe-ecdsa-p256.private_key_pem
+  secret_data = tls_private_key.sctfe_ecdsa_p256.private_key_pem
 }
