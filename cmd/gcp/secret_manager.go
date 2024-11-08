@@ -69,18 +69,11 @@ func NewSecretManagerSigner(ctx context.Context, publicKeySecretName, privateKey
 	defer client.Close()
 
 	// Public Key
-	publicKeyRaw, err := accessSecretVersion(ctx, client, publicKeySecretName)
-	if err != nil {
-		return nil, fmt.Errorf("failed to access public key secret (%s): %w", publicKeySecretName, err)
-	}
-	pemBlock, rest := pem.Decode([]byte(publicKeyRaw))
-	if pemBlock == nil {
-		return nil, errors.New("failed to decode PEM")
-	}
-	if len(rest) > 0 {
-		return nil, fmt.Errorf("extra data after decoding PEM: %v", rest)
-	}
 	var publicKey crypto.PublicKey
+	pemBlock, err := secretPEM(ctx, client, publicKeySecretName)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get public key secret PEM (%s): %w", publicKeySecretName, err)
+	}
 	switch pemBlock.Type {
 	case "PUBLIC KEY":
 		publicKey, err = x509.ParsePKIXPublicKey(pemBlock.Bytes)
@@ -92,18 +85,11 @@ func NewSecretManagerSigner(ctx context.Context, publicKeySecretName, privateKey
 	}
 
 	// Private Key
-	privateKeyRaw, err := accessSecretVersion(ctx, client, privateKeySecretName)
-	if err != nil {
-		return nil, fmt.Errorf("failed to access private key secret (%s): %w", privateKeySecretName, err)
-	}
-	pemBlock, rest = pem.Decode([]byte(privateKeyRaw))
-	if pemBlock == nil {
-		return nil, errors.New("failed to decode PEM")
-	}
-	if len(rest) > 0 {
-		return nil, fmt.Errorf("extra data after decoding PEM: %v", rest)
-	}
 	var privateKey crypto.PrivateKey
+	pemBlock, err = secretPEM(ctx, client, privateKeySecretName)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get private key secret PEM (%s): %w", privateKeySecretName, err)
+	}
 	switch pemBlock.Type {
 	case "EC PRIVATE KEY":
 		privateKey, err = x509.ParseECPrivateKey(pemBlock.Bytes)
@@ -120,7 +106,7 @@ func NewSecretManagerSigner(ctx context.Context, publicKeySecretName, privateKey
 	}, nil
 }
 
-func accessSecretVersion(ctx context.Context, client *secretmanager.Client, secretName string) ([]byte, error) {
+func secretPEM(ctx context.Context, client *secretmanager.Client, secretName string) (*pem.Block, error) {
 	resp, err := client.AccessSecretVersion(ctx, &secretmanagerpb.AccessSecretVersionRequest{
 		Name: secretName,
 	})
@@ -137,5 +123,13 @@ func accessSecretVersion(ctx context.Context, client *secretmanager.Client, secr
 		return nil, errors.New("Data corruption detected.")
 	}
 
-	return resp.Payload.Data, nil
+	pemBlock, rest := pem.Decode([]byte(resp.Payload.Data))
+	if pemBlock == nil {
+		return nil, errors.New("failed to decode PEM")
+	}
+	if len(rest) > 0 {
+		return nil, fmt.Errorf("extra data after decoding PEM: %v", rest)
+	}
+
+	return pemBlock, nil
 }
