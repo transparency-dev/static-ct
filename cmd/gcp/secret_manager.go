@@ -103,6 +103,11 @@ func NewSecretManagerSigner(ctx context.Context, publicKeySecretName, privateKey
 		return nil, err
 	}
 
+	// Verify the correctness of the signer key pair
+	if !privateKey.(*ecdsa.PrivateKey).PublicKey.Equal(publicKey) {
+		return nil, errors.New("signer key pair doesn't match")
+	}
+
 	return &ECDSAWithSHA256Signer{
 		publicKey:  publicKey,
 		privateKey: privateKey,
