@@ -38,6 +38,13 @@ Terraforming the project can be done by:
  1. `cd` to the relevant directory for the environment to deploy/change (e.g. `ci`)
  2. Run `terragrunt apply`
 
+Store the Secret Manager resource ID of signer key pair into the environment variables:
+
+```sh
+export SCTFE_SIGNER_ECDSA_P256_PUBLIC_KEY_ID=$(terragrunt output -raw ecdsa_p256_public_key_id)
+export SCTFE_SIGNER_ECDSA_P256_PRIVATE_KEY_ID=$(terragrunt output -raw ecdsa_p256_private_key_id)
+```
+
 ## Run the SCTFE
 
 ### With fake chains
@@ -50,10 +57,10 @@ go run ./cmd/gcp/ \
   --bucket=${GOOGLE_PROJECT}-${TESSERA_BASE_NAME}-bucket \
   --spanner_db_path=projects/${GOOGLE_PROJECT}/instances/${TESSERA_BASE_NAME}/databases/${TESSERA_BASE_NAME}-db \
   --spanner_dedup_db_path=projects/${GOOGLE_PROJECT}/instances/${TESSERA_BASE_NAME}/databases/${TESSERA_BASE_NAME}-dedup-db \
-  --private_key=./testdata/ct-http-server.privkey.pem \
-  --password=dirk \
   --roots_pem_file=./testdata/fake-ca.cert \
-  --origin=${TESSERA_BASE_NAME}
+  --origin=${TESSERA_BASE_NAME} \
+  --signer_public_key_secret_name=${SCTFE_SIGNER_ECDSA_P256_PUBLIC_KEY_ID} \
+  --signer_private_key_secret_name=${SCTFE_SIGNER_ECDSA_P256_PRIVATE_KEY_ID}
 ```
 
 In a different terminal you can either mint and submit certificates manually, or
@@ -131,7 +138,6 @@ go run ./client/ctclient get-roots --log_uri=${SRC_LOG_URI} --text=false > /tmp/
 sed -i 's-""-"/tmp/hammercfg/roots.pem"-g' /tmp/hammercfg/hammer.cfg
 ```
 
-
 Run the SCTFE with the same roots:
 
 ```bash
@@ -140,11 +146,11 @@ go run ./cmd/gcp/ \
   --project_id=${GOOGLE_PROJECT} \
   --bucket=${GOOGLE_PROJECT}-${TESSERA_BASE_NAME}-bucket \
   --spanner_db_path=projects/${GOOGLE_PROJECT}/instances/${TESSERA_BASE_NAME}/databases/${TESSERA_BASE_NAME}-db \
-  --private_key=./testdata/ct-http-server.privkey.pem \
-  --password=dirk \
   --roots_pem_file=/tmp/hammercfg/roots.pem \
   --origin=${TESSERA_BASE_NAME} \
   --spanner_dedup_db_path=projects/${GOOGLE_PROJECT}/instances/${TESSERA_BASE_NAME}/databases/${TESSERA_BASE_NAME}-dedup-db \
+  --signer_public_key_secret_name=${SCTFE_SIGNER_ECDSA_P256_PUBLIC_KEY_ID} \
+  --signer_private_key_secret_name=${SCTFE_SIGNER_ECDSA_P256_PRIVATE_KEY_ID} \
   -v=3
 ```
 
