@@ -24,7 +24,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/transparency-dev/trillian-tessera/api/layout"
 	"github.com/transparency-dev/trillian-tessera/client"
 	"k8s.io/klog/v2"
 )
@@ -50,7 +49,7 @@ type LocalBEDedupStorage interface {
 type ParseBundleFunc func([]byte, uint64) ([]LeafIdx, error)
 
 // UpdateFromLog synchronises a local best effort deduplication storage with a log.
-func UpdateFromLog(ctx context.Context, lds LocalBEDedupStorage, t time.Duration, f client.Fetcher, pb ParseBundleFunc) {
+func UpdateFromLog(ctx context.Context, lds LocalBEDedupStorage, t time.Duration, fcp client.CheckpointFetcherFunc, fb client.EntryBundleFetcherFunc, pb ParseBundleFunc) {
 	tck := time.NewTicker(t)
 	defer tck.Stop()
 	for {
@@ -58,7 +57,7 @@ func UpdateFromLog(ctx context.Context, lds LocalBEDedupStorage, t time.Duration
 		case <-ctx.Done():
 			return
 		case <-tck.C:
-			if err := sync(ctx, lds, pb, f); err != nil {
+			if err := sync(ctx, lds, pb, fcp, fb); err != nil {
 				klog.Warningf("error updating deduplication data: %v", err)
 			}
 		}
@@ -66,8 +65,8 @@ func UpdateFromLog(ctx context.Context, lds LocalBEDedupStorage, t time.Duration
 }
 
 // sync synchronises a deduplication storage with the corresponding log content.
-func sync(ctx context.Context, lds LocalBEDedupStorage, pb ParseBundleFunc, f client.Fetcher) error {
-	cpRaw, err := f(ctx, layout.CheckpointPath)
+func sync(ctx context.Context, lds LocalBEDedupStorage, pb ParseBundleFunc, fcp client.CheckpointFetcherFunc, fb client.EntryBundleFetcherFunc) error {
+	cpRaw, err := fcp(ctx)
 	if err != nil {
 		return fmt.Errorf("error fetching checkpoint: %v", err)
 	}
@@ -91,8 +90,7 @@ func sync(ctx context.Context, lds LocalBEDedupStorage, pb ParseBundleFunc, f cl
 	if ckptSize > oldSize {
 		klog.V(2).Infof("LocalBEDEdup.sync(): log at size %d, dedup database at size %d, startig to sync", ckptSize, oldSize)
 		for i := oldSize / 256; i <= ckptSize/256; i++ {
-			p := fmt.Sprintf("tile/data/%s", layout.NWithSuffix(0, i, ckptSize))
-			eRaw, err := f(ctx, p)
+			eRaw, err := fb(ctx, ckptSize, i)
 			if err != nil {
 				if errors.Is(err, os.ErrNotExist) {
 					return fmt.Errorf("leaf bundle at index %d not found: %v", i, err)
