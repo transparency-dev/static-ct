@@ -25,8 +25,11 @@ import (
 	"github.com/google/certificate-transparency-go/asn1"
 	"github.com/google/certificate-transparency-go/x509util"
 	"github.com/google/trillian/monitoring"
+	tnote "github.com/transparency-dev/formats/note"
 	"golang.org/x/mod/sumdb/note"
 )
+
+type createStorageFunc func(context.Context, note.Signer, note.Verifier) (*CTStorage, error)
 
 // InstanceOptions describes the options for a log instance.
 type InstanceOptions struct {
@@ -34,7 +37,7 @@ type InstanceOptions struct {
 	// of its fields parsed as a result of validating it.
 	Validated *ValidatedLogConfig
 	// CreateStorage instantiates a Tessera storage implementation with a signer option.
-	CreateStorage func(context.Context, note.Signer) (*CTStorage, error)
+	CreateStorage createStorageFunc
 	// Deadline is a timeout for Tessera requests.
 	Deadline time.Duration
 	// MetricFactory allows creating metrics.
@@ -92,10 +95,19 @@ func SetUpInstance(ctx context.Context, opts InstanceOptions) (*Instance, error)
 	timeSource := new(SystemTimeSource)
 	ctSigner := NewCpSigner(cfg.Signer, cfg.Origin, logID, timeSource)
 
+	vkey, err := tnote.RFC6962VerifierString(cfg.Origin, cfg.Signer.Public())
+	if err != nil {
+		return nil, fmt.Errorf("failed to create verifier key: %v", err)
+	}
+	ctVerifier, err := tnote.NewRFC6962Verifier(vkey)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create verifier: %v", err)
+	}
+
 	if opts.CreateStorage == nil {
 		return nil, fmt.Errorf("failed to initiate storage backend: nil createStorage")
 	}
-	storage, err := opts.CreateStorage(ctx, ctSigner)
+	storage, err := opts.CreateStorage(ctx, ctSigner, ctVerifier)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initiate storage backend: %v", err)
 	}
