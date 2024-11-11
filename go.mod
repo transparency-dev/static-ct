@@ -4,7 +4,7 @@ go 1.23.1
 
 require (
 	cloud.google.com/go/secretmanager v1.14.2
-	cloud.google.com/go/spanner v1.71.0
+	cloud.google.com/go/spanner v1.72.0
 	cloud.google.com/go/storage v1.46.0
 	github.com/golang/mock v1.6.0
 	github.com/google/certificate-transparency-go v1.2.2
@@ -16,10 +16,10 @@ require (
 	github.com/transparency-dev/formats v0.0.0-20240909113624-7ce4ea605e8b
 	github.com/transparency-dev/trillian-tessera v0.0.0-20240911103714-727b99dc32a7
 	go.etcd.io/bbolt v1.3.11
-	golang.org/x/crypto v0.28.0
-	golang.org/x/mod v0.21.0
-	google.golang.org/api v0.204.0
-	google.golang.org/grpc v1.67.1
+	golang.org/x/crypto v0.29.0
+	golang.org/x/mod v0.22.0
+	google.golang.org/api v0.205.0
+	google.golang.org/grpc v1.68.0
 	google.golang.org/protobuf v1.35.1
 	k8s.io/klog/v2 v2.130.1
 )
@@ -27,7 +27,7 @@ require (
 require (
 	cel.dev/expr v0.16.1 // indirect
 	cloud.google.com/go v0.116.0 // indirect
-	cloud.google.com/go/auth v0.10.0 // indirect
+	cloud.google.com/go/auth v0.10.1 // indirect
 	cloud.google.com/go/auth/oauth2adapt v0.2.5 // indirect
 	cloud.google.com/go/compute/metadata v0.5.2 // indirect
 	cloud.google.com/go/iam v1.2.1 // indirect
@@ -76,9 +76,9 @@ require (
 	golang.org/x/exp v0.0.0-20240325151524-a685a6edb6d8 // indirect
 	golang.org/x/net v0.30.0 // indirect
 	golang.org/x/oauth2 v0.23.0 // indirect
-	golang.org/x/sync v0.8.0 // indirect
-	golang.org/x/sys v0.26.0 // indirect
-	golang.org/x/text v0.19.0 // indirect
+	golang.org/x/sync v0.9.0 // indirect
+	golang.org/x/sys v0.27.0 // indirect
+	golang.org/x/text v0.20.0 // indirect
 	golang.org/x/time v0.7.0 // indirect
 	google.golang.org/genproto v0.0.0-20241021214115-324edc3d5d38 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20241015192408-796eee8c2d53 // indirect
