@@ -202,9 +202,8 @@ func awaitSignal(doneFn func()) {
 
 func newGCPStorage(ctx context.Context, signer note.Signer, verifier note.Verifier) (*sctfe.CTStorage, error) {
 	gcpCfg := gcpTessera.Config{
-		ProjectID: *projectID,
-		Bucket:    *bucket,
-		Spanner:   *spannerDB,
+		Bucket:  *bucket,
+		Spanner: *spannerDB,
 	}
 	tesseraStorage, err := gcpTessera.New(ctx, gcpCfg, tessera.WithCheckpointSignerVerifier(signer, verifier), tessera.WithCTLayout())
 	if err != nil {
