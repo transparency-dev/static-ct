@@ -27,6 +27,10 @@ resource "google_project_service" "storage_googleapis_com" {
   service            = "storage.googleapis.com"
   disable_on_destroy = false
 }
+resource "google_project_service" "secretmanager_googleapis_com" {
+  service            = "secretmanager.googleapis.com"
+  disable_on_destroy = false
+}
 
 ## Resources
 
@@ -92,6 +96,8 @@ resource "google_secret_manager_secret" "sctfe_ecdsa_p256_public_key" {
   replication {
     auto {}
   }
+
+  depends_on = [google_project_service.secretmanager_googleapis_com]
 }
 
 resource "google_secret_manager_secret_version" "sctfe_ecdsa_p256_public_key" {
@@ -110,6 +116,8 @@ resource "google_secret_manager_secret" "sctfe_ecdsa_p256_private_key" {
   replication {
     auto {}
   }
+
+  depends_on = [google_project_service.secretmanager_googleapis_com]
 }
 
 resource "google_secret_manager_secret_version" "sctfe_ecdsa_p256_private_key" {
