@@ -9,6 +9,11 @@ terraform {
 
 # Secret Manager
 
+resource "google_project_service" "secretmanager_googleapis_com" {
+  service            = "secretmanager.googleapis.com"
+  disable_on_destroy = false
+}
+
 # ECDSA key with P256 elliptic curve. Do NOT use this in production environment.
 #
 # Security Notice
@@ -17,11 +22,6 @@ terraform {
 # recommended.
 #
 # See https://registry.terraform.io/providers/hashicorp/tls/latest/docs/resources/private_key.
-resource "google_project_service" "secretmanager_googleapis_com" {
-  service            = "secretmanager.googleapis.com"
-  disable_on_destroy = false
-}
-
 resource "tls_private_key" "sctfe_ecdsa_p256" {
   algorithm   = "ECDSA"
   ecdsa_curve = "P256"
