@@ -965,8 +965,8 @@ github.com/transparency-dev/formats v0.0.0-20240909113624-7ce4ea605e8b h1:zayRkU
 github.com/transparency-dev/formats v0.0.0-20240909113624-7ce4ea605e8b/go.mod h1:nA3+izsIcFoFgSKm3bHxS2/W4xdzSHMweE7REPunqUM=
 github.com/transparency-dev/merkle v0.0.2 h1:Q9nBoQcZcgPamMkGn7ghV8XiTZ/kRxn1yCG81+twTK4=
 github.com/transparency-dev/merkle v0.0.2/go.mod h1:pqSy+OXefQ1EDUVmAJ8MUhHB9TXGuzVAT58PqBoHz1A=
-github.com/transparency-dev/trillian-tessera v0.0.0-20241112112342-afdb1290bb46 h1:nV/tttxrIN4Pg7F7BK7Q/L49R8cFmmx8F/LDqwKsSaQ=
-github.com/transparency-dev/trillian-tessera v0.0.0-20241112112342-afdb1290bb46/go.mod h1:TxAuGjZBDJddTBYXAjNumwhsMxmSOHIHVcLzhJeRNys=
+github.com/transparency-dev/trillian-tessera v0.0.0-20241112165219-498d39b5fc7c h1:AoxWHGmBZjZd2wi0N4NG5DmKk6vqnRbfI6HIZumKBdM=
+github.com/transparency-dev/trillian-tessera v0.0.0-20241112165219-498d39b5fc7c/go.mod h1:TxAuGjZBDJddTBYXAjNumwhsMxmSOHIHVcLzhJeRNys=
 github.com/yuin/goldmark v1.1.25/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 github.com/yuin/goldmark v1.1.27/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 github.com/yuin/goldmark v1.1.32/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=

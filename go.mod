@@ -14,7 +14,7 @@ require (
 	github.com/prometheus/client_golang v1.20.5
 	github.com/rs/cors v1.11.1
 	github.com/transparency-dev/formats v0.0.0-20240909113624-7ce4ea605e8b
-	github.com/transparency-dev/trillian-tessera v0.0.0-20241112112342-afdb1290bb46
+	github.com/transparency-dev/trillian-tessera v0.0.0-20241112165219-498d39b5fc7c
 	go.etcd.io/bbolt v1.3.11
 	golang.org/x/crypto v0.29.0
 	golang.org/x/mod v0.22.0
