@@ -200,12 +200,12 @@ func awaitSignal(doneFn func()) {
 	doneFn()
 }
 
-func newGCPStorage(ctx context.Context, signer note.Signer, verifier note.Verifier) (*sctfe.CTStorage, error) {
+func newGCPStorage(ctx context.Context, signer note.Signer) (*sctfe.CTStorage, error) {
 	gcpCfg := gcpTessera.Config{
 		Bucket:  *bucket,
 		Spanner: *spannerDB,
 	}
-	tesseraStorage, err := gcpTessera.New(ctx, gcpCfg, tessera.WithCheckpointSignerVerifier(signer, verifier), tessera.WithCTLayout())
+	tesseraStorage, err := gcpTessera.New(ctx, gcpCfg, tessera.WithCheckpointSignerVerifier(signer, nil), tessera.WithCTLayout())
 	if err != nil {
 		return nil, fmt.Errorf("Failed to initialize GCP Tessera storage: %v", err)
 	}
