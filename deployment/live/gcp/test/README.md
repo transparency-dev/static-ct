@@ -1,4 +1,4 @@
-# GCP SCTFE Configs
+# GCP SCTFE Local Test Environment
 
 ## Prerequisites
 You'll need to have a VM running in the same GCP project that you can SSH to,
@@ -31,7 +31,7 @@ Set the required environment variables:
 ```bash
 export GOOGLE_PROJECT={VALUE}
 export GOOGLE_REGION={VALUE} # e.g: us-central1
-export TESSERA_BASE_NAME={VALUE} # e.g: staticct
+export TESSERA_BASE_NAME={VALUE} # e.g: test-static-ct
 ```
 
 Terraforming the project can be done by:
