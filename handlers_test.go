@@ -36,6 +36,7 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/google/trillian/monitoring"
 	"github.com/transparency-dev/static-ct/mockstorage"
+	"github.com/transparency-dev/static-ct/modules/dedup"
 	"github.com/transparency-dev/static-ct/testdata"
 	"github.com/transparency-dev/trillian-tessera/ctonly"
 	"google.golang.org/grpc/codes"
@@ -291,10 +292,10 @@ func TestAddChainWhitespace(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.descr, func(t *testing.T) {
 			if test.want == http.StatusOK {
-				info.storage.EXPECT().GetCertIndex(deadlineMatcher(), cmpMatcher{leafChain[0]}).Return(uint64(0), false, nil)
+				info.storage.EXPECT().GetCertDedupInfo(deadlineMatcher(), cmpMatcher{leafChain[0]}).Return(dedup.SCTDedupInfo{Idx: uint64(0), Timestamp: fakeTimeMillis}, false, nil)
 				info.storage.EXPECT().AddIssuerChain(deadlineMatcher(), cmpMatcher{leafChain[1:]}).Return(nil)
 				info.storage.EXPECT().Add(deadlineMatcher(), cmpMatcher{req}).Return(func() (uint64, error) { return rsp, nil })
-				info.storage.EXPECT().AddCertIndex(deadlineMatcher(), cmpMatcher{leafChain[0]}, uint64(0)).Return(nil)
+				info.storage.EXPECT().AddCertDedupInfo(deadlineMatcher(), cmpMatcher{leafChain[0]}, dedup.SCTDedupInfo{Idx: uint64(0), Timestamp: fakeTimeMillis}).Return(nil)
 			}
 
 			recorder := httptest.NewRecorder()
@@ -367,11 +368,11 @@ func TestAddChain(t *testing.T) {
 			if len(test.toSign) > 0 {
 				req, leafChain := parseChain(t, false, test.chain, info.roots.RawCertificates()[0])
 				rsp := uint64(0)
-				info.storage.EXPECT().GetCertIndex(deadlineMatcher(), cmpMatcher{leafChain[0]}).Return(uint64(0), false, nil)
+				info.storage.EXPECT().GetCertDedupInfo(deadlineMatcher(), cmpMatcher{leafChain[0]}).Return(dedup.SCTDedupInfo{Idx: uint64(0), Timestamp: fakeTimeMillis}, false, nil)
 				info.storage.EXPECT().AddIssuerChain(deadlineMatcher(), cmpMatcher{leafChain[1:]}).Return(nil)
 				info.storage.EXPECT().Add(deadlineMatcher(), cmpMatcher{req}).Return(func() (uint64, error) { return rsp, test.err })
 				if test.want == http.StatusOK {
-					info.storage.EXPECT().AddCertIndex(deadlineMatcher(), cmpMatcher{leafChain[0]}, uint64(0)).Return(nil)
+					info.storage.EXPECT().AddCertDedupInfo(deadlineMatcher(), cmpMatcher{leafChain[0]}, dedup.SCTDedupInfo{Idx: uint64(0), Timestamp: fakeTimeMillis}).Return(nil)
 				}
 			}
 
@@ -460,11 +461,11 @@ func TestAddPrechain(t *testing.T) {
 			if len(test.toSign) > 0 {
 				req, leafChain := parseChain(t, true, test.chain, info.roots.RawCertificates()[0])
 				rsp := uint64(0)
-				info.storage.EXPECT().GetCertIndex(deadlineMatcher(), cmpMatcher{leafChain[0]}).Return(uint64(0), false, nil)
+				info.storage.EXPECT().GetCertDedupInfo(deadlineMatcher(), cmpMatcher{leafChain[0]}).Return(dedup.SCTDedupInfo{Idx: uint64(0), Timestamp: fakeTimeMillis}, false, nil)
 				info.storage.EXPECT().AddIssuerChain(deadlineMatcher(), cmpMatcher{leafChain[1:]}).Return(nil)
 				info.storage.EXPECT().Add(deadlineMatcher(), cmpMatcher{req}).Return(func() (uint64, error) { return rsp, test.err })
 				if test.want == http.StatusOK {
-					info.storage.EXPECT().AddCertIndex(deadlineMatcher(), cmpMatcher{leafChain[0]}, uint64(0)).Return(nil)
+					info.storage.EXPECT().AddCertDedupInfo(deadlineMatcher(), cmpMatcher{leafChain[0]}, dedup.SCTDedupInfo{Idx: uint64(0), Timestamp: fakeTimeMillis}).Return(nil)
 				}
 			}
 
@@ -484,7 +485,7 @@ func TestAddPrechain(t *testing.T) {
 				if got, want := resp.ID, demoLogID[:]; !bytes.Equal(got, want) {
 					t.Errorf("resp.ID=%x; want %x", got, want)
 				}
-				if got, want := resp.Timestamp, uint64(1469185273000); got != want {
+				if got, want := resp.Timestamp, fakeTimeMillis; got != want {
 					t.Errorf("resp.Timestamp=%d; want %d", got, want)
 				}
 				if got, want := hex.EncodeToString(resp.Signature), "040300067369676e6564"; got != want {

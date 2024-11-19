@@ -10,6 +10,7 @@ import (
 
 	gomock "github.com/golang/mock/gomock"
 	x509 "github.com/google/certificate-transparency-go/x509"
+	dedup "github.com/transparency-dev/static-ct/modules/dedup"
 	tessera "github.com/transparency-dev/trillian-tessera"
 	ctonly "github.com/transparency-dev/trillian-tessera/ctonly"
 )
@@ -51,18 +52,18 @@ func (mr *MockStorageMockRecorder) Add(arg0, arg1 interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Add", reflect.TypeOf((*MockStorage)(nil).Add), arg0, arg1)
 }
 
-// AddCertIndex mocks base method.
-func (m *MockStorage) AddCertIndex(arg0 context.Context, arg1 *x509.Certificate, arg2 uint64) error {
+// AddCertDedupInfo mocks base method.
+func (m *MockStorage) AddCertDedupInfo(arg0 context.Context, arg1 *x509.Certificate, arg2 dedup.SCTDedupInfo) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "AddCertIndex", arg0, arg1, arg2)
+	ret := m.ctrl.Call(m, "AddCertDedupInfo", arg0, arg1, arg2)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// AddCertIndex indicates an expected call of AddCertIndex.
-func (mr *MockStorageMockRecorder) AddCertIndex(arg0, arg1, arg2 interface{}) *gomock.Call {
+// AddCertDedupInfo indicates an expected call of AddCertDedupInfo.
+func (mr *MockStorageMockRecorder) AddCertDedupInfo(arg0, arg1, arg2 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddCertIndex", reflect.TypeOf((*MockStorage)(nil).AddCertIndex), arg0, arg1, arg2)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddCertDedupInfo", reflect.TypeOf((*MockStorage)(nil).AddCertDedupInfo), arg0, arg1, arg2)
 }
 
 // AddIssuerChain mocks base method.
@@ -79,18 +80,18 @@ func (mr *MockStorageMockRecorder) AddIssuerChain(arg0, arg1 interface{}) *gomoc
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddIssuerChain", reflect.TypeOf((*MockStorage)(nil).AddIssuerChain), arg0, arg1)
 }
 
-// GetCertIndex mocks base method.
-func (m *MockStorage) GetCertIndex(arg0 context.Context, arg1 *x509.Certificate) (uint64, bool, error) {
+// GetCertDedupInfo mocks base method.
+func (m *MockStorage) GetCertDedupInfo(arg0 context.Context, arg1 *x509.Certificate) (dedup.SCTDedupInfo, bool, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetCertIndex", arg0, arg1)
-	ret0, _ := ret[0].(uint64)
+	ret := m.ctrl.Call(m, "GetCertDedupInfo", arg0, arg1)
+	ret0, _ := ret[0].(dedup.SCTDedupInfo)
 	ret1, _ := ret[1].(bool)
 	ret2, _ := ret[2].(error)
 	return ret0, ret1, ret2
 }
 
-// GetCertIndex indicates an expected call of GetCertIndex.
-func (mr *MockStorageMockRecorder) GetCertIndex(arg0, arg1 interface{}) *gomock.Call {
+// GetCertDedupInfo indicates an expected call of GetCertDedupInfo.
+func (mr *MockStorageMockRecorder) GetCertDedupInfo(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetCertIndex", reflect.TypeOf((*MockStorage)(nil).GetCertIndex), arg0, arg1)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetCertDedupInfo", reflect.TypeOf((*MockStorage)(nil).GetCertDedupInfo), arg0, arg1)
 }
