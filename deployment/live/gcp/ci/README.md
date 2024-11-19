@@ -20,7 +20,6 @@ the project:
 
 ```sh
 gcloud auth application-default login
-gcloud auth configure-docker us-central1-docker.pkg.dev
 ```
 
 Set the required environment variables:
@@ -30,15 +29,16 @@ export GOOGLE_PROJECT={VALUE}
 export GOOGLE_REGION={VALUE} # e.g: us-central1
 ```
 
-TODO: Add the Artifact Registry which is in the Cloud Build pull request. The expected repository is `us-central1-docker.pkg.dev/${GOOGLE_PROJECT}/docker-ci`.
+TODO: Add the Artifact Registry which is in the Cloud Build pull request. The expected repository is `${GOOGLE_REGION}-docker.pkg.dev/${GOOGLE_PROJECT}/docker-ci`.
 
 Build and push the Docker image to Artifact Registry repository:
 
 ```sh
+gcloud auth configure-docker ${GOOGLE_REGION}-docker.pkg.dev
 docker build -f ./cmd/gcp/Dockerfile -t sctfe-gcp:latest .
 docker build -f ./cmd/gcp/ci/Dockerfile -t conformance-gcp:latest .
-docker tag conformance-gcp:latest us-central1-docker.pkg.dev/${GOOGLE_PROJECT}/docker-ci/conformance-gcp:latest
-docker push us-central1-docker.pkg.dev/${GOOGLE_PROJECT}/docker-ci/conformance-gcp
+docker tag conformance-gcp:latest ${GOOGLE_REGION}-docker.pkg.dev/${GOOGLE_PROJECT}/docker-ci/conformance-gcp:latest
+docker push ${GOOGLE_REGION}-docker.pkg.dev/${GOOGLE_PROJECT}/docker-ci/conformance-gcp
 ```
 
 Terraforming the project can be done by:
