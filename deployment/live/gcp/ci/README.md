@@ -20,6 +20,7 @@ the project:
 
 ```sh
 gcloud auth application-default login
+gcloud auth configure-docker us-central1-docker.pkg.dev
 ```
 
 Set the required environment variables:
