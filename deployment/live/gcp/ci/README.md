@@ -42,6 +42,6 @@ docker push us-central1-docker.pkg.dev/${GOOGLE_PROJECT}/docker-ci/conformance-g
 ```
 
 Terraforming the project can be done by:
-  1. `cd` to the relevant directory (/deployment/live/gcp/ci/) for the environment to deploy/change.
+  1. `cd` to the relevant directory (deployment/live/gcp/ci/) for the environment to deploy/change.
   2. Run `terragrunt apply`.
 
