@@ -19,6 +19,12 @@ resource "google_service_account" "cloudrun_service_account" {
   display_name = "Service Account for Cloud Run (${var.env})"
 }
 
+resource "google_project_iam_member" "monitoring_metric_writer" {
+  project = var.project_id
+  role    = "roles/monitoring.metricWriter"
+  member  = "serviceAccount:${google_service_account.cloudrun_service_account.email}"
+}
+
 resource "google_storage_bucket_iam_member" "member" {
   bucket = var.bucket
   role   = "roles/storage.objectUser"
