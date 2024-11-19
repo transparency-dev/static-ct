@@ -27,6 +27,7 @@ Set the required environment variables:
 ```sh
 export GOOGLE_PROJECT={VALUE}
 export GOOGLE_REGION={VALUE} # e.g: us-central1
+unset TESSERA_BASE_NAME
 ```
 
 TODO: Add the Artifact Registry which is in the Cloud Build pull request. The expected repository is `${GOOGLE_REGION}-docker.pkg.dev/${GOOGLE_PROJECT}/docker-ci`.
