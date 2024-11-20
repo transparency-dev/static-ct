@@ -28,7 +28,7 @@ import (
 	"k8s.io/klog/v2"
 )
 
-// LeafDedupInfo, enables building idempotent deduplicated add-chain responses.
+// LeafDedupInfo, enables building deduplicated add-chain responses.
 type LeafDedupInfo struct {
 	LeafID []byte
 	SCTDedupInfo

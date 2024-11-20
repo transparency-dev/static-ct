@@ -131,11 +131,11 @@ func cachedStoreIssuers(s IssuerStorage) func(context.Context, []KV) error {
 	}
 }
 
-// AddCertDedupInfo stores <cert_hash, SCTDEdupInfo> in the deduplication storage.
+// AddCertDedupInfo stores <cert_hash, SCTDedupInfo> in the deduplication storage.
 func (cts CTStorage) AddCertDedupInfo(ctx context.Context, c *x509.Certificate, sctDedupInfo dedup.SCTDedupInfo) error {
 	key := sha256.Sum256(c.Raw)
 	if err := cts.dedupStorage.Add(ctx, []dedup.LeafDedupInfo{{LeafID: key[:], SCTDedupInfo: sctDedupInfo}}); err != nil {
-		return fmt.Errorf("error storing SCTDedupInfo %+v of %q: %v", sctDedupInfo, hex.EncodeToString(key[:]), err)
+		return fmt.Errorf("error storing SCTDedupInfo %+v of \"%x\": %v", sctDedupInfo, key, err)
 	}
 	return nil
 }
@@ -145,7 +145,7 @@ func (cts CTStorage) GetCertDedupInfo(ctx context.Context, c *x509.Certificate) 
 	key := sha256.Sum256(c.Raw)
 	sctC, ok, err := cts.dedupStorage.Get(ctx, key[:])
 	if err != nil {
-		return dedup.SCTDedupInfo{}, false, fmt.Errorf("error fetching index of %q: %v", hex.EncodeToString(key[:]), err)
+		return dedup.SCTDedupInfo{}, false, fmt.Errorf("error fetching index of \"%x\": %v", key, err)
 	}
 	return sctC, ok, nil
 }

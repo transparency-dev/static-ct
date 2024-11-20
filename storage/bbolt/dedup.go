@@ -15,7 +15,7 @@
 // Package bbolt implements modules/dedup using BBolt.
 //
 // It contains two buckets:
-//   - The dedup bucket stores <leafID, idx::timestamp> pairs. Entries can either be added after
+//   - The dedup bucket stores <leafID, {idx, timestamp}> pairs. Entries can either be added after
 //     sequencing, by the server that received the request, or later when synchronising the dedup
 //     storage with the log state.
 //   - The size bucket has a single entry: <"size", X>, where X is the largest contiguous index
@@ -48,7 +48,7 @@ type Storage struct {
 
 // NewStorage returns a new BBolt storage instance with a dedup and size bucket.
 //
-// The dedup bucket stores <leafID, idx::timestamp> pairs, where idx::timestamp is the
+// The dedup bucket stores <leafID, {idx, timestamp}> pairs, where idx::timestamp is the
 // concatenation of two uint64 8 bytes BigEndian representation.
 // The size bucket has a single entry: <"size", X>, where X is the largest contiguous index from 0
 // that has been inserted in the dedup bucket.
@@ -113,7 +113,7 @@ func (s *Storage) Add(_ context.Context, ldis []dedup.LeafDedupInfo) error {
 			size := btoi(sizeB)
 			vB, err := vtob(ldi.Idx, ldi.Timestamp)
 			if err != nil {
-				return fmt.Errorf("btov(): %v", err)
+				return fmt.Errorf("vtob(): %v", err)
 			}
 
 			if old := db.Get(ldi.LeafID); len(old) == 16 && btoi(old[:8]) <= ldi.Idx {
@@ -158,7 +158,7 @@ func (s *Storage) Get(_ context.Context, leafID []byte) (dedup.SCTDedupInfo, boo
 	}
 	idx, t, err := btov(v)
 	if err != nil {
-		return dedup.SCTDedupInfo{}, false, fmt.Errorf("vtob(): %v", err)
+		return dedup.SCTDedupInfo{}, false, fmt.Errorf("btov(): %v", err)
 	}
 	return dedup.SCTDedupInfo{Idx: idx, Timestamp: t}, true, nil
 }
@@ -196,21 +196,31 @@ func btoi(b []byte) uint64 {
 
 // vtob concatenates an index and timestamp values into a byte array.
 func vtob(idx uint64, timestamp uint64) ([]byte, error) {
-	i := itob(idx)
-	if len(i) != 8 {
-		return nil, fmt.Errorf("input error, idx should be %d bytes long, got %d", 8, len(i))
+	b := make([]byte, 16)
+	var err error
+
+	b, err = binary.Append(b, binary.BigEndian, idx)
+	if err != nil {
+		return nil, fmt.Errorf("binary.Append() could not encode idx: %v", err)
 	}
-	t := itob(timestamp)
-	if len(t) != 8 {
-		return nil, fmt.Errorf("input error, idx should be %d bytes long, got %d", 8, len(t))
+	b, err = binary.Append(b, binary.BigEndian, timestamp)
+	if err != nil {
+		return nil, fmt.Errorf("binary.Append() could not encode timestamp: %v", err)
 	}
-	return append(itob(idx), itob(timestamp)...), nil
+
+	return b, nil
 }
 
 // btov parses a byte array into an index and timestamp values.
-func btov(b []byte) (idx uint64, timestamp uint64, err error) {
-	if len(b) != 16 {
-		return 0, 0, fmt.Errorf("input error, value should be %d bytes long, got %d", 16, len(b))
+func btov(b []byte) (uint64, uint64, error) {
+	var idx, timestamp uint64
+	n, err := binary.Decode(b, binary.BigEndian, &idx)
+	if err != nil {
+		return 0, 0, fmt.Errorf("binary.Decode() could not decode idx: %v", err)
 	}
-	return btoi(b[0:8]), btoi(b[8:16]), nil
+	_, err = binary.Decode(b[n:], binary.BigEndian, &timestamp)
+	if err != nil {
+		return 0, 0, fmt.Errorf("binary.Decode() could not decode timestamp: %v", err)
+	}
+	return idx, timestamp, nil
 }
