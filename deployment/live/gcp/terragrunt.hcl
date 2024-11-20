@@ -15,7 +15,8 @@ remote_state {
     prefix   = "terraform.tfstate"
 
     gcs_bucket_labels = {
-      name = "terraform_state_conformance"
+      name = "terraform_state"
+      env  = "${local.env}"
     }
   }
 }
