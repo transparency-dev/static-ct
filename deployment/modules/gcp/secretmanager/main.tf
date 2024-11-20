@@ -28,7 +28,7 @@ resource "tls_private_key" "sctfe_ecdsa_p256" {
 }
 
 resource "google_secret_manager_secret" "sctfe_ecdsa_p256_public_key" {
-  secret_id = "sctfe-ecdsa-p256-public-key"
+  secret_id = "${var.base_name}-ecdsa-p256-public-key"
 
   labels = {
     label = "sctfe-public-key"
@@ -48,7 +48,7 @@ resource "google_secret_manager_secret_version" "sctfe_ecdsa_p256_public_key" {
 }
 
 resource "google_secret_manager_secret" "sctfe_ecdsa_p256_private_key" {
-  secret_id = "sctfe-ecdsa-p256-private-key"
+  secret_id = "${var.base_name}-ecdsa-p256-private-key"
 
   labels = {
     label = "sctfe-private-key"

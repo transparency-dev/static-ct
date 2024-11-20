@@ -1,4 +1,4 @@
-# GCP SCTFE Configs
+# GCP SCTFE Test Environment
 
 ## Prerequisites
 You'll need to have a VM running in the same GCP project that you can SSH to,
@@ -8,7 +8,7 @@ installed, and your favourite terminal multiplexer.
 
 ## Overview
 
-This config uses the [gcp/storage](/deployment/modules/gcp/conformance) module to
+This config uses the [gcp/test](/deployment/modules/gcp/test) module to
 define a test environment to run the SCTFE, backed by Trillian Tessera.
 
 At a high level, this environment consists of:
@@ -16,6 +16,7 @@ At a high level, this environment consists of:
   - one for Tessera
   - one for deduplication
 - A GCS Bucket
+- Secret Manager
 
 ## Manual deployment 
 
@@ -31,12 +32,12 @@ Set the required environment variables:
 ```bash
 export GOOGLE_PROJECT={VALUE}
 export GOOGLE_REGION={VALUE} # e.g: us-central1
-export TESSERA_BASE_NAME={VALUE} # e.g: staticct
+export TESSERA_BASE_NAME={VALUE} # e.g: test-static-ct
 ```
 
 Terraforming the project can be done by:
- 1. `cd` to the relevant directory for the environment to deploy/change (e.g. `ci`)
- 2. Run `terragrunt apply`
+  1. `cd` to the relevant directory for the environment to deploy/change (e.g. `ci`)
+  2. Run `terragrunt apply`
 
 Store the Secret Manager resource ID of signer key pair into the environment variables:
 
