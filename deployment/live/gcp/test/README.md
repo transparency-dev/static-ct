@@ -1,4 +1,4 @@
-# GCP SCTFE Local Test Environment
+# GCP SCTFE Test Environment
 
 ## Prerequisites
 You'll need to have a VM running in the same GCP project that you can SSH to,
