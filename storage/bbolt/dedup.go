@@ -28,7 +28,6 @@ package bbolt
 import (
 	"context"
 	"encoding/binary"
-	"encoding/hex"
 	"fmt"
 
 	"github.com/transparency-dev/static-ct/modules/dedup"
@@ -116,8 +115,9 @@ func (s *Storage) Add(_ context.Context, ldis []dedup.LeafDedupInfo) error {
 				return fmt.Errorf("vtob(): %v", err)
 			}
 
+			// old should always be 16 bytes long, but double check
 			if old := db.Get(ldi.LeafID); len(old) == 16 && btoi(old[:8]) <= ldi.Idx {
-				klog.V(3).Infof("Add(): bucket %q already contains a smaller index %d < %d for entry %q, not updating", dedupBucket, btoi(old[:8]), ldi.Idx, hex.EncodeToString(ldi.LeafID))
+				klog.V(3).Infof("Add(): bucket %q already contains a smaller index %d < %d for entry \"%x\", not updating", dedupBucket, btoi(old[:8]), ldi.Idx, ldi.LeafID)
 			} else if err := db.Put(ldi.LeafID, vB); err != nil {
 				return err
 			}
@@ -148,7 +148,7 @@ func (s *Storage) Get(_ context.Context, leafID []byte) (dedup.SCTDedupInfo, boo
 		b := tx.Bucket([]byte(dedupBucket))
 		vv := b.Get(leafID)
 		if vv != nil {
-			v = make([]byte, 16)
+			v = make([]byte, len(vv))
 			copy(v, vv)
 		}
 		return nil
@@ -196,7 +196,7 @@ func btoi(b []byte) uint64 {
 
 // vtob concatenates an index and timestamp values into a byte array.
 func vtob(idx uint64, timestamp uint64) ([]byte, error) {
-	b := make([]byte, 16)
+	b := make([]byte, 0, 16)
 	var err error
 
 	b, err = binary.Append(b, binary.BigEndian, idx)
@@ -214,6 +214,9 @@ func vtob(idx uint64, timestamp uint64) ([]byte, error) {
 // btov parses a byte array into an index and timestamp values.
 func btov(b []byte) (uint64, uint64, error) {
 	var idx, timestamp uint64
+	if l := len(b); l != 16 {
+		return 0, 0, fmt.Errorf("input value is %d bytes long, expected %d", l, 16)
+	}
 	n, err := binary.Decode(b, binary.BigEndian, &idx)
 	if err != nil {
 		return 0, 0, fmt.Errorf("binary.Decode() could not decode idx: %v", err)
