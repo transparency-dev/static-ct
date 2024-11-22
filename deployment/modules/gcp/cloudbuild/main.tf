@@ -76,7 +76,7 @@ resource "google_cloudbuild_trigger" "build_trigger" {
   location        = var.location
 
   github {
-    owner = "transparency-dev"
+    owner = var.github_owner
     name  = "static-ct"
     push {
       branch = "^main$"

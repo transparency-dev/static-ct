@@ -17,3 +17,8 @@ variable "docker_env" {
   description = "Unique identifier for the Docker env, e.g. dev or ci or prod"
   type        = string
 }
+
+variable "github_owner" {
+  description = "GitHub owner used in Cloud Build trigger repository mapping"
+  type        = string
+}
