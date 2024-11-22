@@ -1,3 +1,7 @@
+terraform {
+  source = "${get_repo_root()}/deployment/modules/gcp//cloudbuild"
+}
+
 locals {
   env        = path_relative_to_include()
   project_id = get_env("GOOGLE_PROJECT", "transparency-dev")
