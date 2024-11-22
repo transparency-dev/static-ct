@@ -15,12 +15,12 @@
 // Package bbolt implements modules/dedup using BBolt.
 //
 // It contains two buckets:
-//   - The dedup bucket stores <leafID, idx> pairs. Entries can either be added after sequencing,
-//     by the server that received the request, or later when synchronising the dedup storage with
-//     the log state.
+//   - The dedup bucket stores <leafID, {idx, timestamp}> pairs. Entries can either be added after
+//     sequencing, by the server that received the request, or later when synchronising the dedup
+//     storage with the log state.
 //   - The size bucket has a single entry: <"size", X>, where X is the largest contiguous index
-//     from 0 that has been inserted in the dedup bucket. This allows to know what is the next
-//     <leafID, idx> to add to the bucket in order to have a full represation of the log.
+//     from 0 that has been inserted in the dedup bucket. This allows to know at what index
+//     deduplication synchronisation should start in order to have the full picture of a log.
 //
 // Calls to Add<leafID, idx> will update idx to a smaller value, if possible.
 package bbolt
@@ -28,7 +28,6 @@ package bbolt
 import (
 	"context"
 	"encoding/binary"
-	"encoding/hex"
 	"fmt"
 
 	"github.com/transparency-dev/static-ct/modules/dedup"
@@ -48,13 +47,13 @@ type Storage struct {
 
 // NewStorage returns a new BBolt storage instance with a dedup and size bucket.
 //
-// The dedup bucket stores <leafID, idx> pairs.
+// The dedup bucket stores <leafID, {idx, timestamp}> pairs, where idx::timestamp is the
+// concatenation of two uint64 8 bytes BigEndian representation.
 // The size bucket has a single entry: <"size", X>, where X is the largest contiguous index from 0
 // that has been inserted in the dedup bucket.
 //
 // If a database already exists at the provided path, NewStorage will load it.
 func NewStorage(path string) (*Storage, error) {
-	// TODO(better logging message)
 	db, err := bolt.Open(path, 0600, nil)
 	if err != nil {
 		return nil, fmt.Errorf("bolt.Open(): %v", err)
@@ -98,27 +97,33 @@ func NewStorage(path string) (*Storage, error) {
 
 // Add inserts entries in the dedup bucket and updates the size bucket if need be.
 //
-// If an entry is already stored under a given key, Add only updates it if the new value is smaller.
+// If an entry already exists under a key, Add only updates the value if the new idx is smaller.
 // The context is here for consistency with interfaces, but isn't used by BBolt.
-func (s *Storage) Add(_ context.Context, lidxs []dedup.LeafIdx) error {
-	for _, lidx := range lidxs {
+func (s *Storage) Add(_ context.Context, ldis []dedup.LeafDedupInfo) error {
+	for _, ldi := range ldis {
 		err := s.db.Update(func(tx *bolt.Tx) error {
 			db := tx.Bucket([]byte(dedupBucket))
 			sb := tx.Bucket([]byte(sizeBucket))
+
 			sizeB := sb.Get([]byte("size"))
 			if sizeB == nil {
 				return fmt.Errorf("can't find log size in bucket %q", sizeBucket)
 			}
 			size := btoi(sizeB)
+			vB, err := vtob(ldi.Idx, ldi.Timestamp)
+			if err != nil {
+				return fmt.Errorf("vtob(): %v", err)
+			}
 
-			if old := db.Get(lidx.LeafID); old != nil && btoi(old) <= lidx.Idx {
-				klog.V(3).Infof("Add(): bucket %q already contains a smaller index %d < %d for entry %q, not updating", dedupBucket, btoi(old), lidx.Idx, hex.EncodeToString(lidx.LeafID))
-			} else if err := db.Put(lidx.LeafID, itob(lidx.Idx)); err != nil {
+			// old should always be 16 bytes long, but double check
+			if old := db.Get(ldi.LeafID); len(old) == 16 && btoi(old[:8]) <= ldi.Idx {
+				klog.V(3).Infof("Add(): bucket %q already contains a smaller index %d < %d for entry \"%x\", not updating", dedupBucket, btoi(old[:8]), ldi.Idx, ldi.LeafID)
+			} else if err := db.Put(ldi.LeafID, vB); err != nil {
 				return err
 			}
-			// size is a length, lidx.I an index, so if they're equal,
-			// lidx is a new entry.
-			if size == lidx.Idx {
+			// size is a length, ldi.Idx an index, so if they're equal,
+			// ldi is a new entry.
+			if size == ldi.Idx {
 				klog.V(3).Infof("Add(): updating deduped size to %d", size+1)
 				if err := sb.Put([]byte("size"), itob(size+1)); err != nil {
 					return err
@@ -127,7 +132,7 @@ func (s *Storage) Add(_ context.Context, lidxs []dedup.LeafIdx) error {
 			return nil
 		})
 		if err != nil {
-			return fmt.Errorf("b.Put(): error writing leaf index %d: err", lidx.Idx)
+			return fmt.Errorf("db.Update(): error writing leaf index %d: err", ldi.Idx)
 		}
 	}
 	return nil
@@ -137,21 +142,24 @@ func (s *Storage) Add(_ context.Context, lidxs []dedup.LeafIdx) error {
 //
 // If the requested entry is missing from the bucket, returns false ("comma ok" idiom).
 // The context is here for consistency with interfaces, but isn't used by BBolt.
-func (s *Storage) Get(_ context.Context, leafID []byte) (uint64, bool, error) {
-	var idx []byte
+func (s *Storage) Get(_ context.Context, leafID []byte) (dedup.SCTDedupInfo, bool, error) {
+	var v []byte
 	_ = s.db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(dedupBucket))
-		v := b.Get(leafID)
-		if v != nil {
-			idx = make([]byte, 8)
-			copy(idx, v)
+		if vv := b.Get(leafID); vv != nil {
+			v = make([]byte, len(vv))
+			copy(v, vv)
 		}
 		return nil
 	})
-	if idx == nil {
-		return 0, false, nil
+	if v == nil {
+		return dedup.SCTDedupInfo{}, false, nil
 	}
-	return btoi(idx), true, nil
+	idx, t, err := btov(v)
+	if err != nil {
+		return dedup.SCTDedupInfo{}, false, fmt.Errorf("btov(): %v", err)
+	}
+	return dedup.SCTDedupInfo{Idx: idx, Timestamp: t}, true, nil
 }
 
 // LogSize reads the latest entry from the size bucket.
@@ -183,4 +191,38 @@ func itob(idx uint64) []byte {
 // btoi converts a byte array to a uint64
 func btoi(b []byte) uint64 {
 	return binary.BigEndian.Uint64(b)
+}
+
+// vtob concatenates an index and timestamp values into a byte array.
+func vtob(idx uint64, timestamp uint64) ([]byte, error) {
+	b := make([]byte, 0, 16)
+	var err error
+
+	b, err = binary.Append(b, binary.BigEndian, idx)
+	if err != nil {
+		return nil, fmt.Errorf("binary.Append() could not encode idx: %v", err)
+	}
+	b, err = binary.Append(b, binary.BigEndian, timestamp)
+	if err != nil {
+		return nil, fmt.Errorf("binary.Append() could not encode timestamp: %v", err)
+	}
+
+	return b, nil
+}
+
+// btov parses a byte array into an index and timestamp values.
+func btov(b []byte) (uint64, uint64, error) {
+	var idx, timestamp uint64
+	if l := len(b); l != 16 {
+		return 0, 0, fmt.Errorf("input value is %d bytes long, expected %d", l, 16)
+	}
+	n, err := binary.Decode(b, binary.BigEndian, &idx)
+	if err != nil {
+		return 0, 0, fmt.Errorf("binary.Decode() could not decode idx: %v", err)
+	}
+	_, err = binary.Decode(b[n:], binary.BigEndian, &timestamp)
+	if err != nil {
+		return 0, 0, fmt.Errorf("binary.Decode() could not decode timestamp: %v", err)
+	}
+	return idx, timestamp, nil
 }
