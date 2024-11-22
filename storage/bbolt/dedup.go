@@ -146,8 +146,7 @@ func (s *Storage) Get(_ context.Context, leafID []byte) (dedup.SCTDedupInfo, boo
 	var v []byte
 	_ = s.db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(dedupBucket))
-		vv := b.Get(leafID)
-		if vv != nil {
+		if vv := b.Get(leafID); vv != nil {
 			v = make([]byte, len(vv))
 			copy(v, vv)
 		}
