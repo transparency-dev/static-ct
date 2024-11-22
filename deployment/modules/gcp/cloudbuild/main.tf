@@ -43,12 +43,6 @@ resource "google_service_account" "cloudbuild_service_account" {
   display_name = "Service Account for Cloud Build (${var.env})"
 }
 
-resource "google_project_iam_member" "cloudbuild_builds_editor" {
-  project = var.project_id
-  role    = "roles/cloudbuild.builds.editor"
-  member  = "serviceAccount:${google_service_account.cloudbuild_service_account.email}"
-}
-
 resource "google_project_iam_member" "logging_log_writer" {
   project = var.project_id
   role    = "roles/logging.logWriter"
