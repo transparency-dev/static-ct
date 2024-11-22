@@ -3,7 +3,8 @@ terraform {
 }
 
 locals {
-  server_docker_image = "${include.root.locals.location}-docker.pkg.dev/${include.root.locals.project_id}/docker-${include.root.locals.env}/conformance-gcp:latest"
+  docker_env = "ci"
+  server_docker_image = "${include.root.locals.location}-docker.pkg.dev/${include.root.locals.project_id}/docker-${locals.docker_env}/conformance-gcp:latest"
 }
 
 include "root" {

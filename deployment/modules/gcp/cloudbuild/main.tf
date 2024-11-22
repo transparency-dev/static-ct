@@ -17,7 +17,7 @@ resource "google_project_service" "artifact_registry_api" {
 }
 
 resource "google_artifact_registry_repository" "docker" {
-  repository_id = "docker-${var.env}"
+  repository_id = "docker-${var.docker_env}"
   location      = var.location
   description   = "Static CT docker images"
   format        = "DOCKER"
@@ -77,7 +77,7 @@ resource "google_project_iam_member" "iam_service_account_user" {
 }
 
 resource "google_cloudbuild_trigger" "build_trigger" {
-  name            = "build-docker-${var.env}"
+  name            = "build-docker-${var.docker_env}"
   service_account = google_service_account.cloudbuild_service_account.id
   location        = var.location
 
@@ -142,7 +142,7 @@ resource "google_cloudbuild_trigger" "build_trigger" {
       args = [
         "run",
         "deploy",
-        "${var.env}-static-ct",
+        "${var.docker_env}-static-ct",
         "--image",
         "${local.conformance_gcp_docker_image}:$SHORT_SHA",
         "--region",
