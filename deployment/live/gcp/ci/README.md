@@ -30,8 +30,6 @@ export GOOGLE_REGION={VALUE} # e.g: us-central1
 unset TESSERA_BASE_NAME
 ```
 
-TODO: Add the Artifact Registry which is in the Cloud Build pull request. The expected repository is `${GOOGLE_REGION}-docker.pkg.dev/${GOOGLE_PROJECT}/docker-ci`.
-
 Build and push the Docker image to Artifact Registry repository:
 
 ```sh
@@ -45,4 +43,3 @@ docker push ${GOOGLE_REGION}-docker.pkg.dev/${GOOGLE_PROJECT}/docker-ci/conforma
 Terraforming the project can be done by:
   1. `cd` to the relevant directory (deployment/live/gcp/ci/) for the environment to deploy/change.
   2. Run `terragrunt apply`.
-
