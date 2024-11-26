@@ -44,6 +44,8 @@ resource "google_spanner_instance" "log_spanner" {
   config           = "regional-${var.location}"
   display_name     = var.base_name
   processing_units = 100
+
+  force_destroy = var.ephemeral
 }
 
 resource "google_spanner_database" "log_db" {
@@ -54,6 +56,8 @@ resource "google_spanner_database" "log_db" {
     "CREATE TABLE Seq (id INT64 NOT NULL, seq INT64 NOT NULL, v BYTES(MAX),) PRIMARY KEY (id, seq)",
     "CREATE TABLE IntCoord (id INT64 NOT NULL, seq INT64 NOT NULL,) PRIMARY KEY (id)",
   ]
+
+  deletion_protection = !var.ephemeral
 }
 
 resource "google_spanner_database" "dedup_db" {
@@ -62,4 +66,6 @@ resource "google_spanner_database" "dedup_db" {
   ddl = [
     "CREATE TABLE IDSeq (id INT64 NOT NULL, h BYTES(MAX) NOT NULL, idx INT64 NOT NULL, timestamp INT64 NOT NULL,) PRIMARY KEY (id, h)",
   ]
+
+  deletion_protection = !var.ephemeral
 }
