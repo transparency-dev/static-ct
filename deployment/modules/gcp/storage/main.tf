@@ -35,6 +35,8 @@ resource "google_storage_bucket" "log_bucket" {
   location                    = var.location
   storage_class               = "STANDARD"
   uniform_bucket_level_access = true
+
+  force_destroy = var.ephemeral
 }
 
 # Spanner
