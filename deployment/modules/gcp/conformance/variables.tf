@@ -18,6 +18,11 @@ variable "env" {
   type        = string
 }
 
+variable "docker_env" {
+  description = "Unique identifier for the Docker env, e.g. dev or ci or prod"
+  type        = string
+}
+
 variable "server_docker_image" {
   description = "The full image URL (path & tag) for the Docker image to deploy in Cloud Run"
   type        = string

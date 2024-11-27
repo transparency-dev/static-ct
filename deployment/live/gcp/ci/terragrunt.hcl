@@ -4,6 +4,7 @@ terraform {
 
 locals {
   env                 = "ci"
+  docker_env          = local.env
   base_name           = "${local.env}-conformance"
   server_docker_image = "us-central1-docker.pkg.dev/${include.root.locals.project_id}/docker-${local.env}/conformance-gcp:latest"
 }

@@ -11,19 +11,11 @@ terraform {
 
 # Artifact Registry
 
-resource "google_project_service" "artifact_registry_api" {
-  service            = "artifactregistry.googleapis.com"
-  disable_on_destroy = false
-}
+module "artifactregistry" {
+  source = "../artifactregistry"
 
-resource "google_artifact_registry_repository" "docker" {
-  repository_id = "docker-${var.docker_env}"
-  location      = var.location
-  description   = "Static CT docker images"
-  format        = "DOCKER"
-  depends_on = [
-    google_project_service.artifact_registry_api,
-  ]
+  location   = var.location
+  docker_env = var.docker_env
 }
 
 # Cloud Build
