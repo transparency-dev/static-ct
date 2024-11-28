@@ -14,52 +14,10 @@ resource "google_project_service" "cloudrun_api" {
   disable_on_destroy = false
 }
 
-resource "google_service_account" "cloudrun_service_account" {
-  account_id   = "cloudrun-${var.env}-sa"
-  display_name = "Service Account for Cloud Run (${var.env})"
-}
-
-resource "google_project_iam_member" "run_service_agent" {
-  project = var.project_id
-  role    = "roles/run.serviceAgent"
-  member  = "serviceAccount:${google_service_account.cloudrun_service_account.email}"
-}
-
-resource "google_project_iam_member" "monitoring_metric_writer" {
-  project = var.project_id
-  role    = "roles/monitoring.metricWriter"
-  member  = "serviceAccount:${google_service_account.cloudrun_service_account.email}"
-}
-
-resource "google_storage_bucket_iam_member" "member" {
-  bucket = var.bucket
-  role   = "roles/storage.objectUser"
-  member = "serviceAccount:${google_service_account.cloudrun_service_account.email}"
-}
-
-resource "google_project_iam_member" "iam_secret_accessor" {
-  project = var.project_id
-  role    = "roles/secretmanager.secretAccessor"
-  member  = "serviceAccount:${google_service_account.cloudrun_service_account.email}"
-}
-
-resource "google_spanner_database_iam_member" "iam_log_spanner_database_user" {
-  instance = var.log_spanner_instance
-  database = var.log_spanner_db
-  role     = "roles/spanner.databaseUser"
-  member   = "serviceAccount:${google_service_account.cloudrun_service_account.email}"
-}
-
-resource "google_spanner_database_iam_member" "iam_dedup_spanner_database_user" {
-  instance = var.log_spanner_instance
-  database = var.dedup_spanner_db
-  role     = "roles/spanner.databaseUser"
-  member   = "serviceAccount:${google_service_account.cloudrun_service_account.email}"
-}
-
 locals {
-  spanner_log_db_path   = "projects/${var.project_id}/instances/${var.log_spanner_instance}/databases/${var.log_spanner_db}"
-  spanner_dedup_db_path = "projects/${var.project_id}/instances/${var.log_spanner_instance}/databases/${var.dedup_spanner_db}"
+  cloudrun_service_account_id = "cloudrun-${var.env}-sa"
+  spanner_log_db_path         = "projects/${var.project_id}/instances/${var.log_spanner_instance}/databases/${var.log_spanner_db}"
+  spanner_dedup_db_path       = "projects/${var.project_id}/instances/${var.log_spanner_instance}/databases/${var.dedup_spanner_db}"
 }
 
 resource "google_cloud_run_v2_service" "default" {
@@ -68,7 +26,7 @@ resource "google_cloud_run_v2_service" "default" {
   launch_stage = "GA"
 
   template {
-    service_account                  = google_service_account.cloudrun_service_account.account_id
+    service_account                  = "projects/${var.project_id}/serviceAccounts/${local.cloudrun_service_account_id}@${var.project_id}.iam.gserviceaccount.com"
     max_instance_request_concurrency = 700
     timeout                          = "5s"
 
