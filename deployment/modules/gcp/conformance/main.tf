@@ -32,6 +32,7 @@ module "cloudrun" {
   base_name                      = var.base_name
   location                       = var.location
   server_docker_image            = var.server_docker_image
+  skip_iam                       = var.skip_iam
   bucket                         = module.storage.log_bucket.id
   log_spanner_instance           = module.storage.log_spanner_instance.name
   log_spanner_db                 = module.storage.log_spanner_db.name

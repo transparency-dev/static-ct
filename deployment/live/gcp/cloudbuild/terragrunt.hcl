@@ -8,6 +8,7 @@ locals {
   location     = get_env("GOOGLE_REGION", "us-central1")
   base_name    = get_env("TESSERA_BASE_NAME", "${local.env}-cloudbuild")
   github_owner = get_env("GITHUB_OWNER", "transparency-dev")
+  skip_iam     = get_env("SKIP_IAM", false)
 }
 
 remote_state {
