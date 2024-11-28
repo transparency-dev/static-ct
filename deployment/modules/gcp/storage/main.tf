@@ -46,6 +46,7 @@ resource "google_spanner_instance" "log_spanner" {
   config           = "regional-${var.location}"
   display_name     = var.base_name
   processing_units = 100
+  default_backup_schedule_type = "NONE"
 
   force_destroy = var.ephemeral
 }
