@@ -34,7 +34,7 @@ export GOOGLE_REGION={VALUE} # e.g: us-central1
 unset TESSERA_BASE_NAME
 ```
 
-Add the Artifact Registry which is in the Cloud Build pull request. The expected Docker repository is `${GOOGLE_REGION}-docker.pkg.dev/${GOOGLE_PROJECT}/docker-ci`. (The Artifact Registry terraform module is ready at [/deployment/modules/gcp/artifactregistry/](/deployment/modules/gcp/artifactregistry/).)
+Add the Artifact Registry which is in the Cloud Build pull request. The expected Docker repository is `${GOOGLE_REGION}-docker.pkg.dev/${GOOGLE_PROJECT}/docker-ci`. (Take the [Artifact Registry terraform module](/deployment/modules/gcp/artifactregistry/) as the setup reference.)
 
 Build and push the Docker image to Artifact Registry repository:
 
