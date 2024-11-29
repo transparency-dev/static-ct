@@ -2,13 +2,6 @@ terraform {
   backend "gcs" {}
 }
 
-module "artifactregistry" {
-  source = "../artifactregistry"
-
-  location   = var.location
-  docker_env = var.docker_env
-}
-
 module "storage" {
   source = "../storage"
 

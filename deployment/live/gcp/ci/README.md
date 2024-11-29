@@ -3,7 +3,7 @@
 ## Overview
 
 This config uses the [gcp/conformance](/deployment/modules/gcp/conformance) module to
-define a CI environment to run the SCTFE, backed by Trillian Tessera.
+define a CI environment to run the SCTFE on Cloud Run, backed by Trillian Tessera.
 
 At a high level, this environment consists of:
 - One Spanner instance with two databases:
@@ -12,6 +12,10 @@ At a high level, this environment consists of:
 - A GCS Bucket
 - Secret Manager
 - Cloud Run
+
+### Automatic Deployment
+
+This GCP SCTFE conformance CI environment is designed to be deployed by the Cloud Build ([Terraform module](/deployment/modules/gcp/cloudbuild/), [Terragrunt configuration](/deployment/live/gcp/cloudbuild/prod/)).
 
 ### Manual Deployment
 
@@ -29,6 +33,8 @@ export GOOGLE_PROJECT={VALUE}
 export GOOGLE_REGION={VALUE} # e.g: us-central1
 unset TESSERA_BASE_NAME
 ```
+
+You need an Artifact Registry repository to store container images; adapt the configs and commands below to use your registry of choice. The rest of these instructions assume that the repository is hosted on GCP, and called `${GOOGLE_REGION}-docker.pkg.dev/${GOOGLE_PROJECT}/docker-ci`. For reference, here's a [terraform module](/deployment/modules/gcp/artifactregistry/) you can use to set up such a registry.
 
 Build and push the Docker image to Artifact Registry repository:
 
