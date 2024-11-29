@@ -34,7 +34,7 @@ export GOOGLE_REGION={VALUE} # e.g: us-central1
 unset TESSERA_BASE_NAME
 ```
 
-Add the Artifact Registry which is in the Cloud Build pull request. The expected Docker repository is `${GOOGLE_REGION}-docker.pkg.dev/${GOOGLE_PROJECT}/docker-ci`. (Take the [Artifact Registry terraform module](/deployment/modules/gcp/artifactregistry/) as the setup reference.)
+You need an Artifact Registry repository to store container images; adapt the configs and commands below to use your registry of choice. The rest of these instructions assume that the repository is hosted on GCP, and called `${GOOGLE_REGION}-docker.pkg.dev/${GOOGLE_PROJECT}/docker-ci`. For reference, here's a [terraform module](/deployment/modules/gcp/artifactregistry/) you can use to set up such a registry.
 
 Build and push the Docker image to Artifact Registry repository:
 
