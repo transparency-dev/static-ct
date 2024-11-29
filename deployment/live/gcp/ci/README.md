@@ -3,7 +3,7 @@
 ## Overview
 
 This config uses the [gcp/conformance](/deployment/modules/gcp/conformance) module to
-define a CI environment to run the SCTFE, backed by Trillian Tessera.
+define a CI environment to run the SCTFE on Cloud Run, backed by Trillian Tessera.
 
 At a high level, this environment consists of:
 - One Spanner instance with two databases:
@@ -12,6 +12,10 @@ At a high level, this environment consists of:
 - A GCS Bucket
 - Secret Manager
 - Cloud Run
+
+### Automatic Deployment
+
+This GCP SCTFE conformance CI environment is designed to be deployed by the Cloud Build ([Terraform module](/deployment/modules/gcp/cloudbuild/), [Terragrunt configuration](/deployment/live/gcp/cloudbuild/prod/)).
 
 ### Manual Deployment
 
