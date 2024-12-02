@@ -7,9 +7,9 @@ require (
 	cloud.google.com/go/spanner v1.73.0
 	cloud.google.com/go/storage v1.47.0
 	github.com/golang/mock v1.6.0
-	github.com/google/certificate-transparency-go v1.2.2
+	github.com/google/certificate-transparency-go v1.3.0
 	github.com/google/go-cmp v0.6.0
-	github.com/google/trillian v1.6.1
+	github.com/google/trillian v1.7.0
 	github.com/kylelemons/godebug v1.1.0
 	github.com/prometheus/client_golang v1.20.5
 	github.com/rs/cors v1.11.1
