@@ -147,14 +147,13 @@ resource "google_cloudbuild_trigger" "build_trigger" {
       id       = "gen_test_cert"
       name     = "gcr.io/cloud-builders/gcloud"
       script   = <<EOT
+        apt update && apt install jq -y
         mkdir -p /tmp/httpschain
         openssl genrsa -out /tmp/httpschain/cert.key 2048
         openssl req -new -key /tmp/httpschain/cert.key -out /tmp/httpschain/cert.csr -config=testdata/fake-ca.cfg
         openssl x509 -req -days 3650 -in /tmp/httpschain/cert.csr -CAkey testdata/fake-ca.privkey.pem -CA testdata/fake-ca.cert -passin pass:"gently" -outform pem -out /tmp/httpschain/chain.pem -provider legacy -provider default
         cat testdata/fake-ca.cert >> /tmp/httpschain/chain.pem
-
-        apt update && apt install jq -y
-
+        cat /tmp/httpschain/chain.pem | jq --raw-input --slurp --compact-output 'split("\n-----END CERTIFICATE-----\n") | map(select(length > 0) | sub("^-----BEGIN CERTIFICATE-----\n"; "") | sub("\n-----END CERTIFICATE-----$"; "")) | { "chain": . }'
         cat /tmp/httpschain/chain.pem | jq --raw-input --slurp --compact-output 'split("\n-----END CERTIFICATE-----\n") | map(select(length > 0) | sub("^-----BEGIN CERTIFICATE-----\n"; "") | sub("\n-----END CERTIFICATE-----$"; "")) | { "chain": . }' > /tmp/httpschain/chain.json
       EOT
       wait_for = ["terraform_apply_conformance_ci"]
