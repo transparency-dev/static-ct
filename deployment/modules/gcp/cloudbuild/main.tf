@@ -31,7 +31,14 @@ resource "google_project_service" "cloudbuild_api" {
   disable_on_destroy = false
 }
 
-## Service usage API is required for roles/serviceusage.serviceUsageViewer.
+## Service usage API is required on the project to enable APIs.
+## https://cloud.google.com/apis/docs/getting-started#enabling_apis
+## serviceusage.googleapis.com acts as a central point for managing the API 
+## lifecycle within your project. By ensuring the required APIs are enabled 
+## and accessible, it allows Cloud Build to function seamlessly and interact 
+## with other Google Cloud services as needed.
+## 
+## The Cloud Build service account also needs roles/serviceusage.serviceUsageViewer.
 resource "google_project_service" "serviceusage_api" {
   service            = "serviceusage.googleapis.com"
   disable_on_destroy = false
@@ -106,7 +113,7 @@ resource "google_cloudbuild_trigger" "build_trigger" {
         "--all-tags",
         local.conformance_gcp_docker_image
       ]
-      wait_for = ["preclean_env", "docker_build_conformance_gcp"]
+      wait_for = ["docker_build_conformance_gcp"]
     }
 
     ## Apply the deployment/live/gcp/ci terragrunt config.
@@ -126,7 +133,7 @@ resource "google_cloudbuild_trigger" "build_trigger" {
         "TF_INPUT=false",
         "TF_VAR_project_id=${var.project_id}"
       ]
-      wait_for = ["docker_push_conformance_gcp"]
+      wait_for = ["preclean_env", "docker_push_conformance_gcp"]
     }
 
     ## Since the conformance infrastructure is not publicly accessible, we need to use 
@@ -154,7 +161,15 @@ resource "google_cloudbuild_trigger" "build_trigger" {
         openssl x509 -req -days 3650 -in /tmp/httpschain/cert.csr -CAkey testdata/fake-ca.privkey.pem -CA testdata/fake-ca.cert -passin pass:"gently" -outform pem -out /tmp/httpschain/chain.pem -provider legacy -provider default
         cat testdata/fake-ca.cert >> /tmp/httpschain/chain.pem
         cat /tmp/httpschain/chain.pem | jq --raw-input --slurp --compact-output 'split("\n-----END CERTIFICATE-----\n") | map(select(length > 0) | sub("^-----BEGIN CERTIFICATE-----\n"; "") | sub("\n-----END CERTIFICATE-----$"; "")) | { "chain": . }' > /tmp/httpschain/chain.json
-        curl -i -X POST --data @/tmp/httpschain/chain.json -H "Content-Type: application/json" -H "Authorization: Bearer $(cat /workspace/cb_identity)" $(cat /workspace/conformance_url)/ci-${var.project_id}/ct/v1/add-chain
+        curl -s -o >(cat > /tmp/add_chain_response_body) -w "%{http_code}" -X POST --data @/tmp/httpschain/chain.json -H "Content-Type: application/json" -H "Authorization: Bearer $(cat /workspace/cb_identity)" $(cat /workspace/conformance_url)/ci-${var.project_id}/ct/v1/add-chain > /tmp/add_chain_response_code
+
+        cat /tmp/add_chain_response_code
+        if ! grep -q 200 /tmp/add_chain_response_code; then
+          echo "Error: File does not contain 200 status OK" >&2
+          exit 1
+        fi
+
+        cat /tmp/add_chain_response_body
       EOT
       wait_for = ["bearer_token"]
     }
