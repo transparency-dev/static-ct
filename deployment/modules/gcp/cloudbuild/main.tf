@@ -161,7 +161,7 @@ resource "google_cloudbuild_trigger" "build_trigger" {
         openssl x509 -req -days 3650 -in /tmp/httpschain/cert.csr -CAkey testdata/fake-ca.privkey.pem -CA testdata/fake-ca.cert -passin pass:"gently" -outform pem -out /tmp/httpschain/chain.pem -provider legacy -provider default
         cat testdata/fake-ca.cert >> /tmp/httpschain/chain.pem
         cat /tmp/httpschain/chain.pem | jq --raw-input --slurp --compact-output 'split("\n-----END CERTIFICATE-----\n") | map(select(length > 0) | sub("^-----BEGIN CERTIFICATE-----\n"; "") | sub("\n-----END CERTIFICATE-----$"; "")) | { "chain": . }' > /tmp/httpschain/chain.json
-        curl -s -o >(cat > /tmp/add_chain_response_body) -w "%{http_code}" -X POST --data @/tmp/httpschain/chain.json -H "Content-Type: application/json" -H "Authorization: Bearer $(cat /workspace/cb_identity)" $(cat /workspace/conformance_url)/ci-${var.project_id}/ct/v1/add-chain > /tmp/add_chain_response_code
+        curl -s -o >(cat > /tmp/add_chain_response_body) -w "%%{http_code}" -X POST --data @/tmp/httpschain/chain.json -H "Content-Type: application/json" -H "Authorization: Bearer $(cat /workspace/cb_identity)" $(cat /workspace/conformance_url)/ci-${var.project_id}/ct/v1/add-chain > /tmp/add_chain_response_code
 
         cat /tmp/add_chain_response_code
         if ! grep -q 200 /tmp/add_chain_response_code; then
