@@ -9,15 +9,15 @@ terraform {
 
 # Cloud Run
 
-resource "google_project_service" "cloudrun_api" {
-  service            = "run.googleapis.com"
-  disable_on_destroy = false
-}
-
 locals {
   cloudrun_service_account_id = "cloudrun-${var.env}-sa"
   spanner_log_db_path         = "projects/${var.project_id}/instances/${var.log_spanner_instance}/databases/${var.log_spanner_db}"
   spanner_dedup_db_path       = "projects/${var.project_id}/instances/${var.log_spanner_instance}/databases/${var.dedup_spanner_db}"
+}
+
+resource "google_project_service" "cloudrun_api" {
+  service            = "run.googleapis.com"
+  disable_on_destroy = false
 }
 
 resource "google_cloud_run_v2_service" "default" {
