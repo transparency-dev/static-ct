@@ -152,19 +152,12 @@ resource "google_cloudbuild_trigger" "build_trigger" {
         openssl req -new -key /tmp/httpschain/cert.key -out /tmp/httpschain/cert.csr -config=testdata/fake-ca.cfg
         openssl x509 -req -days 3650 -in /tmp/httpschain/cert.csr -CAkey testdata/fake-ca.privkey.pem -CA testdata/fake-ca.cert -passin pass:"gently" -outform pem -out /tmp/httpschain/chain.pem -provider legacy -provider default
         cat testdata/fake-ca.cert >> /tmp/httpschain/chain.pem
-      EOT
-      wait_for = ["terraform_apply_conformance_ci"]
-    }
 
-    ## Prepare the add-chain request body
-    ## TODO: Remove this with CT Hammer when it is ready.
-    step {
-      id       = "prepare_add_chain_request_body"
-      name     = "ghcr.io/jqlang/jq"
-      script   = <<EOT
+        apt update && apt install jq -y
+
         cat /tmp/httpschain/chain.pem | jq --raw-input --slurp --compact-output 'split("\n-----END CERTIFICATE-----\n") | map(select(length > 0) | sub("^-----BEGIN CERTIFICATE-----\n"; "") | sub("\n-----END CERTIFICATE-----$"; "")) | { "chain": . }' > /tmp/httpschain/chain.json
       EOT
-      wait_for = ["gen_test_cert"]
+      wait_for = ["terraform_apply_conformance_ci"]
     }
 
     ## Test against the conformance server.
@@ -175,7 +168,7 @@ resource "google_cloudbuild_trigger" "build_trigger" {
       script   = <<EOT
         curl -i -X POST --data @/tmp/httpschain/chain.json -H "Content-Type: application/json" -H "Authorization: Bearer $(cat /workspace/cb_identity)" $(cat /workspace/conformance_url)/ci-${var.project_id}/ct/v1/add-pre-chain
       EOT
-      wait_for = ["bearer_token", "prepare_add_chain_request_body"]
+      wait_for = ["bearer_token", "gen_test_cert"]
     }
 
     ## Destroy the deployment/live/gcp/ci terragrunt config.
