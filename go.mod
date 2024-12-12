@@ -16,7 +16,7 @@ require (
 	github.com/transparency-dev/formats v0.0.0-20240909113624-7ce4ea605e8b
 	github.com/transparency-dev/trillian-tessera v0.1.0
 	go.etcd.io/bbolt v1.3.11
-	golang.org/x/crypto v0.30.0
+	golang.org/x/crypto v0.31.0
 	golang.org/x/mod v0.22.0
 	google.golang.org/api v0.210.0
 	google.golang.org/grpc v1.68.1
