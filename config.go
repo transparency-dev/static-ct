@@ -87,6 +87,15 @@ func ValidateLogConfig(origin string, rootsPemFile string, rejectExpired bool, r
 		return nil, fmt.Errorf("unsupported key type: %v", keyType)
 	}
 
+	if rejectExpired && rejectUnexpired {
+		return nil, errors.New("rejecting all certificates")
+	}
+
+	// Validate the time interval.
+	if notAfterStart != nil && notAfterLimit != nil && (notAfterLimit).Before(*notAfterStart) {
+		return nil, errors.New("limit before start")
+	}
+
 	lExtKeyUsages := []string{}
 	lRejectExtensions := []string{}
 	if extKeyUsages != "" {
@@ -107,10 +116,6 @@ func ValidateLogConfig(origin string, rootsPemFile string, rejectExpired bool, r
 		Signer:           signer,
 	}
 
-	if rejectExpired && rejectUnexpired {
-		return nil, errors.New("rejecting all certificates")
-	}
-
 	// Validate the extended key usages list.
 	for _, kuStr := range lExtKeyUsages {
 		if ku, ok := stringToKeyUsage[kuStr]; ok {
@@ -125,11 +130,6 @@ func ValidateLogConfig(origin string, rootsPemFile string, rejectExpired bool, r
 		} else {
 			return nil, fmt.Errorf("unknown extended key usage: %s", kuStr)
 		}
-	}
-
-	// Validate the time interval.
-	if notAfterStart != nil && notAfterLimit != nil && (notAfterLimit).Before(*notAfterStart) {
-		return nil, errors.New("limit before start")
 	}
 
 	return &vCfg, nil

@@ -199,8 +199,10 @@ type logInfo struct {
 	// information.
 	RequestLog RequestLog
 
-	// Instance-wide options
-	instanceOpts InstanceOptions
+	// maskInternalErrors controls whether to hide internal errors from clients
+	maskInternalErrors bool
+	// deadline is a timeout for HTTP requests.
+	deadline time.Duration
 	// validationOpts contains the certificate chain validation parameters
 	validationOpts CertValidationOpts
 	// storage stores log data
@@ -220,13 +222,14 @@ func newLogInfo(
 	cfg := instanceOpts.Validated
 
 	li := &logInfo{
-		Origin:         cfg.Origin,
-		storage:        storage,
-		signer:         signer,
-		TimeSource:     timeSource,
-		instanceOpts:   instanceOpts,
-		validationOpts: validationOpts,
-		RequestLog:     instanceOpts.RequestLog,
+		Origin:             cfg.Origin,
+		storage:            storage,
+		signer:             signer,
+		TimeSource:         timeSource,
+		maskInternalErrors: instanceOpts.MaskInternalErrors,
+		deadline:           instanceOpts.Deadline,
+		validationOpts:     validationOpts,
+		RequestLog:         instanceOpts.RequestLog,
 	}
 
 	once.Do(func() { setupMetrics(instanceOpts.MetricFactory) })
@@ -256,7 +259,7 @@ func (li *logInfo) Handlers(prefix string) PathHandlers {
 // SendHTTPError generates a custom error page to give more information on why something didn't work
 func (li *logInfo) SendHTTPError(w http.ResponseWriter, statusCode int, err error) {
 	errorBody := http.StatusText(statusCode)
-	if !li.instanceOpts.MaskInternalErrors || statusCode != http.StatusInternalServerError {
+	if !li.maskInternalErrors || statusCode != http.StatusInternalServerError {
 		errorBody += fmt.Sprintf("\n%v", err)
 	}
 	http.Error(w, errorBody, statusCode)
@@ -419,7 +422,7 @@ func getRoots(_ context.Context, li *logInfo, w http.ResponseWriter, _ *http.Req
 
 // deadlineTime calculates the future time a request should expire based on our config.
 func deadlineTime(li *logInfo) time.Time {
-	return li.TimeSource.Now().Add(li.instanceOpts.Deadline)
+	return li.TimeSource.Now().Add(li.deadline)
 }
 
 // verifyAddChain is used by add-chain and add-pre-chain. It does the checks that the supplied
