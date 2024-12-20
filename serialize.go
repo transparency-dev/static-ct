@@ -159,7 +159,12 @@ func (cts *CpSigner) KeyHash() uint32 {
 
 // NewCpSigner returns a new note signer that can sign https://c2sp.org/static-ct-api checkpoints.
 // TODO(phboneff): add tests
-func NewCpSigner(signer crypto.Signer, origin string, logID [32]byte, timeSource TimeSource) note.Signer {
+func NewCpSigner(cs crypto.Signer, origin string, timeSource TimeSource) (note.Signer, error) {
+	logID, err := GetCTLogID(cs.Public())
+	if err != nil {
+		return nil, fmt.Errorf("failed to get logID for signing: %v", err)
+	}
+
 	h := sha256.New()
 	h.Write([]byte(origin))
 	h.Write([]byte{0x0A}) // newline
@@ -167,19 +172,21 @@ func NewCpSigner(signer crypto.Signer, origin string, logID [32]byte, timeSource
 	h.Write(logID[:])
 	sum := h.Sum(nil)
 
-	ctSigner := &CpSigner{
-		sthSigner:  signer,
+	ns := &CpSigner{
+		sthSigner:  cs,
 		origin:     origin,
 		keyHash:    binary.BigEndian.Uint32(sum),
 		timeSource: timeSource,
 	}
-	return ctSigner
+
+	return ns, nil
 }
 
 // DedupFromBundle converts a bundle into an array of dedup.LeafDedupInfo.
 //
 // The index of a leaf is computed from its position in the log, instead of parsing SCTs.
 // Greatly inspired by https://github.com/FiloSottile/sunlight/blob/main/tile.go
+// TODO(phboneff): move this somewhere else, and only leave crypto in this file
 func DedupFromBundle(bundle []byte, bundleIdx uint64) ([]dedup.LeafDedupInfo, error) {
 	kvs := []dedup.LeafDedupInfo{}
 	s := cryptobyte.String(bundle)

@@ -85,17 +85,13 @@ func SetUpInstance(ctx context.Context, opts InstanceOptions) (*Instance, error)
 		return nil, fmt.Errorf("failed to parse RejectExtensions: %v", err)
 	}
 
-	logID, err := GetCTLogID(cfg.Signer.Public())
-	if err != nil {
-		return nil, fmt.Errorf("failed to get logID for signing: %v", err)
-	}
 	timeSource := new(SystemTimeSource)
-	ctSigner := NewCpSigner(cfg.Signer, cfg.Origin, logID, timeSource)
+	cpSigner, err := NewCpSigner(cfg.Signer, cfg.Origin, timeSource)
 
 	if opts.CreateStorage == nil {
 		return nil, fmt.Errorf("failed to initiate storage backend: nil createStorage")
 	}
-	storage, err := opts.CreateStorage(ctx, ctSigner)
+	storage, err := opts.CreateStorage(ctx, cpSigner)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initiate storage backend: %v", err)
 	}
