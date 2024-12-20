@@ -25,7 +25,6 @@ import (
 	"github.com/google/certificate-transparency-go/asn1"
 	"github.com/google/certificate-transparency-go/x509util"
 	"github.com/google/trillian/monitoring"
-	"golang.org/x/mod/sumdb/note"
 )
 
 // InstanceOptions describes the options for a log instance.
@@ -33,8 +32,8 @@ type InstanceOptions struct {
 	// Validated holds the original configuration options for the log, and some
 	// of its fields parsed as a result of validating it.
 	Validated *ValidatedLogConfig
-	// CreateStorage instantiates a Tessera storage implementation with a signer option.
-	CreateStorage func(context.Context, note.Signer) (*CTStorage, error)
+	// Storage stores data to implement https://c2sp.org/static-ct-api.
+	Storage *CTStorage
 	// Deadline is a timeout for HTTP requests.
 	Deadline time.Duration
 	// MetricFactory allows creating metrics.
@@ -42,6 +41,7 @@ type InstanceOptions struct {
 	// RequestLog provides structured logging of CTFE requests.
 	RequestLog         RequestLog
 	MaskInternalErrors bool
+	TimeSource         TimeSource
 }
 
 // Instance is a set up log/mirror instance. It must be created with the
@@ -85,21 +85,7 @@ func SetUpInstance(ctx context.Context, opts InstanceOptions) (*Instance, error)
 		return nil, fmt.Errorf("failed to parse RejectExtensions: %v", err)
 	}
 
-	timeSource := new(SystemTimeSource)
-	cpSigner, err := NewCpSigner(cfg.Signer, cfg.Origin, timeSource)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create checkpoint signer: %v", err)
-	}
-
-	if opts.CreateStorage == nil {
-		return nil, fmt.Errorf("failed to initiate storage backend: nil createStorage")
-	}
-	storage, err := opts.CreateStorage(ctx, cpSigner)
-	if err != nil {
-		return nil, fmt.Errorf("failed to initiate storage backend: %v", err)
-	}
-
-	logInfo := newLogInfo(opts, validationOpts, cfg.Signer, timeSource, storage)
+	logInfo := newLogInfo(opts, validationOpts, cfg.Signer, opts.TimeSource, opts.Storage)
 
 	handlers := logInfo.Handlers(opts.Validated.Origin)
 	return &Instance{Handlers: handlers, li: logInfo}, nil
