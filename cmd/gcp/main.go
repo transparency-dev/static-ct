@@ -76,14 +76,39 @@ func main() {
 	flag.Parse()
 	ctx := context.Background()
 
+	timeSource := sctfe.SystemTimeSource{}
 	signer, err := NewSecretManagerSigner(ctx, *signerPublicKeySecretName, *signerPrivateKeySecretName)
 	if err != nil {
 		klog.Exitf("Can't create secret manager signer: %v", err)
+	}
+	cpSigner, err := sctfe.NewCpSigner(signer, *origin, timeSource)
+	if err != nil {
+		klog.Exitf("failed to create checkpoint Signer: %v", err)
+	}
+
+	storage, err := newGCPStorage(ctx, cpSigner)
+	if err != nil {
+		klog.Exitf("failed to initiate storage backend: %v", err)
 	}
 
 	vCfg, err := sctfe.ValidateLogConfig(*origin, *rootsPemFile, *rejectExpired, *rejectUnexpired, *extKeyUsages, *rejectExtensions, notAfterStart.t, notAfterLimit.t, signer)
 	if err != nil {
 		klog.Exitf("Invalid config: %v", err)
+	}
+
+	opts := sctfe.InstanceOptions{
+		Validated:          vCfg,
+		Deadline:           *httpDeadline,
+		MetricFactory:      prometheus.MetricFactory{},
+		RequestLog:         new(sctfe.DefaultRequestLog),
+		MaskInternalErrors: *maskInternalErrors,
+		Storage:            storage,
+		TimeSource:         timeSource,
+	}
+
+	inst, err := sctfe.SetUpInstance(ctx, opts)
+	if err != nil {
+		klog.Exitf("Failed to set up log instance for %+v: %v", vCfg, err)
 	}
 
 	klog.CopyStandardLogTo("WARNING")
@@ -101,30 +126,7 @@ func main() {
 	corsHandler := cors.AllowAll().Handler(corsMux)
 	http.Handle("/", corsHandler)
 
-	timeSource := sctfe.SystemTimeSource{}
-	cpSigner, err := sctfe.NewCpSigner(signer, vCfg.Origin, timeSource)
-	if err != nil {
-		klog.Exitf("failed to create checkpoint Signer: %v", err)
-	}
-	storage, err := newGCPStorage(ctx, cpSigner)
-	if err != nil {
-		klog.Exitf("failed to initiate storage backend: %v", err)
-	}
 	// Register handlers for all the configured logs.
-	opts := sctfe.InstanceOptions{
-		Validated:          vCfg,
-		Deadline:           *httpDeadline,
-		MetricFactory:      prometheus.MetricFactory{},
-		RequestLog:         new(sctfe.DefaultRequestLog),
-		MaskInternalErrors: *maskInternalErrors,
-		Storage:            storage,
-		TimeSource:         timeSource,
-	}
-
-	inst, err := sctfe.SetUpInstance(ctx, opts)
-	if err != nil {
-		klog.Exitf("Failed to set up log instance for %+v: %v", vCfg, err)
-	}
 	for path, handler := range inst.Handlers {
 		corsMux.Handle(path, handler)
 	}
