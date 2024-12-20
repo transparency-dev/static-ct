@@ -85,7 +85,7 @@ func main() {
 		klog.Exitf("Can't create secret manager signer: %v", err)
 	}
 
-	vCfg, err := sctfe.ValidateLogConfig(*origin, *projectID, *bucket, *spannerDB, *rootsPemFile, *rejectExpired, *rejectUnexpired, *extKeyUsages, *rejectExtensions, notAfterStart.t, notAfterLimit.t, signer)
+	vCfg, err := sctfe.ValidateLogConfig(*origin, *rootsPemFile, *rejectExpired, *rejectUnexpired, *extKeyUsages, *rejectExtensions, notAfterStart.t, notAfterLimit.t, signer)
 	if err != nil {
 		klog.Exitf("Invalid config: %v", err)
 	}
