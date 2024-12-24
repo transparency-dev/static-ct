@@ -19,10 +19,13 @@ import (
 	"crypto/ecdsa"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
+	"github.com/google/certificate-transparency-go/asn1"
 	"github.com/google/certificate-transparency-go/x509"
+	"github.com/google/certificate-transparency-go/x509util"
 	"k8s.io/klog/v2"
 )
 
@@ -34,31 +37,9 @@ type ValidatedLogConfig struct {
 	Origin string
 	// Used to sign the checkpoint and SCTs.
 	Signer crypto.Signer
-	// If set, ExtKeyUsages will restrict the set of such usages that the
-	// server will accept. By default all are accepted. The values specified
-	// must be ones known to the x509 package.
-	KeyUsages []x509.ExtKeyUsage
-	// NotAfterStart defines the start of the range of acceptable NotAfter
-	// values, inclusive.
-	// Leaving this unset implies no lower bound to the range.
-	NotAfterStart *time.Time
-	// NotAfterLimit defines the end of the range of acceptable NotAfter values,
-	// exclusive.
-	// Leaving this unset implies no upper bound to the range.
-	NotAfterLimit *time.Time
-	// Path to the file containing root certificates that are acceptable to the
-	// log. The certs are served through get-roots endpoint.
-	RootsPemFile string
-	// If RejectExpired is true then the certificate validity period will be
-	// checked against the current time during the validation of submissions.
-	// This will cause expired certificates to be rejected.
-	RejectExpired bool
-	// If RejectUnexpired is true then CTFE rejects certificates that are either
-	// currently valid or not yet valid.
-	RejectUnexpired bool
-	// A list of X.509 extension OIDs, in dotted string form (e.g. "2.3.4.5")
-	// which, if present, should cause submissions to be rejected.
-	RejectExtensions []string
+	// CertValidationOpts contains various parameters for certificate chain
+	// validation.
+	CertValidationOpts CertValidationOpts
 }
 
 // ValidateLogConfig checks that a single log config is valid. In particular:
@@ -73,11 +54,17 @@ func ValidateLogConfig(origin string, rootsPemFile string, rejectExpired bool, r
 		return nil, errors.New("empty origin")
 	}
 
+	// Load the trusted roots.
 	if rootsPemFile == "" {
 		return nil, errors.New("empty rootsPemFile")
 	}
+	roots := x509util.NewPEMCertPool()
+	if err := roots.AppendCertsFromPEMFile(rootsPemFile); err != nil {
+		return nil, fmt.Errorf("failed to read trusted roots: %v", err)
+	}
 
 	// Validate signer that only ECDSA is supported.
+	// TODO(phboneff): if this is a library this should also allow RSA as per RFC6962.
 	if signer == nil {
 		return nil, errors.New("empty signer")
 	}
@@ -96,26 +83,19 @@ func ValidateLogConfig(origin string, rootsPemFile string, rejectExpired bool, r
 		return nil, errors.New("limit before start")
 	}
 
+	validationOpts := CertValidationOpts{
+		trustedRoots:    roots,
+		rejectExpired:   rejectExpired,
+		rejectUnexpired: rejectUnexpired,
+		notAfterStart:   notAfterStart,
+		notAfterLimit:   notAfterLimit,
+	}
+
+	// Filter which extended key usages are allowed.
 	lExtKeyUsages := []string{}
-	lRejectExtensions := []string{}
 	if extKeyUsages != "" {
 		lExtKeyUsages = strings.Split(extKeyUsages, ",")
 	}
-	if rejectExtensions != "" {
-		lRejectExtensions = strings.Split(rejectExtensions, ",")
-	}
-
-	vCfg := ValidatedLogConfig{
-		Origin:           origin,
-		RootsPemFile:     rootsPemFile,
-		RejectExpired:    rejectExpired,
-		RejectUnexpired:  rejectUnexpired,
-		RejectExtensions: lRejectExtensions,
-		NotAfterStart:    notAfterStart,
-		NotAfterLimit:    notAfterLimit,
-		Signer:           signer,
-	}
-
 	// Validate the extended key usages list.
 	for _, kuStr := range lExtKeyUsages {
 		if ku, ok := stringToKeyUsage[kuStr]; ok {
@@ -123,16 +103,48 @@ func ValidateLogConfig(origin string, rootsPemFile string, rejectExpired bool, r
 			// just disable EKU checking.
 			if ku == x509.ExtKeyUsageAny {
 				klog.Infof("%s: Found ExtKeyUsageAny, allowing all EKUs", origin)
-				vCfg.KeyUsages = nil
+				validationOpts.extKeyUsages = nil
 				break
 			}
-			vCfg.KeyUsages = append(vCfg.KeyUsages, ku)
+			validationOpts.extKeyUsages = append(validationOpts.extKeyUsages, ku)
 		} else {
 			return nil, fmt.Errorf("unknown extended key usage: %s", kuStr)
 		}
 	}
+	// Filter which extensions are rejected.
+	var err error
+	if rejectExtensions != "" {
+		lRejectExtensions := strings.Split(rejectExtensions, ",")
+		validationOpts.rejectExtIds, err = parseOIDs(lRejectExtensions)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse RejectExtensions: %v", err)
+		}
+	}
+
+	vCfg := ValidatedLogConfig{
+		Origin:             origin,
+		Signer:             signer,
+		CertValidationOpts: validationOpts,
+	}
 
 	return &vCfg, nil
+}
+
+func parseOIDs(oids []string) ([]asn1.ObjectIdentifier, error) {
+	ret := make([]asn1.ObjectIdentifier, 0, len(oids))
+	for _, s := range oids {
+		bits := strings.Split(s, ".")
+		var oid asn1.ObjectIdentifier
+		for _, n := range bits {
+			p, err := strconv.Atoi(n)
+			if err != nil {
+				return nil, err
+			}
+			oid = append(oid, p)
+		}
+		ret = append(ret, oid)
+	}
+	return ret, nil
 }
 
 var stringToKeyUsage = map[string]x509.ExtKeyUsage{

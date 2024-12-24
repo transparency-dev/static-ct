@@ -52,49 +52,6 @@ func TestSetUpInstance(t *testing.T) {
 			rootsPemFile: "./testdata/fake-ca.cert",
 			signer:       signer,
 		},
-		{
-			desc:         "no-roots",
-			origin:       "log",
-			rootsPemFile: "./testdata/nofile",
-			wantErr:      "failed to read trusted roots",
-			signer:       signer,
-		},
-		{
-			desc:         "missing-root-cert",
-			origin:       "log",
-			rootsPemFile: "./testdata/bogus.cert",
-			signer:       signer,
-			wantErr:      "failed to read trusted roots",
-		},
-		{
-			desc:         "valid-ekus-1",
-			origin:       "log",
-			rootsPemFile: "./testdata/fake-ca.cert",
-			extKeyUsages: "Any",
-			signer:       signer,
-		},
-		{
-			desc:         "valid-ekus-2",
-			origin:       "log",
-			rootsPemFile: "./testdata/fake-ca.cert",
-			extKeyUsages: "Any,ServerAuth,TimeStamping",
-			signer:       signer,
-		},
-		{
-			desc:             "valid-reject-ext",
-			origin:           "log",
-			rootsPemFile:     "./testdata/fake-ca.cert",
-			rejectExtensions: "1.2.3.4,5.6.7.8",
-			signer:           signer,
-		},
-		{
-			desc:             "invalid-reject-ext",
-			origin:           "log",
-			rootsPemFile:     "./testdata/fake-ca.cert",
-			rejectExtensions: "1.2.3.4,one.banana.two.bananas",
-			signer:           signer,
-			wantErr:          "one",
-		},
 	}
 
 	for _, test := range tests {
@@ -131,6 +88,8 @@ func equivalentTimes(a *time.Time, b *time.Time) bool {
 	return a.Equal(*b)
 }
 
+// This tests that the right values of LogInfo are passed through. We can probably delete these tests, or check
+// that the whole loginfo is passed through.
 func TestSetUpInstanceSetsValidationOpts(t *testing.T) {
 	ctx := context.Background()
 
