@@ -106,10 +106,7 @@ func main() {
 		TimeSource:         timeSource,
 	}
 
-	inst, err := sctfe.SetUpInstance(ctx, opts)
-	if err != nil {
-		klog.Exitf("Failed to set up log instance for %+v: %v", vCfg, err)
-	}
+	handlers := sctfe.NewPathHandlers(opts)
 
 	klog.CopyStandardLogTo("WARNING")
 	klog.Info("**** CT HTTP Server Starting ****")
@@ -127,7 +124,7 @@ func main() {
 	http.Handle("/", corsHandler)
 
 	// Register handlers for all the configured logs.
-	for path, handler := range inst.Handlers {
+	for path, handler := range handlers {
 		corsMux.Handle(path, handler)
 	}
 

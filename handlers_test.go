@@ -399,6 +399,8 @@ func TestAddChain(t *testing.T) {
 					t.Errorf("resp.Signature=%s; want %s", got, want)
 				}
 				// TODO(phboneff): check that the index is in the SCT
+				// TODO(phboneff): add a test with a not after range
+				// TODO(phbpneff): add a test with a start date only
 			}
 		})
 	}
@@ -444,6 +446,8 @@ func TestAddPrechain(t *testing.T) {
 		},
 		// TODO(phboneff): add a test with an intermediate
 		// TODO(phboneff): add a test with a pre-issuer intermediate cert
+		// TODO(phboneff): add a test with a not after range
+		// TODO(phbpneff): add a test with a start date only
 	}
 
 	signer, err := setupSigner(fakeSignature)

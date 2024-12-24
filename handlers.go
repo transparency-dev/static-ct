@@ -211,6 +211,23 @@ type logInfo struct {
 	signer crypto.Signer
 }
 
+// InstanceOptions describes the options for a log instance.
+type InstanceOptions struct {
+	// Validated holds the original configuration options for the log, and some
+	// of its fields parsed as a result of validating it.
+	Validated *ValidatedLogConfig
+	// Storage stores data to satisfy https://c2sp.org/static-ct-api.
+	Storage *CTStorage
+	// Deadline is a timeout for HTTP requests.
+	Deadline time.Duration
+	// MetricFactory allows creating metrics.
+	MetricFactory monitoring.MetricFactory
+	// RequestLog provides structured logging of CTFE requests.
+	RequestLog         RequestLog
+	MaskInternalErrors bool
+	TimeSource         TimeSource
+}
+
 // newLogInfo creates a new instance of logInfo.
 func newLogInfo(
 	instanceOpts InstanceOptions,
@@ -236,6 +253,12 @@ func newLogInfo(
 	knownLogs.Set(1.0, cfg.Origin)
 
 	return li
+}
+
+func NewPathHandlers(opts InstanceOptions) PathHandlers {
+	cfg := opts.Validated
+	logInfo := newLogInfo(opts, cfg.CertValidationOpts, cfg.Signer, opts.TimeSource, opts.Storage)
+	return logInfo.Handlers(opts.Validated.Origin)
 }
 
 // Handlers returns a map from URL paths (with the given prefix) and AppHandler instances
