@@ -42,7 +42,6 @@ type InstanceOptions struct {
 // SetUpInstance call.
 type Instance struct {
 	Handlers PathHandlers
-	li       *logInfo
 }
 
 // SetUpInstance sets up a log (or log mirror) instance using the provided
@@ -54,5 +53,5 @@ func SetUpInstance(ctx context.Context, opts InstanceOptions) (*Instance, error)
 	logInfo := newLogInfo(opts, cfg.CertValidationOpts, cfg.Signer, opts.TimeSource, opts.Storage)
 
 	handlers := logInfo.Handlers(opts.Validated.Origin)
-	return &Instance{Handlers: handlers, li: logInfo}, nil
+	return &Instance{Handlers: handlers}, nil
 }
