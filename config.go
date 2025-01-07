@@ -73,19 +73,6 @@ func ValidateLogConfig(origin string, projectID string, bucket string, spannerDB
 		return nil, errors.New("empty origin")
 	}
 
-	// TODO(phboneff): move this logic together with the tests out of config.go and validate the flags directly
-	if projectID == "" {
-		return nil, errors.New("empty projectID")
-	}
-
-	if bucket == "" {
-		return nil, errors.New("empty bucket")
-	}
-
-	if spannerDB == "" {
-		return nil, errors.New("empty spannerDB")
-	}
-
 	if rootsPemFile == "" {
 		return nil, errors.New("empty rootsPemFile")
 	}

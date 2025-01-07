@@ -17,6 +17,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"net/http"
@@ -75,6 +76,9 @@ func main() {
 	klog.InitFlags(nil)
 	flag.Parse()
 	ctx := context.Background()
+	if err := validateFlags(); err != nil {
+		klog.Exitf("Invalid flags: %v", err)
+	}
 
 	signer, err := NewSecretManagerSigner(ctx, *signerPublicKeySecretName, *signerPrivateKeySecretName)
 	if err != nil {
@@ -243,5 +247,20 @@ func (t *timestampFlag) Set(w string) error {
 		return fmt.Errorf("can't parse %q as RFC3339 timestamp: %v", w, err)
 	}
 	t.t = &tt
+	return nil
+}
+
+func validateFlags() error {
+	if len(*projectID) == 0 {
+		return errors.New("missing projectID")
+	}
+
+	if len(*bucket) == 0 {
+		return errors.New("missing bucket")
+	}
+
+	if len(*spannerDB) == 0 {
+		return errors.New("missing spannerDB")
+	}
 	return nil
 }
