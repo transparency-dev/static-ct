@@ -81,7 +81,23 @@ func main() {
 	if err != nil {
 		klog.Exitf("Can't create secret manager signer: %v", err)
 	}
-	cpSigner, err := sctfe.NewCpSigner(signer, *origin, timeSource)
+
+	chainValidationConfig := sctfe.ChainValidationConfig{
+		RootsPemFile:     *rootsPemFile,
+		RejectExpired:    *rejectExpired,
+		RejectUnexpired:  *rejectUnexpired,
+		ExtKeyUsages:     *extKeyUsages,
+		RejectExtensions: *rejectExtensions,
+		NotAfterStart:    notAfterStart.t,
+		NotAfterLimit:    notAfterLimit.t,
+	}
+
+	vCfg, err := sctfe.ValidateLogConfig(chainValidationConfig, *origin, signer)
+	if err != nil {
+		klog.Exitf("Failed to initialize log config: %v", err)
+	}
+
+	cpSigner, err := sctfe.NewCpSigner(signer, vCfg.Origin, timeSource)
 	if err != nil {
 		klog.Exitf("Failed to create checkpoint signer: %v", err)
 	}
@@ -89,11 +105,6 @@ func main() {
 	storage, err := newGCPStorage(ctx, cpSigner)
 	if err != nil {
 		klog.Exitf("Failed to initiate storage backend: %v", err)
-	}
-
-	vCfg, err := sctfe.ValidateLogConfig(*origin, *rootsPemFile, *rejectExpired, *rejectUnexpired, *extKeyUsages, *rejectExtensions, notAfterStart.t, notAfterLimit.t, signer)
-	if err != nil {
-		klog.Exitf("Invalid config: %v", err)
 	}
 
 	opts := sctfe.HandlerOptions{
