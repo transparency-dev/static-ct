@@ -92,7 +92,7 @@ func main() {
 		NotAfterLimit:    notAfterLimit.t,
 	}
 
-	vCfg, err := sctfe.ValidateLogConfig(chainValidationConfig, *origin, signer)
+	vCfg, err := sctfe.New(*origin, signer, chainValidationConfig)
 	if err != nil {
 		klog.Exitf("Invalid log config: %v", err)
 	}
