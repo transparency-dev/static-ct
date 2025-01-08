@@ -52,7 +52,7 @@ var (
 
 	httpEndpoint               = flag.String("http_endpoint", "localhost:6962", "Endpoint for HTTP (host:port).")
 	metricsEndpoint            = flag.String("metrics_endpoint", "", "Endpoint for serving metrics; if left empty, metrics will be visible on --http_endpoint.")
-	tesseraDeadline            = flag.Duration("tessera_deadline", time.Second*10, "Deadline for Tessera requests.")
+	httpDeadline               = flag.Duration("http_deadline", time.Second*10, "Deadline for HTTP requests.")
 	maskInternalErrors         = flag.Bool("mask_internal_errors", false, "Don't return error strings with Internal Server Error HTTP responses.")
 	tracing                    = flag.Bool("tracing", false, "If true opencensus Stackdriver tracing will be enabled. See https://opencensus.io/.")
 	tracingProjectID           = flag.String("tracing_project_id", "", "project ID to pass to stackdriver. Can be empty for GCP, consult docs for other platforms.")
@@ -104,7 +104,7 @@ func main() {
 	// Register handlers for all the configured logs.
 	opts := sctfe.InstanceOptions{
 		Validated:          vCfg,
-		Deadline:           *tesseraDeadline,
+		Deadline:           *httpDeadline,
 		MetricFactory:      prometheus.MetricFactory{},
 		RequestLog:         new(sctfe.DefaultRequestLog),
 		MaskInternalErrors: *maskInternalErrors,
