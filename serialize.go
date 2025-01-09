@@ -22,12 +22,16 @@ import (
 	"fmt"
 
 	"github.com/google/certificate-transparency-go/tls"
+	"github.com/google/certificate-transparency-go/x509"
 	"github.com/transparency-dev/formats/log"
 	"golang.org/x/mod/sumdb/note"
 
 	ct "github.com/google/certificate-transparency-go"
 )
 
+const millisPerNano int64 = 1000 * 1000
+
+// TODO(phboneff): create an SCTSigner object
 func buildV1SCT(signer crypto.Signer, leaf *ct.MerkleTreeLeaf) (*ct.SignedCertificateTimestamp, error) {
 	// Serialize SCT signature input to get the bytes that need to be signed
 	sctInput := ct.SignedCertificateTimestamp{
@@ -177,4 +181,14 @@ func NewCpSigner(cs crypto.Signer, origin string, timeSource TimeSource) (note.S
 	}
 
 	return ns, nil
+}
+
+// GetCTLogID takes the key manager for a log and returns the LogID. (see RFC 6962 S3.2)
+// In CT V1 the log id is a hash of the public key.
+func GetCTLogID(pk crypto.PublicKey) ([sha256.Size]byte, error) {
+	pubBytes, err := x509.MarshalPKIXPublicKey(pk)
+	if err != nil {
+		return [sha256.Size]byte{}, err
+	}
+	return sha256.Sum256(pubBytes), nil
 }
