@@ -87,6 +87,9 @@ func SetUpInstance(ctx context.Context, opts InstanceOptions) (*Instance, error)
 
 	timeSource := new(SystemTimeSource)
 	cpSigner, err := NewCpSigner(cfg.Signer, cfg.Origin, timeSource)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create checkpoint signer: %v", err)
+	}
 
 	if opts.CreateStorage == nil {
 		return nil, fmt.Errorf("failed to initiate storage backend: nil createStorage")
