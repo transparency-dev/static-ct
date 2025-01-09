@@ -186,6 +186,7 @@ func NewCpSigner(cs crypto.Signer, origin string, timeSource TimeSource) (note.S
 
 // GetCTLogID takes a log public key and returns the LogID. (see RFC 6962 S3.2)
 // In CT V1 the log id is a hash of the public key.
+// TODO(phboneff): migrate to the logid package
 func GetCTLogID(pk crypto.PublicKey) ([sha256.Size]byte, error) {
 	pubBytes, err := x509.MarshalPKIXPublicKey(pk)
 	if err != nil {

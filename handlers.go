@@ -312,7 +312,7 @@ func addChainInternal(ctx context.Context, li *logInfo, w http.ResponseWriter, r
 	}
 	// Get the current time in the form used throughout RFC6962, namely milliseconds since Unix
 	// epoch, and use this throughout.
-	timeMillis := uint64(li.TimeSource.Now().UnixNano() / NanosPerMilli)
+	timeMillis := uint64(li.TimeSource.Now().UnixNano() / millisPerNano)
 
 	entry, err := entryFromChain(chain, isPrecert, timeMillis)
 	if err != nil {
