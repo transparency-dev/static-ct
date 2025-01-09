@@ -36,7 +36,7 @@ type IssuersStorage struct {
 // NewIssuerStorage creates a new GCSStorage.
 //
 // The specified bucket must exist or an error will be returned.
-func NewIssuerStorage(ctx context.Context, projectID string, bucket string, prefix string, contentType string) (*IssuersStorage, error) {
+func NewIssuerStorage(ctx context.Context, bucket string, prefix string, contentType string) (*IssuersStorage, error) {
 	c, err := gcs.NewClient(ctx, gcs.WithJSONReads())
 	if err != nil {
 		return nil, fmt.Errorf("failed to create GCS client: %v", err)

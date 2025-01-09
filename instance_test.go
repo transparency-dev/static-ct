@@ -111,9 +111,6 @@ func TestSetUpInstance(t *testing.T) {
 		{
 			desc:         "missing-create-storage",
 			origin:       "log",
-			projectID:    "project",
-			bucket:       "bucket",
-			spannerDB:    "spanner",
 			rootsPemFile: "./testdata/fake-ca.cert",
 			signer:       signer,
 			wantErr:      "failed to initiate storage backend",
@@ -121,9 +118,6 @@ func TestSetUpInstance(t *testing.T) {
 		{
 			desc:         "failing-create-storage",
 			origin:       "log",
-			projectID:    "project",
-			bucket:       "bucket",
-			spannerDB:    "spanner",
 			rootsPemFile: "./testdata/fake-ca.cert",
 			signer:       signer,
 			ctStorage: func(_ context.Context, _ note.Signer) (*CTStorage, error) {

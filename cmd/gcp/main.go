@@ -58,7 +58,6 @@ var (
 	tracingProjectID           = flag.String("tracing_project_id", "", "project ID to pass to stackdriver. Can be empty for GCP, consult docs for other platforms.")
 	tracingPercent             = flag.Int("tracing_percent", 0, "Percent of requests to be traced. Zero is a special case to use the DefaultSampler.")
 	origin                     = flag.String("origin", "", "Origin of the log, for checkpoints and the monitoring prefix.")
-	projectID                  = flag.String("project_id", "", "GCP ProjectID.")
 	bucket                     = flag.String("bucket", "", "Name of the bucket to store the log in.")
 	spannerDB                  = flag.String("spanner_db_path", "", "Spanner database path: projects/{projectId}/instances/{instanceId}/databases/{databaseId}.")
 	spannerDedupDB             = flag.String("spanner_dedup_db_path", "", "Spanner deduplication database path: projects/{projectId}/instances/{instanceId}/databases/{databaseId}.")
@@ -214,7 +213,7 @@ func newGCPStorage(ctx context.Context, signer note.Signer) (*sctfe.CTStorage, e
 		return nil, fmt.Errorf("Failed to initialize GCP Tessera storage: %v", err)
 	}
 
-	issuerStorage, err := gcpSCTFE.NewIssuerStorage(ctx, *projectID, *bucket, "fingerprints/", "application/pkix-cert")
+	issuerStorage, err := gcpSCTFE.NewIssuerStorage(ctx, *bucket, "fingerprints/", "application/pkix-cert")
 	if err != nil {
 		return nil, fmt.Errorf("Failed to initialize GCP issuer storage: %v", err)
 	}
