@@ -18,13 +18,16 @@ package dedup
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"errors"
 	"fmt"
+	"math"
 	"os"
 	"strconv"
 	"time"
 
 	"github.com/transparency-dev/trillian-tessera/client"
+	"golang.org/x/crypto/cryptobyte"
 	"k8s.io/klog/v2"
 )
 
@@ -116,4 +119,48 @@ func sync(ctx context.Context, lds LocalBEDedupStorage, pb ParseBundleFunc, fcp 
 	}
 	klog.V(3).Infof("LocalBEDEdup.sync(): dedup data synced to logsize %d", ckptSize)
 	return nil
+}
+
+// DedupFromBundle converts a bundle into an array of LeafDedupInfo.
+//
+// The index of a leaf is computed from its position in the log, instead of parsing SCTs.
+// Greatly inspired by https://github.com/FiloSottile/sunlight/blob/main/tile.go
+// TODO(phboneff): move this somewhere else, and only leave crypto in this file
+func DedupFromBundle(bundle []byte, bundleIdx uint64) ([]LeafDedupInfo, error) {
+	kvs := []LeafDedupInfo{}
+	s := cryptobyte.String(bundle)
+
+	for i := bundleIdx * 256; len(s) > 0; i++ {
+		var timestamp uint64
+		var entryType uint16
+		var extensions, fingerprints cryptobyte.String
+		if !s.ReadUint64(&timestamp) || !s.ReadUint16(&entryType) || timestamp > math.MaxInt64 {
+			return nil, fmt.Errorf("invalid data tile")
+		}
+		crt := []byte{}
+		switch entryType {
+		case 0: // x509_entry
+			if !s.ReadUint24LengthPrefixed((*cryptobyte.String)(&crt)) ||
+				!s.ReadUint16LengthPrefixed(&extensions) ||
+				!s.ReadUint16LengthPrefixed(&fingerprints) {
+				return nil, fmt.Errorf("invalid data tile x509_entry")
+			}
+		case 1: // precert_entry
+			IssuerKeyHash := [32]byte{}
+			var defangedCrt, extensions cryptobyte.String
+			if !s.CopyBytes(IssuerKeyHash[:]) ||
+				!s.ReadUint24LengthPrefixed(&defangedCrt) ||
+				!s.ReadUint16LengthPrefixed(&extensions) ||
+				!s.ReadUint24LengthPrefixed((*cryptobyte.String)(&crt)) ||
+				!s.ReadUint16LengthPrefixed(&fingerprints) {
+				return nil, fmt.Errorf("invalid data tile precert_entry")
+			}
+		default:
+			return nil, fmt.Errorf("invalid data tile: unknown type %d", entryType)
+		}
+		k := sha256.Sum256(crt)
+		sctDedupInfo := SCTDedupInfo{Idx: uint64(i), Timestamp: timestamp}
+		kvs = append(kvs, LeafDedupInfo{LeafID: k[:], SCTDedupInfo: sctDedupInfo})
+	}
+	return kvs, nil
 }

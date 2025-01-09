@@ -49,7 +49,7 @@ import (
 
 // Arbitrary time for use in tests
 var fakeTime = time.Date(2016, 7, 22, 11, 01, 13, 0, time.UTC)
-var fakeTimeMillis = uint64(fakeTime.UnixNano() / millisPerNano)
+var fakeTimeMillis = uint64(fakeTime.UnixNano() / nanosPerMilli)
 
 // The deadline should be the above bumped by 500ms
 var fakeDeadlineTime = time.Date(2016, 7, 22, 11, 01, 13, 500*1000*1000, time.UTC)

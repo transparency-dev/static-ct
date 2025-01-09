@@ -16,8 +16,11 @@ package sctfe
 
 import (
 	"bytes"
+	"crypto"
 	"crypto/sha256"
+	"encoding/pem"
 	"testing"
+	"time"
 
 	"github.com/google/certificate-transparency-go/tls"
 	"github.com/google/certificate-transparency-go/x509"
@@ -26,6 +29,13 @@ import (
 	"github.com/transparency-dev/static-ct/testdata"
 
 	ct "github.com/google/certificate-transparency-go"
+)
+
+var (
+	fixedTime       = time.Date(2017, 9, 7, 12, 15, 23, 0, time.UTC)
+	fixedTimeMillis = uint64(fixedTime.UnixNano() / nanosPerMilli)
+	demoLogID       = [32]byte{19, 56, 222, 93, 229, 36, 102, 128, 227, 214, 3, 121, 93, 175, 126, 236, 97, 217, 34, 32, 40, 233, 98, 27, 46, 179, 164, 251, 84, 10, 60, 57}
+	fakeSignature   = []byte("signed")
 )
 
 func TestBuildV1MerkleTreeLeafForCert(t *testing.T) {
@@ -140,4 +150,33 @@ func TestSignV1SCTForPrecertificate(t *testing.T) {
 	if got, want := leaf.TimestampedEntry.PrecertEntry.TBSCertificate, defangedTBS; !bytes.Equal(got, want) {
 		t.Fatalf("TBS cert mismatch, got %v, expected %v", got, want)
 	}
+}
+
+func TestGetCTLogID(t *testing.T) {
+	block, _ := pem.Decode([]byte(testdata.DemoPublicKey))
+	pk, err := x509.ParsePKIXPublicKey(block.Bytes)
+	if err != nil {
+		t.Fatalf("unexpected error loading public key: %v", err)
+	}
+
+	got, err := GetCTLogID(pk)
+	if err != nil {
+		t.Fatalf("error getting logid: %v", err)
+	}
+
+	if want := demoLogID; got != want {
+		t.Errorf("logID: \n%v want \n%v", got, want)
+	}
+}
+
+// Creates a fake signer for use in interaction tests.
+// It will always return fakeSig when asked to sign something.
+func setupSigner(fakeSig []byte) (crypto.Signer, error) {
+	block, _ := pem.Decode([]byte(testdata.DemoPublicKey))
+	key, err := x509.ParsePKIXPublicKey(block.Bytes)
+	if err != nil {
+		return nil, err
+	}
+
+	return testdata.NewSignerWithFixedSig(key, fakeSig), nil
 }

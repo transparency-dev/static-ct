@@ -20,17 +20,19 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"fmt"
-	"math"
+	"time"
 
 	"github.com/google/certificate-transparency-go/tls"
+	"github.com/google/certificate-transparency-go/x509"
 	"github.com/transparency-dev/formats/log"
-	"github.com/transparency-dev/static-ct/modules/dedup"
-	"golang.org/x/crypto/cryptobyte"
 	"golang.org/x/mod/sumdb/note"
 
 	ct "github.com/google/certificate-transparency-go"
 )
 
+const nanosPerMilli int64 = int64(time.Millisecond / time.Nanosecond)
+
+// TODO(phboneff): create an SCTSigner object
 func buildV1SCT(signer crypto.Signer, leaf *ct.MerkleTreeLeaf) (*ct.SignedCertificateTimestamp, error) {
 	// Serialize SCT signature input to get the bytes that need to be signed
 	sctInput := ct.SignedCertificateTimestamp{
@@ -159,7 +161,12 @@ func (cts *CpSigner) KeyHash() uint32 {
 
 // NewCpSigner returns a new note signer that can sign https://c2sp.org/static-ct-api checkpoints.
 // TODO(phboneff): add tests
-func NewCpSigner(signer crypto.Signer, origin string, logID [32]byte, timeSource TimeSource) note.Signer {
+func NewCpSigner(cs crypto.Signer, origin string, timeSource TimeSource) (note.Signer, error) {
+	logID, err := GetCTLogID(cs.Public())
+	if err != nil {
+		return nil, fmt.Errorf("failed to get logID for signing: %v", err)
+	}
+
 	h := sha256.New()
 	h.Write([]byte(origin))
 	h.Write([]byte{0x0A}) // newline
@@ -167,54 +174,23 @@ func NewCpSigner(signer crypto.Signer, origin string, logID [32]byte, timeSource
 	h.Write(logID[:])
 	sum := h.Sum(nil)
 
-	ctSigner := &CpSigner{
-		sthSigner:  signer,
+	ns := &CpSigner{
+		sthSigner:  cs,
 		origin:     origin,
 		keyHash:    binary.BigEndian.Uint32(sum),
 		timeSource: timeSource,
 	}
-	return ctSigner
+
+	return ns, nil
 }
 
-// DedupFromBundle converts a bundle into an array of dedup.LeafDedupInfo.
-//
-// The index of a leaf is computed from its position in the log, instead of parsing SCTs.
-// Greatly inspired by https://github.com/FiloSottile/sunlight/blob/main/tile.go
-func DedupFromBundle(bundle []byte, bundleIdx uint64) ([]dedup.LeafDedupInfo, error) {
-	kvs := []dedup.LeafDedupInfo{}
-	s := cryptobyte.String(bundle)
-
-	for i := bundleIdx * 256; len(s) > 0; i++ {
-		var timestamp uint64
-		var entryType uint16
-		var extensions, fingerprints cryptobyte.String
-		if !s.ReadUint64(&timestamp) || !s.ReadUint16(&entryType) || timestamp > math.MaxInt64 {
-			return nil, fmt.Errorf("invalid data tile")
-		}
-		crt := []byte{}
-		switch entryType {
-		case 0: // x509_entry
-			if !s.ReadUint24LengthPrefixed((*cryptobyte.String)(&crt)) ||
-				!s.ReadUint16LengthPrefixed(&extensions) ||
-				!s.ReadUint16LengthPrefixed(&fingerprints) {
-				return nil, fmt.Errorf("invalid data tile x509_entry")
-			}
-		case 1: // precert_entry
-			IssuerKeyHash := [32]byte{}
-			var defangedCrt, extensions cryptobyte.String
-			if !s.CopyBytes(IssuerKeyHash[:]) ||
-				!s.ReadUint24LengthPrefixed(&defangedCrt) ||
-				!s.ReadUint16LengthPrefixed(&extensions) ||
-				!s.ReadUint24LengthPrefixed((*cryptobyte.String)(&crt)) ||
-				!s.ReadUint16LengthPrefixed(&fingerprints) {
-				return nil, fmt.Errorf("invalid data tile precert_entry")
-			}
-		default:
-			return nil, fmt.Errorf("invalid data tile: unknown type %d", entryType)
-		}
-		k := sha256.Sum256(crt)
-		sctDedupInfo := dedup.SCTDedupInfo{Idx: uint64(i), Timestamp: timestamp}
-		kvs = append(kvs, dedup.LeafDedupInfo{LeafID: k[:], SCTDedupInfo: sctDedupInfo})
+// GetCTLogID takes a log public key and returns the LogID. (see RFC 6962 S3.2)
+// In CT V1 the log id is a hash of the public key.
+// TODO(phboneff): migrate to the logid package
+func GetCTLogID(pk crypto.PublicKey) ([sha256.Size]byte, error) {
+	pubBytes, err := x509.MarshalPKIXPublicKey(pk)
+	if err != nil {
+		return [sha256.Size]byte{}, err
 	}
-	return kvs, nil
+	return sha256.Sum256(pubBytes), nil
 }
