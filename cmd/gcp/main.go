@@ -75,9 +75,6 @@ func main() {
 	klog.InitFlags(nil)
 	flag.Parse()
 	ctx := context.Background()
-	if err := validateFlags(); err != nil {
-		klog.Exitf("Invalid flags: %v", err)
-	}
 
 	signer, err := NewSecretManagerSigner(ctx, *signerPublicKeySecretName, *signerPrivateKeySecretName)
 	if err != nil {
@@ -204,10 +201,19 @@ func awaitSignal(doneFn func()) {
 }
 
 func newGCPStorage(ctx context.Context, signer note.Signer) (*sctfe.CTStorage, error) {
+	if len(*bucket) == 0 {
+		return nil, errors.New("missing bucket")
+	}
+
+	if len(*spannerDB) == 0 {
+		return nil, errors.New("missing spannerDB")
+	}
+
 	gcpCfg := gcpTessera.Config{
 		Bucket:  *bucket,
 		Spanner: *spannerDB,
 	}
+
 	tesseraStorage, err := gcpTessera.New(ctx, gcpCfg, tessera.WithCheckpointSigner(signer), tessera.WithCTLayout())
 	if err != nil {
 		return nil, fmt.Errorf("Failed to initialize GCP Tessera storage: %v", err)
@@ -246,20 +252,5 @@ func (t *timestampFlag) Set(w string) error {
 		return fmt.Errorf("can't parse %q as RFC3339 timestamp: %v", w, err)
 	}
 	t.t = &tt
-	return nil
-}
-
-func validateFlags() error {
-	if len(*projectID) == 0 {
-		return errors.New("missing projectID")
-	}
-
-	if len(*bucket) == 0 {
-		return errors.New("missing bucket")
-	}
-
-	if len(*spannerDB) == 0 {
-		return errors.New("missing spannerDB")
-	}
 	return nil
 }
