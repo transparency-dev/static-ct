@@ -29,6 +29,30 @@ var (
 	ErrNoRFCCompliantPathFound = errors.New("no RFC compliant path to root found when trying to validate chain")
 )
 
+// CertValidationOpts contains various parameters for certificate chain validation
+type CertValidationOpts struct {
+	// trustedRoots is a pool of certificates that defines the roots the CT log will accept
+	trustedRoots *x509util.PEMCertPool
+	// currentTime is the time used for checking a certificate's validity period
+	// against. If it's zero then time.Now() is used. Only for testing.
+	currentTime time.Time
+	// rejectExpired indicates that expired certificates will be rejected.
+	rejectExpired bool
+	// rejectUnexpired indicates that certificates that are currently valid or not yet valid will be rejected.
+	rejectUnexpired bool
+	// notAfterStart is the earliest notAfter date which will be accepted.
+	// nil means no lower bound on the accepted range.
+	notAfterStart *time.Time
+	// notAfterLimit defines the cut off point of notAfter dates - only notAfter
+	// dates strictly *before* notAfterLimit will be accepted.
+	// nil means no upper bound on the accepted range.
+	notAfterLimit *time.Time
+	// extKeyUsages contains the list of EKUs to use during chain verification
+	extKeyUsages []x509.ExtKeyUsage
+	// rejectExtIds contains a list of X.509 extension IDs to reject during chain verification.
+	rejectExtIds []asn1.ObjectIdentifier
+}
+
 // isPrecertificate tests if a certificate is a pre-certificate as defined in CT.
 // An error is returned if the CT extension is present but is not ASN.1 NULL as defined
 // by the spec.
