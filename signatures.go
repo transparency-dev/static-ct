@@ -30,7 +30,7 @@ import (
 	ct "github.com/google/certificate-transparency-go"
 )
 
-const NanosPerMilli int64 = int64(time.Millisecond / time.Nanosecond)
+const nanosPerMilli int64 = int64(time.Millisecond / time.Nanosecond)
 
 // TODO(phboneff): create an SCTSigner object
 func buildV1SCT(signer crypto.Signer, leaf *ct.MerkleTreeLeaf) (*ct.SignedCertificateTimestamp, error) {
