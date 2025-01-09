@@ -76,9 +76,11 @@ func setupTest(t *testing.T, pemRoots []string, signer crypto.Signer) handlerTes
 		rejectExpired: false,
 	}
 
-	cfg := &ValidatedLogConfig{Origin: "example.com"}
-	iOpts := HandlerOptions{Validated: cfg, Deadline: time.Millisecond * 500, MetricFactory: monitoring.InertMetricFactory{}, RequestLog: new(DefaultRequestLog)}
-	info.li = newLogInfo(iOpts, vOpts, signer, fakeTimeSource, info.storage)
+	iOpts := HandlerOptions{Deadline: time.Millisecond * 500, MetricFactory: monitoring.InertMetricFactory{}, RequestLog: new(DefaultRequestLog)}
+	signSCT := func(leaf *ct.MerkleTreeLeaf) (*ct.SignedCertificateTimestamp, error) {
+		return buildV1SCT(signer, leaf)
+	}
+	info.li = newLogInfo(iOpts, vOpts, signSCT, fakeTimeSource, info.storage, "example.com")
 
 	for _, pemRoot := range pemRoots {
 		if !info.roots.AppendCertsFromPEM([]byte(pemRoot)) {

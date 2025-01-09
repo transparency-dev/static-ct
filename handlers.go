@@ -16,7 +16,6 @@ package sctfe
 
 import (
 	"context"
-	"crypto"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
@@ -176,19 +175,6 @@ type CertValidationOpts struct {
 	rejectExtIds []asn1.ObjectIdentifier
 }
 
-// NewCertValidationOpts builds validation options based on parameters.
-func NewCertValidationOpts(trustedRoots *x509util.PEMCertPool, currentTime time.Time, rejectExpired bool, rejectUnexpired bool, notAfterStart *time.Time, notAfterLimit *time.Time, acceptOnlyCA bool, extKeyUsages []x509.ExtKeyUsage) CertValidationOpts {
-	var vOpts CertValidationOpts
-	vOpts.trustedRoots = trustedRoots
-	vOpts.currentTime = currentTime
-	vOpts.rejectExpired = rejectExpired
-	vOpts.rejectUnexpired = rejectUnexpired
-	vOpts.notAfterStart = notAfterStart
-	vOpts.notAfterLimit = notAfterLimit
-	vOpts.extKeyUsages = extKeyUsages
-	return vOpts
-}
-
 // logInfo holds information for a specific log instance.
 type logInfo struct {
 	// Origin identifies the log, as per https://c2sp.org/static-ct-api
@@ -207,17 +193,12 @@ type logInfo struct {
 	validationOpts CertValidationOpts
 	// storage stores log data
 	storage Storage
-	// signer signs objects (e.g. STHs, SCTs) for regular logs
-	signer crypto.Signer
+	// signer signs SCTs
+	signSCT signSCT
 }
 
 // HandlerOptions describes log handlers options.
 type HandlerOptions struct {
-	// Validated holds the original configuration options for the log, and some
-	// of its fields parsed as a result of validating it.
-	Validated *ValidatedLogConfig
-	// Storage stores data to satisfy https://c2sp.org/static-ct-api.
-	Storage *CTStorage
 	// Deadline is a timeout for HTTP requests.
 	Deadline time.Duration
 	// MetricFactory allows creating metrics.
@@ -235,16 +216,15 @@ type HandlerOptions struct {
 func newLogInfo(
 	hOpts HandlerOptions,
 	validationOpts CertValidationOpts,
-	signer crypto.Signer,
+	signSCT signSCT,
 	timeSource TimeSource,
 	storage Storage,
+	origin string,
 ) *logInfo {
-	cfg := hOpts.Validated
-
 	li := &logInfo{
-		Origin:             cfg.Origin,
+		Origin:             origin,
 		storage:            storage,
-		signer:             signer,
+		signSCT:            signSCT,
 		TimeSource:         timeSource,
 		maskInternalErrors: hOpts.MaskInternalErrors,
 		deadline:           hOpts.Deadline,
@@ -253,15 +233,15 @@ func newLogInfo(
 	}
 
 	once.Do(func() { setupMetrics(hOpts.MetricFactory) })
-	knownLogs.Set(1.0, cfg.Origin)
+	knownLogs.Set(1.0, origin)
 
 	return li
 }
 
-func NewPathHandlers(opts HandlerOptions) PathHandlers {
-	cfg := opts.Validated
-	logInfo := newLogInfo(opts, cfg.CertValidationOpts, cfg.Signer, opts.TimeSource, opts.Storage)
-	return logInfo.Handlers(opts.Validated.Origin)
+func NewPathHandlers(opts *HandlerOptions, log *log) PathHandlers {
+	// TODO(phboneff): simplify signature of newLogInfo
+	logInfo := newLogInfo(*opts, log.certValidationOpts, log.signSCT, opts.TimeSource, log.storage, log.origin)
+	return logInfo.Handlers(log.origin)
 }
 
 // Handlers returns a map from URL paths (with the given prefix) and AppHandler instances
@@ -396,7 +376,7 @@ func addChainInternal(ctx context.Context, li *logInfo, w http.ResponseWriter, r
 	// As the Log server has definitely got the Merkle tree leaf, we can
 	// generate an SCT and respond with it.
 	// TODO(phboneff): this should work, but double check
-	sct, err := buildV1SCT(li.signer, &loggedLeaf)
+	sct, err := li.signSCT(&loggedLeaf)
 	if err != nil {
 		return http.StatusInternalServerError, fmt.Errorf("failed to generate SCT: %s", err)
 	}
@@ -406,7 +386,7 @@ func addChainInternal(ctx context.Context, li *logInfo, w http.ResponseWriter, r
 	}
 	// We could possibly fail to issue the SCT after this but it's v. unlikely.
 	li.RequestLog.IssueSCT(ctx, sctBytes)
-	err = marshalAndWriteAddChainResponse(sct, li.signer, w)
+	err = marshalAndWriteAddChainResponse(sct, w)
 	if err != nil {
 		// reason is logged and http status is already set
 		return http.StatusInternalServerError, fmt.Errorf("failed to write response: %s", err)
@@ -482,11 +462,7 @@ func verifyAddChain(li *logInfo, req ct.AddChainRequest, expectingPrecert bool) 
 
 // marshalAndWriteAddChainResponse is used by add-chain and add-pre-chain to create and write
 // the JSON response to the client
-func marshalAndWriteAddChainResponse(sct *ct.SignedCertificateTimestamp, signer crypto.Signer, w http.ResponseWriter) error {
-	logID, err := GetCTLogID(signer.Public())
-	if err != nil {
-		return fmt.Errorf("failed to marshal logID: %s", err)
-	}
+func marshalAndWriteAddChainResponse(sct *ct.SignedCertificateTimestamp, w http.ResponseWriter) error {
 	sig, err := tls.Marshal(sct.Signature)
 	if err != nil {
 		return fmt.Errorf("failed to marshal signature: %s", err)
@@ -495,7 +471,7 @@ func marshalAndWriteAddChainResponse(sct *ct.SignedCertificateTimestamp, signer 
 	rsp := ct.AddChainResponse{
 		SCTVersion: sct.SCTVersion,
 		Timestamp:  sct.Timestamp,
-		ID:         logID[:],
+		ID:         sct.LogID.KeyID[:],
 		Extensions: base64.StdEncoding.EncodeToString(sct.Extensions),
 		Signature:  sig,
 	}

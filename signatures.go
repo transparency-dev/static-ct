@@ -24,13 +24,16 @@ import (
 
 	"github.com/google/certificate-transparency-go/tls"
 	"github.com/google/certificate-transparency-go/x509"
-	"github.com/transparency-dev/formats/log"
+	tfl "github.com/transparency-dev/formats/log"
 	"golang.org/x/mod/sumdb/note"
 
 	ct "github.com/google/certificate-transparency-go"
 )
 
 const nanosPerMilli int64 = int64(time.Millisecond / time.Nanosecond)
+
+// signSCT builds an SCT for a leaf.
+type signSCT func(leaf *ct.MerkleTreeLeaf) (*ct.SignedCertificateTimestamp, error)
 
 // TODO(phboneff): create an SCTSigner object
 func buildV1SCT(signer crypto.Signer, leaf *ct.MerkleTreeLeaf) (*ct.SignedCertificateTimestamp, error) {
@@ -131,7 +134,7 @@ type CpSigner struct {
 // checkpoint origin doesn't match with the Signer's origin.
 // TODO(phboneff): add tests
 func (cts *CpSigner) Sign(msg []byte) ([]byte, error) {
-	ckpt := &log.Checkpoint{}
+	ckpt := &tfl.Checkpoint{}
 	rest, err := ckpt.Unmarshal(msg)
 
 	if len(rest) != 0 {

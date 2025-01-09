@@ -92,32 +92,20 @@ func main() {
 		NotAfterLimit:    notAfterLimit.t,
 	}
 
-	vCfg, err := sctfe.New(*origin, signer, chainValidationConfig)
+	log, err := sctfe.NewLog(ctx, *origin, signer, chainValidationConfig, timeSource, newGCPStorage)
 	if err != nil {
 		klog.Exitf("Invalid log config: %v", err)
 	}
 
-	cpSigner, err := sctfe.NewCpSigner(signer, vCfg.Origin, timeSource)
-	if err != nil {
-		klog.Exitf("Failed to create checkpoint signer: %v", err)
-	}
-
-	storage, err := newGCPStorage(ctx, cpSigner)
-	if err != nil {
-		klog.Exitf("Failed to initialize storage backend: %v", err)
-	}
-
-	opts := sctfe.HandlerOptions{
-		Validated:          vCfg,
+	opts := &sctfe.HandlerOptions{
 		Deadline:           *httpDeadline,
 		MetricFactory:      prometheus.MetricFactory{},
 		RequestLog:         &sctfe.DefaultRequestLog{},
 		MaskInternalErrors: *maskInternalErrors,
-		Storage:            storage,
 		TimeSource:         timeSource,
 	}
 
-	handlers := sctfe.NewPathHandlers(opts)
+	handlers := sctfe.NewPathHandlers(opts, log)
 
 	klog.CopyStandardLogTo("WARNING")
 	klog.Info("**** CT HTTP Server Starting ****")

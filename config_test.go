@@ -15,12 +15,14 @@
 package sctfe
 
 import (
+	"context"
 	"crypto"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/google/trillian/crypto/keys/pem"
+	"golang.org/x/mod/sumdb/note"
 )
 
 func TestNewCertValidationOpts(t *testing.T) {
@@ -149,7 +151,8 @@ func TestNewCertValidationOpts(t *testing.T) {
 	}
 }
 
-func TestNew(t *testing.T) {
+func TestNewLog(t *testing.T) {
+	ctx := context.Background()
 	signer, err := pem.ReadPrivateKeyFile("./testdata/ct-http-server.privkey.pem", "dirk")
 	if err != nil {
 		t.Fatalf("Can't open key: %v", err)
@@ -177,15 +180,18 @@ func TestNew(t *testing.T) {
 		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
-			vc, err := New(tc.origin, tc.signer, tc.cvcfg)
+			log, err := NewLog(ctx, tc.origin, tc.signer, tc.cvcfg, SystemTimeSource{},
+				func(_ context.Context, _ note.Signer) (*CTStorage, error) {
+					return &CTStorage{}, nil
+				})
 			if len(tc.wantErr) == 0 && err != nil {
-				t.Errorf("ValidateLogConfig()=%v, want nil", err)
+				t.Errorf("NewLog()=%v, want nil", err)
 			}
 			if len(tc.wantErr) > 0 && (err == nil || !strings.Contains(err.Error(), tc.wantErr)) {
-				t.Errorf("ValidateLogConfig()=%v, want err containing %q", err, tc.wantErr)
+				t.Errorf("NewLog()=%v, want err containing %q", err, tc.wantErr)
 			}
-			if err == nil && vc == nil {
-				t.Error("err and ValidatedLogConfig are both nil")
+			if err == nil && log == nil {
+				t.Error("err and log are both nil")
 			}
 		})
 	}
