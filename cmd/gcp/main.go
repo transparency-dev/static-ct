@@ -96,7 +96,7 @@ func main() {
 		klog.Exitf("Invalid config: %v", err)
 	}
 
-	opts := sctfe.InstanceOptions{
+	opts := sctfe.HandlerOptions{
 		Validated:          vCfg,
 		Deadline:           *httpDeadline,
 		MetricFactory:      prometheus.MetricFactory{},

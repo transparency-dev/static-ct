@@ -211,8 +211,8 @@ type logInfo struct {
 	signer crypto.Signer
 }
 
-// InstanceOptions describes the options for a log instance.
-type InstanceOptions struct {
+// HandlerOptions describes log handlers options.
+type HandlerOptions struct {
 	// Validated holds the original configuration options for the log, and some
 	// of its fields parsed as a result of validating it.
 	Validated *ValidatedLogConfig
@@ -223,39 +223,42 @@ type InstanceOptions struct {
 	// MetricFactory allows creating metrics.
 	MetricFactory monitoring.MetricFactory
 	// RequestLog provides structured logging of CTFE requests.
-	RequestLog         RequestLog
+	RequestLog RequestLog
+	// MaskInternalErrors indicates if internal server errors should be masked
+	// or returned to the user containing the full error message.
 	MaskInternalErrors bool
-	TimeSource         TimeSource
+	// TimeSource indicated the system time and can be injfected for testing.
+	TimeSource TimeSource
 }
 
 // newLogInfo creates a new instance of logInfo.
 func newLogInfo(
-	instanceOpts InstanceOptions,
+	hOpts HandlerOptions,
 	validationOpts CertValidationOpts,
 	signer crypto.Signer,
 	timeSource TimeSource,
 	storage Storage,
 ) *logInfo {
-	cfg := instanceOpts.Validated
+	cfg := hOpts.Validated
 
 	li := &logInfo{
 		Origin:             cfg.Origin,
 		storage:            storage,
 		signer:             signer,
 		TimeSource:         timeSource,
-		maskInternalErrors: instanceOpts.MaskInternalErrors,
-		deadline:           instanceOpts.Deadline,
+		maskInternalErrors: hOpts.MaskInternalErrors,
+		deadline:           hOpts.Deadline,
 		validationOpts:     validationOpts,
-		RequestLog:         instanceOpts.RequestLog,
+		RequestLog:         hOpts.RequestLog,
 	}
 
-	once.Do(func() { setupMetrics(instanceOpts.MetricFactory) })
+	once.Do(func() { setupMetrics(hOpts.MetricFactory) })
 	knownLogs.Set(1.0, cfg.Origin)
 
 	return li
 }
 
-func NewPathHandlers(opts InstanceOptions) PathHandlers {
+func NewPathHandlers(opts HandlerOptions) PathHandlers {
 	cfg := opts.Validated
 	logInfo := newLogInfo(opts, cfg.CertValidationOpts, cfg.Signer, opts.TimeSource, opts.Storage)
 	return logInfo.Handlers(opts.Validated.Origin)
