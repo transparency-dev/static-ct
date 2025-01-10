@@ -111,6 +111,7 @@ func (a AppHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		rspLatency.Observe(latency, label0, label1, strconv.Itoa(statusCode))
 	}()
 	klog.V(2).Infof("%s: request %v %q => %s", a.Info.Origin, r.Method, r.URL, a.Name)
+	// TODO(phboneff): add a.Method directly on the handler path and remove this test.
 	if r.Method != a.Method {
 		klog.Warningf("%s: %s wrong HTTP method: %v", a.Info.Origin, a.Name, r.Method)
 		a.Info.SendHTTPError(w, http.StatusMethodNotAllowed, fmt.Errorf("method not allowed: %s", r.Method))
