@@ -201,11 +201,11 @@ func awaitSignal(doneFn func()) {
 }
 
 func newGCPStorage(ctx context.Context, signer note.Signer) (*sctfe.CTStorage, error) {
-	if len(*bucket) == 0 {
+	if *bucket == "" {
 		return nil, errors.New("missing bucket")
 	}
 
-	if len(*spannerDB) == 0 {
+	if *spannerDB == "" {
 		return nil, errors.New("missing spannerDB")
 	}
 
