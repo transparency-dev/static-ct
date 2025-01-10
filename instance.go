@@ -35,7 +35,7 @@ type InstanceOptions struct {
 	Validated *ValidatedLogConfig
 	// CreateStorage instantiates a Tessera storage implementation with a signer option.
 	CreateStorage func(context.Context, note.Signer) (*CTStorage, error)
-	// Deadline is a timeout for Tessera requests.
+	// Deadline is a timeout for HTTP requests.
 	Deadline time.Duration
 	// MetricFactory allows creating metrics.
 	MetricFactory monitoring.MetricFactory

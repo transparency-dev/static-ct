@@ -38,8 +38,8 @@ type RequestLog interface {
 	// The returned context should be used in all the following calls to
 	// this API. This is normally arranged by the request handler code.
 	Start(context.Context) context.Context
-	// LogOrigin will be called once per request to set the log prefix.
-	LogOrigin(context.Context, string)
+	// Origin will be called once per request to set the log prefix.
+	Origin(context.Context, string)
 	// AddDERToChain will be called once for each certificate in a submitted
 	// chain. It's called early in request processing so the supplied bytes
 	// have not been checked for validity. Calls will be in order of the
@@ -71,8 +71,8 @@ func (dlr *DefaultRequestLog) Start(ctx context.Context) context.Context {
 	return ctx
 }
 
-// LogOrigin logs the origin of the CT log that this request is for.
-func (dlr *DefaultRequestLog) LogOrigin(_ context.Context, p string) {
+// Origin logs the origin of the CT log that this request is for.
+func (dlr *DefaultRequestLog) Origin(_ context.Context, p string) {
 	klog.V(vLevel).Infof("RL: LogOrigin: %s", p)
 }
 
