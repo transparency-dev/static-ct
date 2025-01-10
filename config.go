@@ -68,22 +68,9 @@ type ValidatedLogConfig struct {
 //   - Merge delays (if present) are correct.
 //
 // Returns the validated structures (useful to avoid double validation).
-func ValidateLogConfig(origin string, projectID string, bucket string, spannerDB string, rootsPemFile string, rejectExpired bool, rejectUnexpired bool, extKeyUsages string, rejectExtensions string, notAfterStart *time.Time, notAfterLimit *time.Time, signer crypto.Signer) (*ValidatedLogConfig, error) {
+func ValidateLogConfig(origin string, rootsPemFile string, rejectExpired bool, rejectUnexpired bool, extKeyUsages string, rejectExtensions string, notAfterStart *time.Time, notAfterLimit *time.Time, signer crypto.Signer) (*ValidatedLogConfig, error) {
 	if origin == "" {
 		return nil, errors.New("empty origin")
-	}
-
-	// TODO(phboneff): move this logic together with the tests out of config.go and validate the flags directly
-	if projectID == "" {
-		return nil, errors.New("empty projectID")
-	}
-
-	if bucket == "" {
-		return nil, errors.New("empty bucket")
-	}
-
-	if spannerDB == "" {
-		return nil, errors.New("empty spannerDB")
 	}
 
 	if rootsPemFile == "" {

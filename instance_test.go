@@ -45,9 +45,6 @@ func TestSetUpInstance(t *testing.T) {
 	var tests = []struct {
 		desc             string
 		origin           string
-		projectID        string
-		bucket           string
-		spannerDB        string
 		rootsPemFile     string
 		extKeyUsages     string
 		rejectExtensions string
@@ -58,9 +55,6 @@ func TestSetUpInstance(t *testing.T) {
 		{
 			desc:         "valid",
 			origin:       "log",
-			projectID:    "project",
-			bucket:       "bucket",
-			spannerDB:    "spanner",
 			rootsPemFile: "./testdata/fake-ca.cert",
 			ctStorage:    fakeCTStorage,
 			signer:       signer,
@@ -68,9 +62,6 @@ func TestSetUpInstance(t *testing.T) {
 		{
 			desc:         "no-roots",
 			origin:       "log",
-			projectID:    "project",
-			bucket:       "bucket",
-			spannerDB:    "spanner",
 			rootsPemFile: "./testdata/nofile",
 			ctStorage:    fakeCTStorage,
 			wantErr:      "failed to read trusted roots",
@@ -79,9 +70,6 @@ func TestSetUpInstance(t *testing.T) {
 		{
 			desc:         "missing-root-cert",
 			origin:       "log",
-			projectID:    "project",
-			bucket:       "bucket",
-			spannerDB:    "spanner",
 			ctStorage:    fakeCTStorage,
 			rootsPemFile: "./testdata/bogus.cert",
 			signer:       signer,
@@ -90,9 +78,6 @@ func TestSetUpInstance(t *testing.T) {
 		{
 			desc:         "valid-ekus-1",
 			origin:       "log",
-			projectID:    "project",
-			bucket:       "bucket",
-			spannerDB:    "spanner",
 			rootsPemFile: "./testdata/fake-ca.cert",
 			extKeyUsages: "Any",
 			signer:       signer,
@@ -101,9 +86,6 @@ func TestSetUpInstance(t *testing.T) {
 		{
 			desc:         "valid-ekus-2",
 			origin:       "log",
-			projectID:    "project",
-			bucket:       "bucket",
-			spannerDB:    "spanner",
 			rootsPemFile: "./testdata/fake-ca.cert",
 			extKeyUsages: "Any,ServerAuth,TimeStamping",
 			signer:       signer,
@@ -112,9 +94,6 @@ func TestSetUpInstance(t *testing.T) {
 		{
 			desc:             "valid-reject-ext",
 			origin:           "log",
-			projectID:        "project",
-			bucket:           "bucket",
-			spannerDB:        "spanner",
 			rootsPemFile:     "./testdata/fake-ca.cert",
 			rejectExtensions: "1.2.3.4,5.6.7.8",
 			signer:           signer,
@@ -123,9 +102,6 @@ func TestSetUpInstance(t *testing.T) {
 		{
 			desc:             "invalid-reject-ext",
 			origin:           "log",
-			projectID:        "project",
-			bucket:           "bucket",
-			spannerDB:        "spanner",
 			ctStorage:        fakeCTStorage,
 			rootsPemFile:     "./testdata/fake-ca.cert",
 			rejectExtensions: "1.2.3.4,one.banana.two.bananas",
@@ -135,9 +111,6 @@ func TestSetUpInstance(t *testing.T) {
 		{
 			desc:         "missing-create-storage",
 			origin:       "log",
-			projectID:    "project",
-			bucket:       "bucket",
-			spannerDB:    "spanner",
 			rootsPemFile: "./testdata/fake-ca.cert",
 			signer:       signer,
 			wantErr:      "failed to initiate storage backend",
@@ -145,9 +118,6 @@ func TestSetUpInstance(t *testing.T) {
 		{
 			desc:         "failing-create-storage",
 			origin:       "log",
-			projectID:    "project",
-			bucket:       "bucket",
-			spannerDB:    "spanner",
 			rootsPemFile: "./testdata/fake-ca.cert",
 			signer:       signer,
 			ctStorage: func(_ context.Context, _ note.Signer) (*CTStorage, error) {
@@ -159,7 +129,7 @@ func TestSetUpInstance(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.desc, func(t *testing.T) {
-			vCfg, err := ValidateLogConfig(test.origin, test.projectID, test.bucket, test.spannerDB, test.rootsPemFile, false, false, test.extKeyUsages, test.rejectExtensions, nil, nil, signer)
+			vCfg, err := ValidateLogConfig(test.origin, test.rootsPemFile, false, false, test.extKeyUsages, test.rejectExtensions, nil, nil, signer)
 			if err != nil {
 				t.Fatalf("ValidateLogConfig(): %v", err)
 			}
@@ -205,9 +175,6 @@ func TestSetUpInstanceSetsValidationOpts(t *testing.T) {
 	var tests = []struct {
 		desc          string
 		origin        string
-		projectID     string
-		bucket        string
-		spannerDB     string
 		rootsPemFile  string
 		notAfterStart *time.Time
 		notAfterLimit *time.Time
@@ -216,27 +183,18 @@ func TestSetUpInstanceSetsValidationOpts(t *testing.T) {
 		{
 			desc:         "no validation opts",
 			origin:       "log",
-			projectID:    "project",
-			bucket:       "bucket",
-			spannerDB:    "spanner",
 			rootsPemFile: "./testdata/fake-ca.cert",
 			signer:       signer,
 		},
 		{
 			desc:          "notAfterStart only",
 			origin:        "log",
-			projectID:     "project",
-			bucket:        "bucket",
-			spannerDB:     "spanner",
 			rootsPemFile:  "./testdata/fake-ca.cert",
 			notAfterStart: &start,
 		},
 		{
 			desc:          "notAfter range",
 			origin:        "log",
-			projectID:     "project",
-			bucket:        "bucket",
-			spannerDB:     "spanner",
 			rootsPemFile:  "./testdata/fake-ca.cert",
 			notAfterStart: &start,
 			notAfterLimit: &limit,
@@ -246,7 +204,7 @@ func TestSetUpInstanceSetsValidationOpts(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.desc, func(t *testing.T) {
-			vCfg, err := ValidateLogConfig(test.origin, test.projectID, test.bucket, test.spannerDB, test.rootsPemFile, false, false, "", "", test.notAfterStart, test.notAfterLimit, signer)
+			vCfg, err := ValidateLogConfig(test.origin, test.rootsPemFile, false, false, "", "", test.notAfterStart, test.notAfterLimit, signer)
 			if err != nil {
 				t.Fatalf("ValidateLogConfig(): %v", err)
 			}

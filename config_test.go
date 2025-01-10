@@ -55,33 +55,6 @@ func TestValidateLogConfig(t *testing.T) {
 			spannerDB: "spanner",
 		},
 		{
-			desc:      "empty-projectID",
-			wantErr:   "empty projectID",
-			origin:    "testlog",
-			projectID: "",
-			bucket:    "bucket",
-			spannerDB: "spanner",
-			signer:    signer,
-		},
-		{
-			desc:      "empty-bucket",
-			wantErr:   "empty bucket",
-			origin:    "testlog",
-			projectID: "project",
-			bucket:    "",
-			spannerDB: "spanner",
-			signer:    signer,
-		},
-		{
-			desc:      "empty-spannerDB",
-			wantErr:   "empty spannerDB",
-			origin:    "testlog",
-			projectID: "project",
-			bucket:    "bucket",
-			spannerDB: "",
-			signer:    signer,
-		},
-		{
 			desc:      "empty-rootsPemFile",
 			wantErr:   "empty rootsPemFile",
 			origin:    "testlog",
@@ -199,7 +172,7 @@ func TestValidateLogConfig(t *testing.T) {
 		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
-			vc, err := ValidateLogConfig(tc.origin, tc.projectID, tc.bucket, tc.spannerDB, tc.rootsPemFile, tc.rejectExpired, tc.rejectUnexpired, tc.extKeyUsages, "", tc.notAfterStart, tc.notAfterLimit, signer)
+			vc, err := ValidateLogConfig(tc.origin, tc.rootsPemFile, tc.rejectExpired, tc.rejectUnexpired, tc.extKeyUsages, "", tc.notAfterStart, tc.notAfterLimit, signer)
 			if len(tc.wantErr) == 0 && err != nil {
 				t.Errorf("ValidateLogConfig()=%v, want nil", err)
 			}
