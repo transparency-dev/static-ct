@@ -416,7 +416,7 @@ func getRoots(_ context.Context, li *logInfo, w http.ResponseWriter, _ *http.Req
 	return http.StatusOK, nil
 }
 
-// deadlineTime calculates the future time an RPC should expire based on our config
+// deadlineTime calculates the future time a request should expire based on our config.
 func deadlineTime(li *logInfo) time.Time {
 	return li.TimeSource.Now().Add(li.instanceOpts.Deadline)
 }
