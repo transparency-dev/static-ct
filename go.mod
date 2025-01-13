@@ -5,22 +5,22 @@ go 1.23.1
 require (
 	cloud.google.com/go/secretmanager v1.14.3
 	cloud.google.com/go/spanner v1.73.0
-	cloud.google.com/go/storage v1.49.0
+	cloud.google.com/go/storage v1.50.0
 	github.com/golang/mock v1.6.0
 	github.com/google/certificate-transparency-go v1.3.0
 	github.com/google/go-cmp v0.6.0
-	github.com/google/trillian v1.7.0
+	github.com/google/trillian v1.7.1
 	github.com/kylelemons/godebug v1.1.0
 	github.com/prometheus/client_golang v1.20.5
 	github.com/rs/cors v1.11.1
 	github.com/transparency-dev/formats v0.0.0-20240909113624-7ce4ea605e8b
 	github.com/transparency-dev/trillian-tessera v0.1.0
 	go.etcd.io/bbolt v1.3.11
-	golang.org/x/crypto v0.31.0
+	golang.org/x/crypto v0.32.0
 	golang.org/x/mod v0.22.0
-	google.golang.org/api v0.214.0
+	google.golang.org/api v0.216.0
 	google.golang.org/grpc v1.69.2
-	google.golang.org/protobuf v1.36.1
+	google.golang.org/protobuf v1.36.2
 	k8s.io/klog/v2 v2.130.1
 )
 
@@ -54,10 +54,10 @@ require (
 	github.com/google/s2a-go v0.1.8 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.3.4 // indirect
-	github.com/googleapis/gax-go/v2 v2.14.0 // indirect
+	github.com/googleapis/gax-go/v2 v2.14.1 // indirect
 	github.com/hashicorp/golang-lru/v2 v2.0.7 // indirect
 	github.com/jmespath/go-jmespath v0.4.1-0.20220621161143-b0104c826a24 // indirect
-	github.com/klauspost/compress v1.17.9 // indirect
+	github.com/klauspost/compress v1.17.11 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/planetscale/vtprotobuf v0.6.1-0.20240319094008-0393e58bdf10 // indirect
 	github.com/prometheus/client_model v0.6.1 // indirect
@@ -75,13 +75,13 @@ require (
 	go.opentelemetry.io/otel/sdk/metric v1.31.0 // indirect
 	go.opentelemetry.io/otel/trace v1.31.0 // indirect
 	golang.org/x/exp v0.0.0-20240325151524-a685a6edb6d8 // indirect
-	golang.org/x/net v0.33.0 // indirect
-	golang.org/x/oauth2 v0.24.0 // indirect
+	golang.org/x/net v0.34.0 // indirect
+	golang.org/x/oauth2 v0.25.0 // indirect
 	golang.org/x/sync v0.10.0 // indirect
-	golang.org/x/sys v0.28.0 // indirect
+	golang.org/x/sys v0.29.0 // indirect
 	golang.org/x/text v0.21.0 // indirect
-	golang.org/x/time v0.8.0 // indirect
+	golang.org/x/time v0.9.0 // indirect
 	google.golang.org/genproto v0.0.0-20241118233622-e639e219e697 // indirect
-	google.golang.org/genproto/googleapis/api v0.0.0-20241118233622-e639e219e697 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20241209162323-e6fa225c2576 // indirect
+	google.golang.org/genproto/googleapis/api v0.0.0-20241209162323-e6fa225c2576 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20250102185135-69823020774d // indirect
 )
