@@ -79,7 +79,7 @@ func ValidateLogConfig(origin string, rootsPemFile string, rejectExpired bool, r
 
 	// Validate the time interval.
 	if notAfterStart != nil && notAfterLimit != nil && (notAfterLimit).Before(*notAfterStart) {
-		return nil, fmt.Errorf("limit %q before start %q", notAfterLimit.Format(time.RFC3339), notAfterStart.Format(time.RFC3339))
+		return nil, fmt.Errorf("not_after limit %q before start %q", notAfterLimit.Format(time.RFC3339), notAfterStart.Format(time.RFC3339))
 	}
 
 	validationOpts := CertValidationOpts{

@@ -76,7 +76,7 @@ func TestValidateLogConfig(t *testing.T) {
 		},
 		{
 			desc:            "rejecting-all",
-			wantErr:         "rejecting all certificates",
+			wantErr:         "configuration would reject all certificates",
 			origin:          "testlog",
 			projectID:       "project",
 			bucket:          "bucket",
@@ -132,7 +132,7 @@ func TestValidateLogConfig(t *testing.T) {
 		},
 		{
 			desc:          "limit-before-start",
-			wantErr:       "limit before start",
+			wantErr:       "before start",
 			origin:        "testlog",
 			projectID:     "project",
 			bucket:        "bucket",
