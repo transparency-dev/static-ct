@@ -64,7 +64,6 @@ func ValidateLogConfig(origin string, rootsPemFile string, rejectExpired bool, r
 	}
 
 	// Validate signer that only ECDSA is supported.
-	// TODO(phboneff): if this is a library this should also allow RSA as per RFC6962.
 	if signer == nil {
 		return nil, errors.New("empty signer")
 	}
