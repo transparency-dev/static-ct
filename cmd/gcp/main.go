@@ -83,12 +83,12 @@ func main() {
 	}
 	cpSigner, err := sctfe.NewCpSigner(signer, *origin, timeSource)
 	if err != nil {
-		klog.Exitf("failed to create checkpoint Signer: %v", err)
+		klog.Exitf("Failed to create checkpoint Signer: %v", err)
 	}
 
 	storage, err := newGCPStorage(ctx, cpSigner)
 	if err != nil {
-		klog.Exitf("failed to initiate storage backend: %v", err)
+		klog.Exitf("Failed to initiate storage backend: %v", err)
 	}
 
 	vCfg, err := sctfe.ValidateLogConfig(*origin, *rootsPemFile, *rejectExpired, *rejectUnexpired, *extKeyUsages, *rejectExtensions, notAfterStart.t, notAfterLimit.t, signer)
@@ -100,7 +100,7 @@ func main() {
 		Validated:          vCfg,
 		Deadline:           *httpDeadline,
 		MetricFactory:      prometheus.MetricFactory{},
-		RequestLog:         new(sctfe.DefaultRequestLog),
+		RequestLog:         &sctfe.DefaultRequestLog{},
 		MaskInternalErrors: *maskInternalErrors,
 		Storage:            storage,
 		TimeSource:         timeSource,

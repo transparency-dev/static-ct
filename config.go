@@ -75,12 +75,12 @@ func ValidateLogConfig(origin string, rootsPemFile string, rejectExpired bool, r
 	}
 
 	if rejectExpired && rejectUnexpired {
-		return nil, errors.New("rejecting all certificates")
+		return nil, errors.New("configuration would reject all certificates")
 	}
 
 	// Validate the time interval.
 	if notAfterStart != nil && notAfterLimit != nil && (notAfterLimit).Before(*notAfterStart) {
-		return nil, errors.New("limit before start")
+		return nil, fmt.Errorf("limit %q before start %q", notAfterLimit.Format(time.RFC3339), notAfterStart.Format(time.RFC3339))
 	}
 
 	validationOpts := CertValidationOpts{
