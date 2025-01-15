@@ -151,8 +151,8 @@ func (a AppHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 // logInfo holds information for a specific log instance.
 type logInfo struct {
-	log   log
-	iOpts HandlerOptions
+	log   *log
+	iOpts *HandlerOptions
 }
 
 // HandlerOptions describes log handlers options.
@@ -170,30 +170,21 @@ type HandlerOptions struct {
 	TimeSource TimeSource
 }
 
-// newLogInfo creates a new instance of logInfo.
-func newLogInfo(hOpts HandlerOptions, log log) *logInfo {
+func NewPathHandlers(opts *HandlerOptions, log *log) PathHandlers {
 	li := &logInfo{
 		log:   log,
-		iOpts: hOpts,
+		iOpts: opts,
 	}
 
-	once.Do(func() { setupMetrics(hOpts.MetricFactory) })
+	once.Do(func() { setupMetrics(opts.MetricFactory) })
 	knownLogs.Set(1.0, log.origin)
 
-	return li
-}
-
-func NewPathHandlers(opts *HandlerOptions, log *log) PathHandlers {
-	logInfo := newLogInfo(*opts, *log)
-	return logInfo.Handlers(log.origin)
+	return li.Handlers(log.origin)
 }
 
 // Handlers returns a map from URL paths (with the given prefix) and AppHandler instances
 // to handle those entrypoints.
 func (li *logInfo) Handlers(prefix string) PathHandlers {
-	if !strings.HasPrefix(prefix, "/") {
-		prefix = "/" + prefix
-	}
 	prefix = strings.TrimRight(prefix, "/")
 
 	// Bind the logInfo instance to give an AppHandler instance for each endpoint.
