@@ -82,7 +82,7 @@ type log struct {
 	storage Storage
 }
 
-func NewLog(ctx context.Context, origin string, signer crypto.Signer, cfg ChainValidationConfig, ts TimeSource, cs CreateStorage) (*log, error) {
+func NewLog(ctx context.Context, origin string, signer crypto.Signer, cfg ChainValidationConfig, ts timeSource, cs CreateStorage) (*log, error) {
 	log := &log{}
 
 	if origin == "" {

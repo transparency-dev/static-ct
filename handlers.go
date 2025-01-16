@@ -167,7 +167,7 @@ type HandlerOptions struct {
 	// or returned to the user containing the full error message.
 	MaskInternalErrors bool
 	// TimeSource indicated the system time and can be injfected for testing.
-	TimeSource TimeSource
+	TimeSource timeSource
 }
 
 func NewPathHandlers(opts *HandlerOptions, log *log) pathHandlers {
