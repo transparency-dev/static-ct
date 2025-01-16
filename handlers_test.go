@@ -76,7 +76,7 @@ func setupTest(t *testing.T, pemRoots []string, signer crypto.Signer) handlerTes
 	}
 
 	info.storage = mockstorage.NewMockStorage(info.mockCtrl)
-	vOpts := ChainValidationOpts{
+	vOpts := chainValidationOpts{
 		trustedRoots:  info.roots,
 		rejectExpired: false,
 	}

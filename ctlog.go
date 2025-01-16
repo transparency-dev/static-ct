@@ -77,7 +77,7 @@ type log struct {
 	signSCT signSCT
 	// chainValidationOpts contains various parameters for certificate chain
 	// validation.
-	chainValidationOpts ChainValidationOpts
+	chainValidationOpts chainValidationOpts
 	// storage stores certificate data.
 	storage Storage
 }
@@ -126,7 +126,7 @@ func NewLog(ctx context.Context, origin string, signer crypto.Signer, cfg ChainV
 
 // newCertValidationOpts checks that a chain validation config is valid,
 // parses it, and loads resources to validate chains.
-func newCertValidationOpts(cfg ChainValidationConfig) (*ChainValidationOpts, error) {
+func newCertValidationOpts(cfg ChainValidationConfig) (*chainValidationOpts, error) {
 	// Load the trusted roots.
 	if cfg.RootsPEMFile == "" {
 		return nil, errors.New("empty rootsPemFile")
@@ -145,7 +145,7 @@ func newCertValidationOpts(cfg ChainValidationConfig) (*ChainValidationOpts, err
 		return nil, fmt.Errorf("'Not After' limit %q before start %q", cfg.NotAfterLimit.Format(time.RFC3339), cfg.NotAfterStart.Format(time.RFC3339))
 	}
 
-	validationOpts := ChainValidationOpts{
+	validationOpts := chainValidationOpts{
 		trustedRoots:    roots,
 		rejectExpired:   cfg.RejectExpired,
 		rejectUnexpired: cfg.RejectUnexpired,
