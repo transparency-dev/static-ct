@@ -48,14 +48,14 @@ const (
 	jsonMapKeyCertificates string = "certificates"
 )
 
-// EntrypointName identifies a CT entrypoint as defined in section 4 of RFC 6962.
-type EntrypointName string
+// entrypointName identifies a CT entrypoint as defined in section 4 of RFC 6962.
+type entrypointName string
 
 // Constants for entrypoint names, as exposed in statistics/logging.
 const (
-	AddChainName    = EntrypointName("AddChain")
-	AddPreChainName = EntrypointName("AddPreChain")
-	GetRootsName    = EntrypointName("GetRoots")
+	addChainName    = entrypointName("AddChain")
+	addPreChainName = entrypointName("AddPreChain")
+	getRootsName    = entrypointName("GetRoots")
 )
 
 var (
@@ -78,41 +78,41 @@ func setupMetrics(mf monitoring.MetricFactory) {
 	rspLatency = mf.NewHistogram("http_latency", "Latency of responses in seconds", "logid", "ep", "rc")
 }
 
-// Entrypoints is a list of entrypoint names as exposed in statistics/logging.
-var Entrypoints = []EntrypointName{AddChainName, AddPreChainName, GetRootsName}
+// entrypoints is a list of entrypoint names as exposed in statistics/logging.
+var entrypoints = []entrypointName{addChainName, addPreChainName, getRootsName}
 
-// PathHandlers maps from a path to the relevant AppHandler instance.
-type PathHandlers map[string]AppHandler
+// pathHandlers maps from a path to the relevant AppHandler instance.
+type pathHandlers map[string]appHandler
 
-// AppHandler holds a logInfo and a handler function that uses it, and is
+// appHandler holds a logInfo and a handler function that uses it, and is
 // an implementation of the http.Handler interface.
-type AppHandler struct {
-	Info    *logInfo
-	Handler func(context.Context, *logInfo, http.ResponseWriter, *http.Request) (int, error)
-	Name    EntrypointName
-	Method  string // http.MethodGet or http.MethodPost
+type appHandler struct {
+	info    *logInfo
+	handler func(context.Context, *logInfo, http.ResponseWriter, *http.Request) (int, error)
+	name    entrypointName
+	method  string // http.MethodGet or http.MethodPost
 }
 
 // ServeHTTP for an AppHandler invokes the underlying handler function but
 // does additional common error and stats processing.
-func (a AppHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (a appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var statusCode int
-	label0 := a.Info.log.origin
-	label1 := string(a.Name)
+	label0 := a.info.log.origin
+	label1 := string(a.name)
 	reqsCounter.Inc(label0, label1)
-	startTime := a.Info.iOpts.TimeSource.Now()
-	logCtx := a.Info.iOpts.RequestLog.Start(r.Context())
-	a.Info.iOpts.RequestLog.Origin(logCtx, a.Info.log.origin)
+	startTime := a.info.iOpts.TimeSource.Now()
+	logCtx := a.info.iOpts.RequestLog.Start(r.Context())
+	a.info.iOpts.RequestLog.Origin(logCtx, a.info.log.origin)
 	defer func() {
-		latency := a.Info.iOpts.TimeSource.Now().Sub(startTime).Seconds()
+		latency := a.info.iOpts.TimeSource.Now().Sub(startTime).Seconds()
 		rspLatency.Observe(latency, label0, label1, strconv.Itoa(statusCode))
 	}()
-	klog.V(2).Infof("%s: request %v %q => %s", a.Info.log.origin, r.Method, r.URL, a.Name)
+	klog.V(2).Infof("%s: request %v %q => %s", a.info.log.origin, r.Method, r.URL, a.name)
 	// TODO(phboneff): add a.Method directly on the handler path and remove this test.
-	if r.Method != a.Method {
-		klog.Warningf("%s: %s wrong HTTP method: %v", a.Info.log.origin, a.Name, r.Method)
-		a.Info.SendHTTPError(w, http.StatusMethodNotAllowed, fmt.Errorf("method not allowed: %s", r.Method))
-		a.Info.iOpts.RequestLog.Status(logCtx, http.StatusMethodNotAllowed)
+	if r.Method != a.method {
+		klog.Warningf("%s: %s wrong HTTP method: %v", a.info.log.origin, a.name, r.Method)
+		a.info.sendHTTPError(w, http.StatusMethodNotAllowed, fmt.Errorf("method not allowed: %s", r.Method))
+		a.info.iOpts.RequestLog.Status(logCtx, http.StatusMethodNotAllowed)
 		return
 	}
 
@@ -120,31 +120,31 @@ func (a AppHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// POSTs will decode the raw request body as JSON later.
 	if r.Method == http.MethodGet {
 		if err := r.ParseForm(); err != nil {
-			a.Info.SendHTTPError(w, http.StatusBadRequest, fmt.Errorf("failed to parse form data: %s", err))
-			a.Info.iOpts.RequestLog.Status(logCtx, http.StatusBadRequest)
+			a.info.sendHTTPError(w, http.StatusBadRequest, fmt.Errorf("failed to parse form data: %s", err))
+			a.info.iOpts.RequestLog.Status(logCtx, http.StatusBadRequest)
 			return
 		}
 	}
 
 	// impose a deadline on this onward request.
-	ctx, cancel := context.WithDeadline(logCtx, deadlineTime(a.Info))
+	ctx, cancel := context.WithDeadline(logCtx, deadlineTime(a.info))
 	defer cancel()
 
 	var err error
-	statusCode, err = a.Handler(ctx, a.Info, w, r)
-	a.Info.iOpts.RequestLog.Status(ctx, statusCode)
-	klog.V(2).Infof("%s: %s <= st=%d", a.Info.log.origin, a.Name, statusCode)
+	statusCode, err = a.handler(ctx, a.info, w, r)
+	a.info.iOpts.RequestLog.Status(ctx, statusCode)
+	klog.V(2).Infof("%s: %s <= st=%d", a.info.log.origin, a.name, statusCode)
 	rspsCounter.Inc(label0, label1, strconv.Itoa(statusCode))
 	if err != nil {
-		klog.Warningf("%s: %s handler error: %v", a.Info.log.origin, a.Name, err)
-		a.Info.SendHTTPError(w, statusCode, err)
+		klog.Warningf("%s: %s handler error: %v", a.info.log.origin, a.name, err)
+		a.info.sendHTTPError(w, statusCode, err)
 		return
 	}
 
 	// Additional check, for consistency the handler must return an error for non-200 st
 	if statusCode != http.StatusOK {
-		klog.Warningf("%s: %s handler non 200 without error: %d %v", a.Info.log.origin, a.Name, statusCode, err)
-		a.Info.SendHTTPError(w, http.StatusInternalServerError, fmt.Errorf("http handler misbehaved, st: %d", statusCode))
+		klog.Warningf("%s: %s handler non 200 without error: %d %v", a.info.log.origin, a.name, statusCode, err)
+		a.info.sendHTTPError(w, http.StatusInternalServerError, fmt.Errorf("http handler misbehaved, st: %d", statusCode))
 		return
 	}
 }
@@ -170,7 +170,7 @@ type HandlerOptions struct {
 	TimeSource TimeSource
 }
 
-func NewPathHandlers(opts *HandlerOptions, log *log) PathHandlers {
+func NewPathHandlers(opts *HandlerOptions, log *log) pathHandlers {
 	li := &logInfo{
 		log:   log,
 		iOpts: opts,
@@ -179,26 +179,26 @@ func NewPathHandlers(opts *HandlerOptions, log *log) PathHandlers {
 	once.Do(func() { setupMetrics(opts.MetricFactory) })
 	knownLogs.Set(1.0, log.origin)
 
-	return li.Handlers(log.origin)
+	return li.handlers(log.origin)
 }
 
-// Handlers returns a map from URL paths (with the given prefix) and AppHandler instances
+// handlers returns a map from URL paths (with the given prefix) and AppHandler instances
 // to handle those entrypoints.
-func (li *logInfo) Handlers(prefix string) PathHandlers {
+func (li *logInfo) handlers(prefix string) pathHandlers {
 	prefix = strings.TrimRight(prefix, "/")
 
 	// Bind the logInfo instance to give an AppHandler instance for each endpoint.
-	ph := PathHandlers{
-		prefix + ct.AddChainPath:    AppHandler{Info: li, Handler: addChain, Name: AddChainName, Method: http.MethodPost},
-		prefix + ct.AddPreChainPath: AppHandler{Info: li, Handler: addPreChain, Name: AddPreChainName, Method: http.MethodPost},
-		prefix + ct.GetRootsPath:    AppHandler{Info: li, Handler: getRoots, Name: GetRootsName, Method: http.MethodGet},
+	ph := pathHandlers{
+		prefix + ct.AddChainPath:    appHandler{info: li, handler: addChain, name: addChainName, method: http.MethodPost},
+		prefix + ct.AddPreChainPath: appHandler{info: li, handler: addPreChain, name: addPreChainName, method: http.MethodPost},
+		prefix + ct.GetRootsPath:    appHandler{info: li, handler: getRoots, name: getRootsName, method: http.MethodGet},
 	}
 
 	return ph
 }
 
-// SendHTTPError generates a custom error page to give more information on why something didn't work
-func (li *logInfo) SendHTTPError(w http.ResponseWriter, statusCode int, err error) {
+// sendHTTPError generates a custom error page to give more information on why something didn't work
+func (li *logInfo) sendHTTPError(w http.ResponseWriter, statusCode int, err error) {
 	errorBody := http.StatusText(statusCode)
 	if !li.iOpts.MaskInternalErrors || statusCode != http.StatusInternalServerError {
 		errorBody += fmt.Sprintf("\n%v", err)
@@ -206,8 +206,8 @@ func (li *logInfo) SendHTTPError(w http.ResponseWriter, statusCode int, err erro
 	http.Error(w, errorBody, statusCode)
 }
 
-// ParseBodyAsJSONChain tries to extract cert-chain out of request.
-func ParseBodyAsJSONChain(r *http.Request) (ct.AddChainRequest, error) {
+// parseBodyAsJSONChain tries to extract cert-chain out of request.
+func parseBodyAsJSONChain(r *http.Request) (ct.AddChainRequest, error) {
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		klog.V(1).Infof("Failed to read request body: %v", err)
@@ -232,15 +232,15 @@ func ParseBodyAsJSONChain(r *http.Request) (ct.AddChainRequest, error) {
 // addChainInternal is called by add-chain and add-pre-chain as the logic involved in
 // processing these requests is almost identical
 func addChainInternal(ctx context.Context, li *logInfo, w http.ResponseWriter, r *http.Request, isPrecert bool) (int, error) {
-	var method EntrypointName
+	var method entrypointName
 	if isPrecert {
-		method = AddPreChainName
+		method = addPreChainName
 	} else {
-		method = AddChainName
+		method = addChainName
 	}
 
 	// Check the contents of the request and convert to slice of certificates.
-	addChainReq, err := ParseBodyAsJSONChain(r)
+	addChainReq, err := parseBodyAsJSONChain(r)
 	if err != nil {
 		return http.StatusBadRequest, fmt.Errorf("%s: failed to parse add-chain body: %s", li.log.origin, err)
 	}
@@ -456,7 +456,7 @@ func entryFromChain(chain []*x509.Certificate, isPrecert bool, timestamp uint64)
 	cert := chain[0]
 
 	var preIssuer *x509.Certificate
-	if IsPreIssuer(issuer) {
+	if isPreIssuer(issuer) {
 		// Replace the cert's issuance information with details from the pre-issuer.
 		preIssuer = issuer
 
@@ -484,10 +484,10 @@ func entryFromChain(chain []*x509.Certificate, isPrecert bool, timestamp uint64)
 	return &leaf, nil
 }
 
-// IsPreIssuer indicates whether a certificate is a pre-cert issuer with the specific
+// isPreIssuer indicates whether a certificate is a pre-cert issuer with the specific
 // certificate transparency extended key usage.
 // copied form certificate-transparency-go/serialization.go
-func IsPreIssuer(issuer *x509.Certificate) bool {
+func isPreIssuer(issuer *x509.Certificate) bool {
 	for _, eku := range issuer.ExtKeyUsage {
 		if eku == x509.ExtKeyUsageCertificateTransparency {
 			return true
