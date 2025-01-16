@@ -101,8 +101,8 @@ func (a appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	label1 := string(a.name)
 	reqsCounter.Inc(label0, label1)
 	startTime := a.info.iOpts.TimeSource.Now()
-	logCtx := a.info.iOpts.RequestLog.Start(r.Context())
-	a.info.iOpts.RequestLog.Origin(logCtx, a.info.log.origin)
+	logCtx := a.info.iOpts.RequestLog.start(r.Context())
+	a.info.iOpts.RequestLog.origin(logCtx, a.info.log.origin)
 	defer func() {
 		latency := a.info.iOpts.TimeSource.Now().Sub(startTime).Seconds()
 		rspLatency.Observe(latency, label0, label1, strconv.Itoa(statusCode))
@@ -112,7 +112,7 @@ func (a appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if r.Method != a.method {
 		klog.Warningf("%s: %s wrong HTTP method: %v", a.info.log.origin, a.name, r.Method)
 		a.info.sendHTTPError(w, http.StatusMethodNotAllowed, fmt.Errorf("method not allowed: %s", r.Method))
-		a.info.iOpts.RequestLog.Status(logCtx, http.StatusMethodNotAllowed)
+		a.info.iOpts.RequestLog.status(logCtx, http.StatusMethodNotAllowed)
 		return
 	}
 
@@ -121,7 +121,7 @@ func (a appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodGet {
 		if err := r.ParseForm(); err != nil {
 			a.info.sendHTTPError(w, http.StatusBadRequest, fmt.Errorf("failed to parse form data: %s", err))
-			a.info.iOpts.RequestLog.Status(logCtx, http.StatusBadRequest)
+			a.info.iOpts.RequestLog.status(logCtx, http.StatusBadRequest)
 			return
 		}
 	}
@@ -132,7 +132,7 @@ func (a appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	var err error
 	statusCode, err = a.handler(ctx, a.info, w, r)
-	a.info.iOpts.RequestLog.Status(ctx, statusCode)
+	a.info.iOpts.RequestLog.status(ctx, statusCode)
 	klog.V(2).Infof("%s: %s <= st=%d", a.info.log.origin, a.name, statusCode)
 	rspsCounter.Inc(label0, label1, strconv.Itoa(statusCode))
 	if err != nil {
@@ -162,7 +162,7 @@ type HandlerOptions struct {
 	// MetricFactory allows creating metrics.
 	MetricFactory monitoring.MetricFactory
 	// RequestLog provides structured logging of CTFE requests.
-	RequestLog RequestLog
+	RequestLog requestLog
 	// MaskInternalErrors indicates if internal server errors should be masked
 	// or returned to the user containing the full error message.
 	MaskInternalErrors bool
@@ -246,14 +246,14 @@ func addChainInternal(ctx context.Context, li *logInfo, w http.ResponseWriter, r
 	}
 	// Log the DERs now because they might not parse as valid X.509.
 	for _, der := range addChainReq.Chain {
-		li.iOpts.RequestLog.AddDERToChain(ctx, der)
+		li.iOpts.RequestLog.addDERToChain(ctx, der)
 	}
 	chain, err := verifyAddChain(li, addChainReq, isPrecert)
 	if err != nil {
 		return http.StatusBadRequest, fmt.Errorf("failed to verify add-chain contents: %s", err)
 	}
 	for _, cert := range chain {
-		li.iOpts.RequestLog.AddCertToChain(ctx, cert)
+		li.iOpts.RequestLog.addCertToChain(ctx, cert)
 	}
 	// Get the current time in the form used throughout RFC6962, namely milliseconds since Unix
 	// epoch, and use this throughout.
@@ -320,7 +320,7 @@ func addChainInternal(ctx context.Context, li *logInfo, w http.ResponseWriter, r
 		return http.StatusInternalServerError, fmt.Errorf("failed to marshall SCT: %s", err)
 	}
 	// We could possibly fail to issue the SCT after this but it's v. unlikely.
-	li.iOpts.RequestLog.IssueSCT(ctx, sctBytes)
+	li.iOpts.RequestLog.issueSCT(ctx, sctBytes)
 	err = marshalAndWriteAddChainResponse(sct, w)
 	if err != nil {
 		// reason is logged and http status is already set
