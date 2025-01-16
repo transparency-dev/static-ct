@@ -110,7 +110,7 @@ func NewLog(ctx context.Context, origin string, signer crypto.Signer, cfg ChainV
 	}
 	log.chainValidationOpts = *vlc
 
-	cpSigner, err := NewCpSigner(signer, origin, ts)
+	cpSigner, err := newCpSigner(signer, origin, ts)
 	if err != nil {
 		klog.Exitf("failed to create checkpoint Signer: %v", err)
 	}
