@@ -66,7 +66,7 @@ func TestValidateLogConfig(t *testing.T) {
 			bucket:    "bucket",
 			spannerDB: "spanner",
 			cvcfg: ChainValidationConfig{
-				RootsPemFile: "./testdata/bogus.cert",
+				RootsPEMFile: "./testdata/bogus.cert",
 			},
 			signer: signer,
 		},
@@ -78,7 +78,7 @@ func TestValidateLogConfig(t *testing.T) {
 			bucket:    "bucket",
 			spannerDB: "spanner",
 			cvcfg: ChainValidationConfig{
-				RootsPemFile:    "./testdata/fake-ca.cert",
+				RootsPEMFile:    "./testdata/fake-ca.cert",
 				RejectExpired:   true,
 				RejectUnexpired: true},
 			signer: signer,
@@ -91,7 +91,7 @@ func TestValidateLogConfig(t *testing.T) {
 			bucket:    "bucket",
 			spannerDB: "spanner",
 			cvcfg: ChainValidationConfig{
-				RootsPemFile: "./testdata/fake-ca.cert",
+				RootsPEMFile: "./testdata/fake-ca.cert",
 				ExtKeyUsages: "wrong_usage"},
 			signer: signer,
 		},
@@ -103,7 +103,7 @@ func TestValidateLogConfig(t *testing.T) {
 			bucket:    "bucket",
 			spannerDB: "spanner",
 			cvcfg: ChainValidationConfig{
-				RootsPemFile: "./testdata/fake-ca.cert",
+				RootsPEMFile: "./testdata/fake-ca.cert",
 				ExtKeyUsages: "ClientAuth,ServerAuth,TimeStomping",
 			},
 			signer: signer,
@@ -116,7 +116,7 @@ func TestValidateLogConfig(t *testing.T) {
 			bucket:    "bucket",
 			spannerDB: "spanner",
 			cvcfg: ChainValidationConfig{
-				RootsPemFile: "./testdata/fake-ca.cert",
+				RootsPEMFile: "./testdata/fake-ca.cert",
 				ExtKeyUsages: "Any ",
 			},
 			signer: signer,
@@ -129,7 +129,7 @@ func TestValidateLogConfig(t *testing.T) {
 			bucket:    "bucket",
 			spannerDB: "spanner",
 			cvcfg: ChainValidationConfig{
-				RootsPemFile:     "./testdata/fake-ca.cert",
+				RootsPEMFile:     "./testdata/fake-ca.cert",
 				RejectExtensions: "1.2.3.4,one.banana.two.bananas",
 			},
 			signer: signer,
@@ -141,7 +141,7 @@ func TestValidateLogConfig(t *testing.T) {
 			bucket:    "bucket",
 			spannerDB: "spanner",
 			cvcfg: ChainValidationConfig{
-				RootsPemFile:  "./testdata/fake-ca.cert",
+				RootsPEMFile:  "./testdata/fake-ca.cert",
 				NotAfterStart: &t200,
 				NotAfterLimit: &t100,
 			},
@@ -154,7 +154,7 @@ func TestValidateLogConfig(t *testing.T) {
 			bucket:    "bucket",
 			spannerDB: "spanner",
 			cvcfg: ChainValidationConfig{
-				RootsPemFile: "./testdata/fake-ca.cert",
+				RootsPEMFile: "./testdata/fake-ca.cert",
 			},
 			signer: signer,
 		},
@@ -165,7 +165,7 @@ func TestValidateLogConfig(t *testing.T) {
 			bucket:    "bucket",
 			spannerDB: "spanner",
 			cvcfg: ChainValidationConfig{
-				RootsPemFile: "./testdata/fake-ca.cert",
+				RootsPEMFile: "./testdata/fake-ca.cert",
 				ExtKeyUsages: "ServerAuth,ClientAuth,OCSPSigning",
 			},
 			signer: signer,
@@ -177,7 +177,7 @@ func TestValidateLogConfig(t *testing.T) {
 			bucket:    "bucket",
 			spannerDB: "spanner",
 			cvcfg: ChainValidationConfig{
-				RootsPemFile:     "./testdata/fake-ca.cert",
+				RootsPEMFile:     "./testdata/fake-ca.cert",
 				RejectExtensions: "1.2.3.4,5.6.7.8",
 			},
 			signer: signer,
@@ -189,7 +189,7 @@ func TestValidateLogConfig(t *testing.T) {
 			bucket:    "bucket",
 			spannerDB: "spanner",
 			cvcfg: ChainValidationConfig{
-				RootsPemFile:  "./testdata/fake-ca.cert",
+				RootsPEMFile:  "./testdata/fake-ca.cert",
 				NotAfterStart: &t100,
 			},
 			signer: signer,
@@ -201,7 +201,7 @@ func TestValidateLogConfig(t *testing.T) {
 			bucket:    "bucket",
 			spannerDB: "spanner",
 			cvcfg: ChainValidationConfig{
-				RootsPemFile:  "./testdata/fake-ca.cert",
+				RootsPEMFile:  "./testdata/fake-ca.cert",
 				NotAfterStart: &t200,
 			},
 			signer: signer,
@@ -213,7 +213,7 @@ func TestValidateLogConfig(t *testing.T) {
 			bucket:    "bucket",
 			spannerDB: "spanner",
 			cvcfg: ChainValidationConfig{
-				RootsPemFile:  "./testdata/fake-ca.cert",
+				RootsPEMFile:  "./testdata/fake-ca.cert",
 				NotAfterStart: &t100,
 				NotAfterLimit: &t200,
 			},

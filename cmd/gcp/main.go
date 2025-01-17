@@ -83,7 +83,7 @@ func main() {
 	}
 
 	chainValidationConfig := sctfe.ChainValidationConfig{
-		RootsPemFile:     *rootsPemFile,
+		RootsPEMFile:     *rootsPemFile,
 		RejectExpired:    *rejectExpired,
 		RejectUnexpired:  *rejectUnexpired,
 		ExtKeyUsages:     *extKeyUsages,
@@ -94,7 +94,7 @@ func main() {
 
 	vCfg, err := sctfe.ValidateLogConfig(chainValidationConfig, *origin, signer)
 	if err != nil {
-		klog.Exitf("Failed to initialize log config: %v", err)
+		klog.Exitf("Invalid log config: %v", err)
 	}
 
 	cpSigner, err := sctfe.NewCpSigner(signer, vCfg.Origin, timeSource)
@@ -104,7 +104,7 @@ func main() {
 
 	storage, err := newGCPStorage(ctx, cpSigner)
 	if err != nil {
-		klog.Exitf("Failed to initiate storage backend: %v", err)
+		klog.Exitf("Failed to initialize storage backend: %v", err)
 	}
 
 	opts := sctfe.HandlerOptions{

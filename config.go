@@ -29,24 +29,27 @@ import (
 	"k8s.io/klog/v2"
 )
 
+// ChainValidationConfig contains parameters to configure chain validation.
 type ChainValidationConfig struct {
-	// Path to the file containing root certificates that are acceptable to the
-	// log. The certs are served through get-roots endpoint.
-	RootsPemFile string
-	// If RejectExpired is true then the certificate validity period will be
+	// RootsPEMFile is the path to the file containing root certificates that
+	// are acceptable to the log. The certs are served through get-roots
+	// endpoint.
+	RootsPEMFile string
+	// RejectExpired controls if true then the certificate validity period will be
 	// checked against the current time during the validation of submissions.
 	// This will cause expired certificates to be rejected.
 	RejectExpired bool
-	// If RejectUnexpired is true then CTFE rejects certificates that are either
-	// currently valid or not yet valid.
+	// RejectUnexpired controls if the SCTFE rejects certificates that are
+	// either currently valid or not yet valid.
+	// TODO(phboneff): evaluate whether we need to keep this one.
 	RejectUnexpired bool
-	// If set, ExtKeyUsages will restrict the set of such usages that the
-	// server will accept. By default all are accepted. The values specified
-	// must be ones known to the x509 package, comma separated.
+	// ExtKeyUsages lists Extended Key Usage values that newly submitted
+	// certificates MUST contain. By default all are accepted. The
+	// values specified must be ones known to the x509 package, comma separated.
 	ExtKeyUsages string
-	// A comma separated list of X.509 extension OIDs, in dotted string form
-	// (e.g. "2.3.4.5") which, if present, should cause submissions to be
-	// rejected.
+	// RejectExtensions lists X.509 extension OIDs that newly submitted
+	// certificates MUST NOT contain. Empty by default. Values must be
+	// specificed in dotted string form (e.g. "2.3.4.5").
 	RejectExtensions string
 	// NotAfterStart defines the start of the range of acceptable NotAfter
 	// values, inclusive.
@@ -85,11 +88,11 @@ func ValidateLogConfig(cfg ChainValidationConfig, origin string, signer crypto.S
 	}
 
 	// Load the trusted roots.
-	if cfg.RootsPemFile == "" {
+	if cfg.RootsPEMFile == "" {
 		return nil, errors.New("empty rootsPemFile")
 	}
 	roots := x509util.NewPEMCertPool()
-	if err := roots.AppendCertsFromPEMFile(cfg.RootsPemFile); err != nil {
+	if err := roots.AppendCertsFromPEMFile(cfg.RootsPEMFile); err != nil {
 		return nil, fmt.Errorf("failed to read trusted roots: %v", err)
 	}
 
