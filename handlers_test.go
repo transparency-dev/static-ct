@@ -77,7 +77,7 @@ func setupTest(t *testing.T, pemRoots []string, signer crypto.Signer) handlerTes
 	}
 
 	cfg := &ValidatedLogConfig{Origin: "example.com"}
-	iOpts := InstanceOptions{Validated: cfg, Deadline: time.Millisecond * 500, MetricFactory: monitoring.InertMetricFactory{}, RequestLog: new(DefaultRequestLog)}
+	iOpts := HandlerOptions{Validated: cfg, Deadline: time.Millisecond * 500, MetricFactory: monitoring.InertMetricFactory{}, RequestLog: new(DefaultRequestLog)}
 	info.li = newLogInfo(iOpts, vOpts, signer, fakeTimeSource, info.storage)
 
 	for _, pemRoot := range pemRoots {
@@ -399,6 +399,8 @@ func TestAddChain(t *testing.T) {
 					t.Errorf("resp.Signature=%s; want %s", got, want)
 				}
 				// TODO(phboneff): check that the index is in the SCT
+				// TODO(phboneff): add a test with a not after range
+				// TODO(phboneff): add a test with a start date only
 			}
 		})
 	}
@@ -444,6 +446,8 @@ func TestAddPrechain(t *testing.T) {
 		},
 		// TODO(phboneff): add a test with an intermediate
 		// TODO(phboneff): add a test with a pre-issuer intermediate cert
+		// TODO(phboneff): add a test with a not after range
+		// TODO(phboneff): add a test with a start date only
 	}
 
 	signer, err := setupSigner(fakeSignature)

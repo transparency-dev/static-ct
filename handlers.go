@@ -199,8 +199,10 @@ type logInfo struct {
 	// information.
 	RequestLog RequestLog
 
-	// Instance-wide options
-	instanceOpts InstanceOptions
+	// maskInternalErrors controls whether to hide internal errors from clients
+	maskInternalErrors bool
+	// deadline is a timeout for HTTP requests.
+	deadline time.Duration
 	// validationOpts contains the certificate chain validation parameters
 	validationOpts CertValidationOpts
 	// storage stores log data
@@ -209,30 +211,57 @@ type logInfo struct {
 	signer crypto.Signer
 }
 
+// HandlerOptions describes log handlers options.
+type HandlerOptions struct {
+	// Validated holds the original configuration options for the log, and some
+	// of its fields parsed as a result of validating it.
+	Validated *ValidatedLogConfig
+	// Storage stores data to satisfy https://c2sp.org/static-ct-api.
+	Storage *CTStorage
+	// Deadline is a timeout for HTTP requests.
+	Deadline time.Duration
+	// MetricFactory allows creating metrics.
+	MetricFactory monitoring.MetricFactory
+	// RequestLog provides structured logging of CTFE requests.
+	RequestLog RequestLog
+	// MaskInternalErrors indicates if internal server errors should be masked
+	// or returned to the user containing the full error message.
+	MaskInternalErrors bool
+	// TimeSource indicated the system time and can be injfected for testing.
+	TimeSource TimeSource
+}
+
 // newLogInfo creates a new instance of logInfo.
 func newLogInfo(
-	instanceOpts InstanceOptions,
+	hOpts HandlerOptions,
 	validationOpts CertValidationOpts,
 	signer crypto.Signer,
 	timeSource TimeSource,
 	storage Storage,
 ) *logInfo {
-	cfg := instanceOpts.Validated
+	cfg := hOpts.Validated
 
 	li := &logInfo{
-		Origin:         cfg.Origin,
-		storage:        storage,
-		signer:         signer,
-		TimeSource:     timeSource,
-		instanceOpts:   instanceOpts,
-		validationOpts: validationOpts,
-		RequestLog:     instanceOpts.RequestLog,
+		Origin:             cfg.Origin,
+		storage:            storage,
+		signer:             signer,
+		TimeSource:         timeSource,
+		maskInternalErrors: hOpts.MaskInternalErrors,
+		deadline:           hOpts.Deadline,
+		validationOpts:     validationOpts,
+		RequestLog:         hOpts.RequestLog,
 	}
 
-	once.Do(func() { setupMetrics(instanceOpts.MetricFactory) })
+	once.Do(func() { setupMetrics(hOpts.MetricFactory) })
 	knownLogs.Set(1.0, cfg.Origin)
 
 	return li
+}
+
+func NewPathHandlers(opts HandlerOptions) PathHandlers {
+	cfg := opts.Validated
+	logInfo := newLogInfo(opts, cfg.CertValidationOpts, cfg.Signer, opts.TimeSource, opts.Storage)
+	return logInfo.Handlers(opts.Validated.Origin)
 }
 
 // Handlers returns a map from URL paths (with the given prefix) and AppHandler instances
@@ -256,7 +285,7 @@ func (li *logInfo) Handlers(prefix string) PathHandlers {
 // SendHTTPError generates a custom error page to give more information on why something didn't work
 func (li *logInfo) SendHTTPError(w http.ResponseWriter, statusCode int, err error) {
 	errorBody := http.StatusText(statusCode)
-	if !li.instanceOpts.MaskInternalErrors || statusCode != http.StatusInternalServerError {
+	if !li.maskInternalErrors || statusCode != http.StatusInternalServerError {
 		errorBody += fmt.Sprintf("\n%v", err)
 	}
 	http.Error(w, errorBody, statusCode)
@@ -419,7 +448,7 @@ func getRoots(_ context.Context, li *logInfo, w http.ResponseWriter, _ *http.Req
 
 // deadlineTime calculates the future time a request should expire based on our config.
 func deadlineTime(li *logInfo) time.Time {
-	return li.TimeSource.Now().Add(li.instanceOpts.Deadline)
+	return li.TimeSource.Now().Add(li.deadline)
 }
 
 // verifyAddChain is used by add-chain and add-pre-chain. It does the checks that the supplied

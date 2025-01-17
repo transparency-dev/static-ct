@@ -76,15 +76,37 @@ func main() {
 	flag.Parse()
 	ctx := context.Background()
 
+	timeSource := sctfe.SystemTimeSource{}
 	signer, err := NewSecretManagerSigner(ctx, *signerPublicKeySecretName, *signerPrivateKeySecretName)
 	if err != nil {
 		klog.Exitf("Can't create secret manager signer: %v", err)
+	}
+	cpSigner, err := sctfe.NewCpSigner(signer, *origin, timeSource)
+	if err != nil {
+		klog.Exitf("Failed to create checkpoint signer: %v", err)
+	}
+
+	storage, err := newGCPStorage(ctx, cpSigner)
+	if err != nil {
+		klog.Exitf("Failed to initiate storage backend: %v", err)
 	}
 
 	vCfg, err := sctfe.ValidateLogConfig(*origin, *rootsPemFile, *rejectExpired, *rejectUnexpired, *extKeyUsages, *rejectExtensions, notAfterStart.t, notAfterLimit.t, signer)
 	if err != nil {
 		klog.Exitf("Invalid config: %v", err)
 	}
+
+	opts := sctfe.HandlerOptions{
+		Validated:          vCfg,
+		Deadline:           *httpDeadline,
+		MetricFactory:      prometheus.MetricFactory{},
+		RequestLog:         &sctfe.DefaultRequestLog{},
+		MaskInternalErrors: *maskInternalErrors,
+		Storage:            storage,
+		TimeSource:         timeSource,
+	}
+
+	handlers := sctfe.NewPathHandlers(opts)
 
 	klog.CopyStandardLogTo("WARNING")
 	klog.Info("**** CT HTTP Server Starting ****")
@@ -102,20 +124,7 @@ func main() {
 	http.Handle("/", corsHandler)
 
 	// Register handlers for all the configured logs.
-	opts := sctfe.InstanceOptions{
-		Validated:          vCfg,
-		Deadline:           *httpDeadline,
-		MetricFactory:      prometheus.MetricFactory{},
-		RequestLog:         new(sctfe.DefaultRequestLog),
-		MaskInternalErrors: *maskInternalErrors,
-		CreateStorage:      newGCPStorage,
-	}
-
-	inst, err := sctfe.SetUpInstance(ctx, opts)
-	if err != nil {
-		klog.Exitf("Failed to set up log instance for %+v: %v", vCfg, err)
-	}
-	for path, handler := range inst.Handlers {
+	for path, handler := range handlers {
 		corsMux.Handle(path, handler)
 	}
 
