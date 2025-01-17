@@ -83,7 +83,7 @@ func main() {
 	}
 	cpSigner, err := sctfe.NewCpSigner(signer, *origin, timeSource)
 	if err != nil {
-		klog.Exitf("Failed to create checkpoint Signer: %v", err)
+		klog.Exitf("Failed to create checkpoint signer: %v", err)
 	}
 
 	storage, err := newGCPStorage(ctx, cpSigner)
