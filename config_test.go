@@ -33,20 +33,14 @@ func TestValidateLogConfig(t *testing.T) {
 	t200 := time.Unix(200, 0)
 
 	for _, tc := range []struct {
-		desc             string
-		origin           string
-		projectID        string
-		bucket           string
-		spannerDB        string
-		wantErr          string
-		rootsPemFile     string
-		rejectExpired    bool
-		rejectUnexpired  bool
-		extKeyUsages     string
-		rejectExtensions string
-		notAfterStart    *time.Time
-		notAfterLimit    *time.Time
-		signer           crypto.Signer
+		desc      string
+		origin    string
+		projectID string
+		bucket    string
+		spannerDB string
+		wantErr   string
+		cvcfg     ChainValidationConfig
+		signer    crypto.Signer
 	}{
 		{
 			desc:      "empty-origin",
@@ -65,146 +59,169 @@ func TestValidateLogConfig(t *testing.T) {
 			signer:    signer,
 		},
 		{
-			desc:         "missing-root-cert",
-			wantErr:      "failed to read trusted roots",
-			origin:       "testlog",
-			projectID:    "project",
-			bucket:       "bucket",
-			spannerDB:    "spanner",
-			rootsPemFile: "./testdata/bogus.cert",
-			signer:       signer,
+			desc:      "missing-root-cert",
+			wantErr:   "failed to read trusted roots",
+			origin:    "testlog",
+			projectID: "project",
+			bucket:    "bucket",
+			spannerDB: "spanner",
+			cvcfg: ChainValidationConfig{
+				RootsPEMFile: "./testdata/bogus.cert",
+			},
+			signer: signer,
 		},
 		{
-			desc:            "rejecting-all",
-			wantErr:         "configuration would reject all certificates",
-			origin:          "testlog",
-			projectID:       "project",
-			bucket:          "bucket",
-			spannerDB:       "spanner",
-			rootsPemFile:    "./testdata/fake-ca.cert",
-			rejectExpired:   true,
-			rejectUnexpired: true,
-			signer:          signer,
+			desc:      "rejecting-all",
+			wantErr:   "configuration would reject all certificates",
+			origin:    "testlog",
+			projectID: "project",
+			bucket:    "bucket",
+			spannerDB: "spanner",
+			cvcfg: ChainValidationConfig{
+				RootsPEMFile:    "./testdata/fake-ca.cert",
+				RejectExpired:   true,
+				RejectUnexpired: true},
+			signer: signer,
 		},
 		{
-			desc:         "unknown-ext-key-usage-1",
-			wantErr:      "unknown extended key usage",
-			origin:       "testlog",
-			projectID:    "project",
-			bucket:       "bucket",
-			spannerDB:    "spanner",
-			rootsPemFile: "./testdata/fake-ca.cert",
-			extKeyUsages: "wrong_usage",
-			signer:       signer,
+			desc:      "unknown-ext-key-usage-1",
+			wantErr:   "unknown extended key usage",
+			origin:    "testlog",
+			projectID: "project",
+			bucket:    "bucket",
+			spannerDB: "spanner",
+			cvcfg: ChainValidationConfig{
+				RootsPEMFile: "./testdata/fake-ca.cert",
+				ExtKeyUsages: "wrong_usage"},
+			signer: signer,
 		},
 		{
-			desc:         "unknown-ext-key-usage-2",
-			wantErr:      "unknown extended key usage",
-			origin:       "testlog",
-			projectID:    "project",
-			bucket:       "bucket",
-			spannerDB:    "spanner",
-			rootsPemFile: "./testdata/fake-ca.cert",
-			extKeyUsages: "ClientAuth,ServerAuth,TimeStomping",
-			signer:       signer,
+			desc:      "unknown-ext-key-usage-2",
+			wantErr:   "unknown extended key usage",
+			origin:    "testlog",
+			projectID: "project",
+			bucket:    "bucket",
+			spannerDB: "spanner",
+			cvcfg: ChainValidationConfig{
+				RootsPEMFile: "./testdata/fake-ca.cert",
+				ExtKeyUsages: "ClientAuth,ServerAuth,TimeStomping",
+			},
+			signer: signer,
 		},
 		{
-			desc:         "unknown-ext-key-usage-3",
-			wantErr:      "unknown extended key usage",
-			origin:       "testlog",
-			projectID:    "project",
-			bucket:       "bucket",
-			spannerDB:    "spanner",
-			rootsPemFile: "./testdata/fake-ca.cert",
-			extKeyUsages: "Any ",
-			signer:       signer,
+			desc:      "unknown-ext-key-usage-3",
+			wantErr:   "unknown extended key usage",
+			origin:    "testlog",
+			projectID: "project",
+			bucket:    "bucket",
+			spannerDB: "spanner",
+			cvcfg: ChainValidationConfig{
+				RootsPEMFile: "./testdata/fake-ca.cert",
+				ExtKeyUsages: "Any ",
+			},
+			signer: signer,
 		},
 		{
-			desc:             "unknown-reject-ext",
-			wantErr:          "failed to parse RejectExtensions",
-			origin:           "testlog",
-			projectID:        "project",
-			bucket:           "bucket",
-			spannerDB:        "spanner",
-			rootsPemFile:     "./testdata/fake-ca.cert",
-			rejectExtensions: "1.2.3.4,one.banana.two.bananas",
-			signer:           signer,
+			desc:      "unknown-reject-ext",
+			wantErr:   "failed to parse RejectExtensions",
+			origin:    "testlog",
+			projectID: "project",
+			bucket:    "bucket",
+			spannerDB: "spanner",
+			cvcfg: ChainValidationConfig{
+				RootsPEMFile:     "./testdata/fake-ca.cert",
+				RejectExtensions: "1.2.3.4,one.banana.two.bananas",
+			},
+			signer: signer,
 		},
 		{
-			desc:          "limit-before-start",
-			wantErr:       "before start",
-			origin:        "testlog",
-			projectID:     "project",
-			bucket:        "bucket",
-			spannerDB:     "spanner",
-			rootsPemFile:  "./testdata/fake-ca.cert",
-			notAfterStart: &t200,
-			notAfterLimit: &t100,
-			signer:        signer,
+			wantErr:   "before start",
+			origin:    "testlog",
+			projectID: "project",
+			bucket:    "bucket",
+			spannerDB: "spanner",
+			cvcfg: ChainValidationConfig{
+				RootsPEMFile:  "./testdata/fake-ca.cert",
+				NotAfterStart: &t200,
+				NotAfterLimit: &t100,
+			},
+			signer: signer,
 		},
 		{
-			desc:         "ok",
-			origin:       "testlog",
-			projectID:    "project",
-			bucket:       "bucket",
-			spannerDB:    "spanner",
-			rootsPemFile: "./testdata/fake-ca.cert",
-			signer:       signer,
+			desc:      "ok",
+			origin:    "testlog",
+			projectID: "project",
+			bucket:    "bucket",
+			spannerDB: "spanner",
+			cvcfg: ChainValidationConfig{
+				RootsPEMFile: "./testdata/fake-ca.cert",
+			},
+			signer: signer,
 		},
 		{
-			desc:         "ok-ext-key-usages",
-			origin:       "testlog",
-			projectID:    "project",
-			bucket:       "bucket",
-			spannerDB:    "spanner",
-			rootsPemFile: "./testdata/fake-ca.cert",
-			extKeyUsages: "ServerAuth,ClientAuth,OCSPSigning",
-			signer:       signer,
+			desc:      "ok-ext-key-usages",
+			origin:    "testlog",
+			projectID: "project",
+			bucket:    "bucket",
+			spannerDB: "spanner",
+			cvcfg: ChainValidationConfig{
+				RootsPEMFile: "./testdata/fake-ca.cert",
+				ExtKeyUsages: "ServerAuth,ClientAuth,OCSPSigning",
+			},
+			signer: signer,
 		},
 		{
-			desc:             "ok-reject-ext",
-			origin:           "testlog",
-			projectID:        "project",
-			bucket:           "bucket",
-			spannerDB:        "spanner",
-			rootsPemFile:     "./testdata/fake-ca.cert",
-			rejectExtensions: "1.2.3.4,5.6.7.8",
-			signer:           signer,
+			desc:      "ok-reject-ext",
+			origin:    "testlog",
+			projectID: "project",
+			bucket:    "bucket",
+			spannerDB: "spanner",
+			cvcfg: ChainValidationConfig{
+				RootsPEMFile:     "./testdata/fake-ca.cert",
+				RejectExtensions: "1.2.3.4,5.6.7.8",
+			},
+			signer: signer,
 		},
 		{
-			desc:          "ok-start-timestamp",
-			origin:        "testlog",
-			projectID:     "project",
-			bucket:        "bucket",
-			spannerDB:     "spanner",
-			rootsPemFile:  "./testdata/fake-ca.cert",
-			notAfterStart: &t100,
-			signer:        signer,
+			desc:      "ok-start-timestamp",
+			origin:    "testlog",
+			projectID: "project",
+			bucket:    "bucket",
+			spannerDB: "spanner",
+			cvcfg: ChainValidationConfig{
+				RootsPEMFile:  "./testdata/fake-ca.cert",
+				NotAfterStart: &t100,
+			},
+			signer: signer,
 		},
 		{
-			desc:          "ok-limit-timestamp",
-			origin:        "testlog",
-			projectID:     "project",
-			bucket:        "bucket",
-			spannerDB:     "spanner",
-			rootsPemFile:  "./testdata/fake-ca.cert",
-			notAfterStart: &t200,
-			signer:        signer,
+			desc:      "ok-limit-timestamp",
+			origin:    "testlog",
+			projectID: "project",
+			bucket:    "bucket",
+			spannerDB: "spanner",
+			cvcfg: ChainValidationConfig{
+				RootsPEMFile:  "./testdata/fake-ca.cert",
+				NotAfterStart: &t200,
+			},
+			signer: signer,
 		},
 		{
-			desc:          "ok-range-timestamp",
-			origin:        "testlog",
-			projectID:     "project",
-			bucket:        "bucket",
-			spannerDB:     "spanner",
-			rootsPemFile:  "./testdata/fake-ca.cert",
-			notAfterStart: &t100,
-			notAfterLimit: &t200,
-			signer:        signer,
+			desc:      "ok-range-timestamp",
+			origin:    "testlog",
+			projectID: "project",
+			bucket:    "bucket",
+			spannerDB: "spanner",
+			cvcfg: ChainValidationConfig{
+				RootsPEMFile:  "./testdata/fake-ca.cert",
+				NotAfterStart: &t100,
+				NotAfterLimit: &t200,
+			},
+			signer: signer,
 		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
-			vc, err := ValidateLogConfig(tc.origin, tc.rootsPemFile, tc.rejectExpired, tc.rejectUnexpired, tc.extKeyUsages, tc.rejectExtensions, tc.notAfterStart, tc.notAfterLimit, signer)
+			vc, err := ValidateLogConfig(tc.cvcfg, tc.origin, signer)
 			if len(tc.wantErr) == 0 && err != nil {
 				t.Errorf("ValidateLogConfig()=%v, want nil", err)
 			}
