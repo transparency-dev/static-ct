@@ -15,6 +15,7 @@
 package sctfe
 
 import (
+	"context"
 	"crypto"
 	"crypto/ecdsa"
 	"errors"
@@ -23,9 +24,11 @@ import (
 	"strings"
 	"time"
 
+	ct "github.com/google/certificate-transparency-go"
 	"github.com/google/certificate-transparency-go/asn1"
 	"github.com/google/certificate-transparency-go/x509"
 	"github.com/google/certificate-transparency-go/x509util"
+	"golang.org/x/mod/sumdb/note"
 	"k8s.io/klog/v2"
 )
 
@@ -61,40 +64,31 @@ type ChainValidationConfig struct {
 	NotAfterLimit *time.Time
 }
 
-// ValidatedLogConfig represents the LogConfig with the information that has
-// been successfully parsed as a result of validating it.
-type ValidatedLogConfig struct {
-	// Origin identifies the log. It will be used in its checkpoint, and
+// CreateStorage instantiates a Tessera storage implementation with a signer option.
+type CreateStorage func(context.Context, note.Signer) (*CTStorage, error)
+
+// log offers all the primitives necessary to run a static-ct-api log.
+// TODO(phboneff): consider moving to methods when refactoring logInfo.
+type log struct {
+	// origin identifies the log. It will be used in its checkpoint, and
 	// is also its submission prefix, as per https://c2sp.org/static-ct-api.
-	Origin string
-	// Used to sign the checkpoint and SCTs.
-	Signer crypto.Signer
-	// CertValidationOpts contains various parameters for certificate chain
+	origin string
+	// signSCT Signs SCTs.
+	signSCT signSCT
+	// certValidationOpts contains various parameters for certificate chain
 	// validation.
-	CertValidationOpts CertValidationOpts
+	certValidationOpts CertValidationOpts
+	// storage stores certificate data.
+	storage Storage
 }
 
-// ValidateLogConfig checks that a single log config is valid. In particular:
-//   - A log has a private, and optionally a public key (both valid).
-//   - Each of NotBeforeStart and NotBeforeLimit, if set, is a valid timestamp
-//     proto. If both are set then NotBeforeStart <= NotBeforeLimit.
-//   - Merge delays (if present) are correct.
-//
-// Returns the validated structures (useful to avoid double validation).
-// TODO(phboneff): change the name of this function.
-func ValidateLogConfig(cfg ChainValidationConfig, origin string, signer crypto.Signer) (*ValidatedLogConfig, error) {
+func NewLog(ctx context.Context, origin string, signer crypto.Signer, cfg ChainValidationConfig, ts TimeSource, cs CreateStorage) (*log, error) {
+	log := &log{}
+
 	if origin == "" {
 		return nil, errors.New("empty origin")
 	}
-
-	// Load the trusted roots.
-	if cfg.RootsPEMFile == "" {
-		return nil, errors.New("empty rootsPemFile")
-	}
-	roots := x509util.NewPEMCertPool()
-	if err := roots.AppendCertsFromPEMFile(cfg.RootsPEMFile); err != nil {
-		return nil, fmt.Errorf("failed to read trusted roots: %v", err)
-	}
+	log.origin = origin
 
 	// Validate signer that only ECDSA is supported.
 	if signer == nil {
@@ -104,6 +98,42 @@ func ValidateLogConfig(cfg ChainValidationConfig, origin string, signer crypto.S
 	case *ecdsa.PublicKey:
 	default:
 		return nil, fmt.Errorf("unsupported key type: %v", keyType)
+	}
+
+	log.signSCT = func(leaf *ct.MerkleTreeLeaf) (*ct.SignedCertificateTimestamp, error) {
+		return buildV1SCT(signer, leaf)
+	}
+
+	vlc, err := newCertValidationOpts(cfg)
+	if err != nil {
+		return nil, fmt.Errorf("invalid cert validation config: %v", err)
+	}
+	log.certValidationOpts = *vlc
+
+	cpSigner, err := NewCpSigner(signer, origin, ts)
+	if err != nil {
+		klog.Exitf("failed to create checkpoint Signer: %v", err)
+	}
+
+	storage, err := cs(ctx, cpSigner)
+	if err != nil {
+		klog.Exitf("failed to initiate storage backend: %v", err)
+	}
+	log.storage = storage
+
+	return log, nil
+}
+
+// newCertValidationOpts checks that a chain validation config is valid,
+// parses it, and loads resources to validate chains.
+func newCertValidationOpts(cfg ChainValidationConfig) (*CertValidationOpts, error) {
+	// Load the trusted roots.
+	if cfg.RootsPEMFile == "" {
+		return nil, errors.New("empty rootsPemFile")
+	}
+	roots := x509util.NewPEMCertPool()
+	if err := roots.AppendCertsFromPEMFile(cfg.RootsPEMFile); err != nil {
+		return nil, fmt.Errorf("failed to read trusted roots: %v", err)
 	}
 
 	if cfg.RejectExpired && cfg.RejectUnexpired {
@@ -134,7 +164,7 @@ func ValidateLogConfig(cfg ChainValidationConfig, origin string, signer crypto.S
 			// If "Any" is specified, then we can ignore the entire list and
 			// just disable EKU checking.
 			if ku == x509.ExtKeyUsageAny {
-				klog.Infof("%s: Found ExtKeyUsageAny, allowing all EKUs", origin)
+				klog.Info("Found ExtKeyUsageAny, allowing all EKUs")
 				validationOpts.extKeyUsages = nil
 				break
 			}
@@ -153,13 +183,7 @@ func ValidateLogConfig(cfg ChainValidationConfig, origin string, signer crypto.S
 		}
 	}
 
-	vCfg := ValidatedLogConfig{
-		Origin:             origin,
-		Signer:             signer,
-		CertValidationOpts: validationOpts,
-	}
-
-	return &vCfg, nil
+	return &validationOpts, nil
 }
 
 func parseOIDs(oids []string) ([]asn1.ObjectIdentifier, error) {
