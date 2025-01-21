@@ -73,7 +73,7 @@ type log struct {
 	// origin identifies the log. It will be used in its checkpoint, and
 	// is also its submission prefix, as per https://c2sp.org/static-ct-api.
 	origin string
-	// Signs SCTs.
+	// signSCT Signs SCTs.
 	signSCT signSCT
 	// certValidationOpts contains various parameters for certificate chain
 	// validation.

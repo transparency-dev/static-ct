@@ -189,11 +189,11 @@ type logInfo struct {
 	maskInternalErrors bool
 	// deadline is a timeout for HTTP requests.
 	deadline time.Duration
-	// validationOpts contains the certificate chain validation parameters
+	// validationOpts contains the certificate chain validation parameters.
 	validationOpts CertValidationOpts
-	// storage stores log data
+	// storage stores log data.
 	storage Storage
-	// signer signs SCTs
+	// signSCT signs SCTs.
 	signSCT signSCT
 }
 
