@@ -164,7 +164,7 @@ type logInfo struct {
 	// deadline is a timeout for HTTP requests.
 	deadline time.Duration
 	// validationOpts contains the certificate chain validation parameters.
-	validationOpts CertValidationOpts
+	validationOpts ChainValidationOpts
 	// storage stores log data.
 	storage Storage
 	// signSCT signs SCTs.
@@ -189,7 +189,7 @@ type HandlerOptions struct {
 // newLogInfo creates a new instance of logInfo.
 func newLogInfo(
 	hOpts HandlerOptions,
-	validationOpts CertValidationOpts,
+	validationOpts ChainValidationOpts,
 	signSCT signSCT,
 	timeSource TimeSource,
 	storage Storage,
@@ -214,7 +214,7 @@ func newLogInfo(
 
 func NewPathHandlers(opts *HandlerOptions, log *log) PathHandlers {
 	// TODO(phboneff): simplify signature of newLogInfo
-	logInfo := newLogInfo(*opts, log.certValidationOpts, log.signSCT, opts.TimeSource, log.storage, log.origin)
+	logInfo := newLogInfo(*opts, log.chainValidationOpts, log.signSCT, opts.TimeSource, log.storage, log.origin)
 	return logInfo.Handlers(log.origin)
 }
 

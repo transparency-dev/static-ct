@@ -75,9 +75,9 @@ type log struct {
 	origin string
 	// signSCT Signs SCTs.
 	signSCT signSCT
-	// certValidationOpts contains various parameters for certificate chain
+	// chainValidationOpts contains various parameters for certificate chain
 	// validation.
-	certValidationOpts CertValidationOpts
+	chainValidationOpts ChainValidationOpts
 	// storage stores certificate data.
 	storage Storage
 }
@@ -108,7 +108,7 @@ func NewLog(ctx context.Context, origin string, signer crypto.Signer, cfg ChainV
 	if err != nil {
 		return nil, fmt.Errorf("invalid cert validation config: %v", err)
 	}
-	log.certValidationOpts = *vlc
+	log.chainValidationOpts = *vlc
 
 	cpSigner, err := NewCpSigner(signer, origin, ts)
 	if err != nil {
@@ -126,7 +126,7 @@ func NewLog(ctx context.Context, origin string, signer crypto.Signer, cfg ChainV
 
 // newCertValidationOpts checks that a chain validation config is valid,
 // parses it, and loads resources to validate chains.
-func newCertValidationOpts(cfg ChainValidationConfig) (*CertValidationOpts, error) {
+func newCertValidationOpts(cfg ChainValidationConfig) (*ChainValidationOpts, error) {
 	// Load the trusted roots.
 	if cfg.RootsPEMFile == "" {
 		return nil, errors.New("empty rootsPemFile")
@@ -145,7 +145,7 @@ func newCertValidationOpts(cfg ChainValidationConfig) (*CertValidationOpts, erro
 		return nil, fmt.Errorf("'Not After' limit %q before start %q", cfg.NotAfterLimit.Format(time.RFC3339), cfg.NotAfterStart.Format(time.RFC3339))
 	}
 
-	validationOpts := CertValidationOpts{
+	validationOpts := ChainValidationOpts{
 		trustedRoots:    roots,
 		rejectExpired:   cfg.RejectExpired,
 		rejectUnexpired: cfg.RejectUnexpired,
