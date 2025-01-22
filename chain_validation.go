@@ -25,12 +25,8 @@ import (
 	"github.com/google/certificate-transparency-go/x509util"
 )
 
-var (
-	ErrNoRFCCompliantPathFound = errors.New("no RFC compliant path to root found when trying to validate chain")
-)
-
-// ChainValidationOpts contains various parameters for certificate chain validation
-type ChainValidationOpts struct {
+// chainValidationOpts contains various parameters for certificate chain validation
+type chainValidationOpts struct {
 	// trustedRoots is a pool of certificates that defines the roots the CT log will accept
 	trustedRoots *x509util.PEMCertPool
 	// currentTime is the time used for checking a certificate's validity period
@@ -75,7 +71,7 @@ func isPrecertificate(cert *x509.Certificate) (bool, error) {
 // end entity certificate in the chain to a trusted root cert, possibly using the intermediates
 // supplied in the chain. Then applies the RFC requirement that the path must involve all
 // the submitted chain in the order of submission.
-func validateChain(rawChain [][]byte, validationOpts ChainValidationOpts) ([]*x509.Certificate, error) {
+func validateChain(rawChain [][]byte, validationOpts chainValidationOpts) ([]*x509.Certificate, error) {
 	// First make sure the certs parse as X.509
 	chain := make([]*x509.Certificate, 0, len(rawChain))
 	intermediatePool := x509util.NewPEMCertPool()
@@ -196,7 +192,7 @@ func validateChain(rawChain [][]byte, validationOpts ChainValidationOpts) ([]*x5
 		}
 	}
 
-	return nil, ErrNoRFCCompliantPathFound
+	return nil, errors.New("no RFC compliant path to root found when trying to validate chain")
 }
 
 func chainsEquivalent(inChain []*x509.Certificate, verifiedChain []*x509.Certificate) bool {

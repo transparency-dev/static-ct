@@ -62,7 +62,7 @@ func buildV1SCT(signer crypto.Signer, leaf *ct.MerkleTreeLeaf) (*ct.SignedCertif
 		Signature: signature,
 	}
 
-	logID, err := GetCTLogID(signer.Public())
+	logID, err := getCTLogID(signer.Public())
 	if err != nil {
 		return nil, fmt.Errorf("failed to get logID for signing: %v", err)
 	}
@@ -76,7 +76,7 @@ func buildV1SCT(signer crypto.Signer, leaf *ct.MerkleTreeLeaf) (*ct.SignedCertif
 	}, nil
 }
 
-type RFC6962NoteSignature struct {
+type rfc6962NoteSignature struct {
 	timestamp uint64
 	signature ct.DigitallySigned
 }
@@ -102,7 +102,7 @@ func buildCp(signer crypto.Signer, size uint64, timeMilli uint64, hash []byte) (
 		return nil, err
 	}
 
-	rfc6962Note := RFC6962NoteSignature{
+	rfc6962Note := rfc6962NoteSignature{
 		timestamp: sth.Timestamp,
 		signature: ct.DigitallySigned{
 			Algorithm: tls.SignatureAndHashAlgorithm{
@@ -121,19 +121,19 @@ func buildCp(signer crypto.Signer, size uint64, timeMilli uint64, hash []byte) (
 	return sig, nil
 }
 
-// CpSigner implements note.Signer. It can generate https://c2sp.org/static-ct-api checkpoints.
-type CpSigner struct {
+// cpSigner implements note.Signer. It can generate https://c2sp.org/static-ct-api checkpoints.
+type cpSigner struct {
 	sthSigner  crypto.Signer
 	origin     string
 	keyHash    uint32
-	timeSource TimeSource
+	timeSource timeSource
 }
 
 // Sign takes an unsigned checkpoint, and signs it with a https://c2sp.org/static-ct-api signature.
 // Returns an error if the message doesn't parse as a checkpoint, or if the
 // checkpoint origin doesn't match with the Signer's origin.
 // TODO(phboneff): add tests
-func (cts *CpSigner) Sign(msg []byte) ([]byte, error) {
+func (cts *cpSigner) Sign(msg []byte) ([]byte, error) {
 	ckpt := &tfl.Checkpoint{}
 	rest, err := ckpt.Unmarshal(msg)
 
@@ -154,18 +154,18 @@ func (cts *CpSigner) Sign(msg []byte) ([]byte, error) {
 	return sig, nil
 }
 
-func (cts *CpSigner) Name() string {
+func (cts *cpSigner) Name() string {
 	return cts.origin
 }
 
-func (cts *CpSigner) KeyHash() uint32 {
+func (cts *cpSigner) KeyHash() uint32 {
 	return cts.keyHash
 }
 
-// NewCpSigner returns a new note signer that can sign https://c2sp.org/static-ct-api checkpoints.
+// newCpSigner returns a new note signer that can sign https://c2sp.org/static-ct-api checkpoints.
 // TODO(phboneff): add tests
-func NewCpSigner(cs crypto.Signer, origin string, timeSource TimeSource) (note.Signer, error) {
-	logID, err := GetCTLogID(cs.Public())
+func newCpSigner(cs crypto.Signer, origin string, timeSource timeSource) (note.Signer, error) {
+	logID, err := getCTLogID(cs.Public())
 	if err != nil {
 		return nil, fmt.Errorf("failed to get logID for signing: %v", err)
 	}
@@ -177,7 +177,7 @@ func NewCpSigner(cs crypto.Signer, origin string, timeSource TimeSource) (note.S
 	h.Write(logID[:])
 	sum := h.Sum(nil)
 
-	ns := &CpSigner{
+	ns := &cpSigner{
 		sthSigner:  cs,
 		origin:     origin,
 		keyHash:    binary.BigEndian.Uint32(sum),
@@ -187,10 +187,10 @@ func NewCpSigner(cs crypto.Signer, origin string, timeSource TimeSource) (note.S
 	return ns, nil
 }
 
-// GetCTLogID takes a log public key and returns the LogID. (see RFC 6962 S3.2)
+// getCTLogID takes a log public key and returns the LogID. (see RFC 6962 S3.2)
 // In CT V1 the log id is a hash of the public key.
 // TODO(phboneff): migrate to the logid package
-func GetCTLogID(pk crypto.PublicKey) ([sha256.Size]byte, error) {
+func getCTLogID(pk crypto.PublicKey) ([sha256.Size]byte, error) {
 	pubBytes, err := x509.MarshalPKIXPublicKey(pk)
 	if err != nil {
 		return [sha256.Size]byte{}, err

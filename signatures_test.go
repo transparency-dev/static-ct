@@ -159,7 +159,7 @@ func TestGetCTLogID(t *testing.T) {
 		t.Fatalf("unexpected error loading public key: %v", err)
 	}
 
-	got, err := GetCTLogID(pk)
+	got, err := getCTLogID(pk)
 	if err != nil {
 		t.Fatalf("error getting logid: %v", err)
 	}

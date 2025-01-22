@@ -64,7 +64,7 @@ type handlerTestInfo struct {
 	mockCtrl *gomock.Controller
 	roots    *x509util.PEMCertPool
 	storage  *mockstorage.MockStorage
-	handlers map[string]AppHandler
+	handlers map[string]appHandler
 }
 
 // setupTest creates mock objects and contexts.  Caller should invoke info.mockCtrl.Finish().
@@ -76,7 +76,7 @@ func setupTest(t *testing.T, pemRoots []string, signer crypto.Signer) handlerTes
 	}
 
 	info.storage = mockstorage.NewMockStorage(info.mockCtrl)
-	vOpts := ChainValidationOpts{
+	vOpts := chainValidationOpts{
 		trustedRoots:  info.roots,
 		rejectExpired: false,
 	}
@@ -107,16 +107,16 @@ func setupTest(t *testing.T, pemRoots []string, signer crypto.Signer) handlerTes
 	return info
 }
 
-func (info handlerTestInfo) getHandlers(t *testing.T) PathHandlers {
+func (info handlerTestInfo) getHandlers(t *testing.T) pathHandlers {
 	t.Helper()
 	handler, ok := info.handlers[origin+ct.GetRootsPath]
 	if !ok {
 		t.Fatalf("%q path not registered", ct.GetRootsPath)
 	}
-	return PathHandlers{origin + ct.GetRootsPath: handler}
+	return pathHandlers{origin + ct.GetRootsPath: handler}
 }
 
-func (info handlerTestInfo) postHandlers(t *testing.T) PathHandlers {
+func (info handlerTestInfo) postHandlers(t *testing.T) pathHandlers {
 	t.Helper()
 	addChainHandler, ok := info.handlers[origin+ct.AddChainPath]
 	if !ok {
@@ -127,7 +127,7 @@ func (info handlerTestInfo) postHandlers(t *testing.T) PathHandlers {
 		t.Fatalf("%q path not registered", ct.AddPreChainStr)
 	}
 
-	return map[string]AppHandler{
+	return map[string]appHandler{
 		origin + ct.AddChainPath:    addChainHandler,
 		origin + ct.AddPreChainPath: addPreChainHandler,
 	}
@@ -214,22 +214,22 @@ func TestHandlers(t *testing.T) {
 	t.Run("Handlers", func(t *testing.T) {
 		handlers := info.handlers
 		// Check each entrypoint has a handler
-		if got, want := len(handlers), len(Entrypoints); got != want {
+		if got, want := len(handlers), len(entrypoints); got != want {
 			t.Fatalf("len(info.handler)=%d; want %d", got, want)
 		}
 
 		// We want to see the same set of handler names and paths that we think we registered.
-		var hNames []EntrypointName
+		var hNames []entrypointName
 		var hPaths []string
 		for p, v := range handlers {
-			hNames = append(hNames, v.Name)
+			hNames = append(hNames, v.name)
 			hPaths = append(hPaths, p)
 		}
 
-		if !cmp.Equal(Entrypoints, hNames, cmpopts.SortSlices(func(n1, n2 EntrypointName) bool {
+		if !cmp.Equal(entrypoints, hNames, cmpopts.SortSlices(func(n1, n2 entrypointName) bool {
 			return n1 < n2
 		})) {
-			t.Errorf("Handler names mismatch got: %v, want: %v", hNames, Entrypoints)
+			t.Errorf("Handler names mismatch got: %v, want: %v", hNames, entrypoints)
 		}
 
 		if !cmp.Equal(entrypaths, hPaths, cmpopts.SortSlices(func(n1, n2 string) bool {
@@ -576,7 +576,7 @@ func (d dlMatcher) String() string {
 	return fmt.Sprintf("deadline is %v", fakeDeadlineTime)
 }
 
-func makeAddPrechainRequest(t *testing.T, handlers PathHandlers, body io.Reader) *httptest.ResponseRecorder {
+func makeAddPrechainRequest(t *testing.T, handlers pathHandlers, body io.Reader) *httptest.ResponseRecorder {
 	t.Helper()
 	handler, ok := handlers[origin+ct.AddPreChainPath]
 	if !ok {
@@ -585,7 +585,7 @@ func makeAddPrechainRequest(t *testing.T, handlers PathHandlers, body io.Reader)
 	return makeAddChainRequestInternal(t, handler, "add-pre-chain", body)
 }
 
-func makeAddChainRequest(t *testing.T, handlers PathHandlers, body io.Reader) *httptest.ResponseRecorder {
+func makeAddChainRequest(t *testing.T, handlers pathHandlers, body io.Reader) *httptest.ResponseRecorder {
 	t.Helper()
 	handler, ok := handlers[origin+ct.AddChainPath]
 	if !ok {
@@ -594,7 +594,7 @@ func makeAddChainRequest(t *testing.T, handlers PathHandlers, body io.Reader) *h
 	return makeAddChainRequestInternal(t, handler, "add-chain", body)
 }
 
-func makeAddChainRequestInternal(t *testing.T, handler AppHandler, path string, body io.Reader) *httptest.ResponseRecorder {
+func makeAddChainRequestInternal(t *testing.T, handler appHandler, path string, body io.Reader) *httptest.ResponseRecorder {
 	t.Helper()
 	req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("http://example.com/ct/v1/%s", path), body)
 	if err != nil {
