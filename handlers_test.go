@@ -51,15 +51,20 @@ import (
 var fakeTime = time.Date(2016, 7, 22, 11, 01, 13, 0, time.UTC)
 var fakeTimeMillis = uint64(fakeTime.UnixNano() / nanosPerMilli)
 
+// Arbitrary origin for tests
+var origin = "example.com"
+
 // The deadline should be the above bumped by 500ms
 var fakeDeadlineTime = time.Date(2016, 7, 22, 11, 01, 13, 500*1000*1000, time.UTC)
 var fakeTimeSource = NewFixedTimeSource(fakeTime)
+
+var entrypaths = []string{origin + ct.AddChainPath, origin + ct.AddPreChainPath, origin + ct.GetRootsPath}
 
 type handlerTestInfo struct {
 	mockCtrl *gomock.Controller
 	roots    *x509util.PEMCertPool
 	storage  *mockstorage.MockStorage
-	li       *logInfo
+	handlers map[string]AppHandler
 }
 
 // setupTest creates mock objects and contexts.  Caller should invoke info.mockCtrl.Finish().
@@ -76,11 +81,22 @@ func setupTest(t *testing.T, pemRoots []string, signer crypto.Signer) handlerTes
 		rejectExpired: false,
 	}
 
-	iOpts := HandlerOptions{Deadline: time.Millisecond * 500, MetricFactory: monitoring.InertMetricFactory{}, RequestLog: new(DefaultRequestLog)}
+	iOpts := HandlerOptions{
+		Deadline:      time.Millisecond * 500,
+		MetricFactory: monitoring.InertMetricFactory{},
+		RequestLog:    new(DefaultRequestLog),
+		TimeSource:    fakeTimeSource,
+	}
 	signSCT := func(leaf *ct.MerkleTreeLeaf) (*ct.SignedCertificateTimestamp, error) {
 		return buildV1SCT(signer, leaf)
 	}
-	info.li = newLogInfo(iOpts, vOpts, signSCT, fakeTimeSource, info.storage, "example.com")
+	log := log{
+		storage:             info.storage,
+		signSCT:             signSCT,
+		origin:              origin,
+		chainValidationOpts: vOpts,
+	}
+	info.handlers = NewPathHandlers(&iOpts, &log)
 
 	for _, pemRoot := range pemRoots {
 		if !info.roots.AppendCertsFromPEM([]byte(pemRoot)) {
@@ -91,16 +107,29 @@ func setupTest(t *testing.T, pemRoots []string, signer crypto.Signer) handlerTes
 	return info
 }
 
-func (info handlerTestInfo) getHandlers() map[string]AppHandler {
-	return map[string]AppHandler{
-		"get-roots": {Info: info.li, Handler: getRoots, Name: "GetRoots", Method: http.MethodGet},
+func (info handlerTestInfo) getHandlers(t *testing.T) PathHandlers {
+	t.Helper()
+	handler, ok := info.handlers[origin+ct.GetRootsPath]
+	if !ok {
+		t.Fatalf("%q path not registered", ct.GetRootsPath)
 	}
+	return PathHandlers{origin + ct.GetRootsPath: handler}
 }
 
-func (info handlerTestInfo) postHandlers() map[string]AppHandler {
+func (info handlerTestInfo) postHandlers(t *testing.T) PathHandlers {
+	t.Helper()
+	addChainHandler, ok := info.handlers[origin+ct.AddChainPath]
+	if !ok {
+		t.Fatalf("%q path not registered", ct.AddPreChainStr)
+	}
+	addPreChainHandler, ok := info.handlers[origin+ct.AddPreChainPath]
+	if !ok {
+		t.Fatalf("%q path not registered", ct.AddPreChainStr)
+	}
+
 	return map[string]AppHandler{
-		"add-chain":     {Info: info.li, Handler: addChain, Name: "AddChain", Method: http.MethodPost},
-		"add-pre-chain": {Info: info.li, Handler: addPreChain, Name: "AddPreChain", Method: http.MethodPost},
+		origin + ct.AddChainPath:    addChainHandler,
+		origin + ct.AddPreChainPath: addPreChainHandler,
 	}
 }
 
@@ -109,7 +138,7 @@ func TestPostHandlersRejectGet(t *testing.T) {
 	defer info.mockCtrl.Finish()
 
 	// Anything in the post handler list should reject GET
-	for path, handler := range info.postHandlers() {
+	for path, handler := range info.postHandlers(t) {
 		t.Run(path, func(t *testing.T) {
 			s := httptest.NewServer(handler)
 			defer s.Close()
@@ -130,7 +159,7 @@ func TestGetHandlersRejectPost(t *testing.T) {
 	defer info.mockCtrl.Finish()
 
 	// Anything in the get handler list should reject POST.
-	for path, handler := range info.getHandlers() {
+	for path, handler := range info.getHandlers(t) {
 		t.Run(path, func(t *testing.T) {
 			s := httptest.NewServer(handler)
 			defer s.Close()
@@ -161,7 +190,7 @@ func TestPostHandlersFailure(t *testing.T) {
 
 	info := setupTest(t, []string{testdata.FakeCACertPEM}, nil)
 	defer info.mockCtrl.Finish()
-	for path, handler := range info.postHandlers() {
+	for path, handler := range info.postHandlers(t) {
 		t.Run(path, func(t *testing.T) {
 			s := httptest.NewServer(handler)
 
@@ -180,40 +209,35 @@ func TestPostHandlersFailure(t *testing.T) {
 }
 
 func TestHandlers(t *testing.T) {
-	path := "/test-prefix/ct/v1/add-chain"
 	info := setupTest(t, nil, nil)
 	defer info.mockCtrl.Finish()
-	for _, test := range []string{
-		"/test-prefix/",
-		"test-prefix/",
-		"/test-prefix",
-		"test-prefix",
-	} {
-		t.Run(test, func(t *testing.T) {
-			handlers := info.li.Handlers(test)
-			if h, ok := handlers[path]; !ok {
-				t.Errorf("Handlers(%s)[%q]=%+v; want _", test, path, h)
-			} else if h.Name != "AddChain" {
-				t.Errorf("Handlers(%s)[%q].Name=%q; want 'AddChain'", test, path, h.Name)
-			}
-			// Check each entrypoint has a handler
-			if got, want := len(handlers), len(Entrypoints); got != want {
-				t.Fatalf("len(Handlers(%s))=%d; want %d", test, got, want)
-			}
+	t.Run("Handlers", func(t *testing.T) {
+		handlers := info.handlers
+		// Check each entrypoint has a handler
+		if got, want := len(handlers), len(Entrypoints); got != want {
+			t.Fatalf("len(info.handler)=%d; want %d", got, want)
+		}
 
-			// We want to see the same set of handler names that we think we registered.
-			var hNames []EntrypointName
-			for _, v := range handlers {
-				hNames = append(hNames, v.Name)
-			}
+		// We want to see the same set of handler names and paths that we think we registered.
+		var hNames []EntrypointName
+		var hPaths []string
+		for p, v := range handlers {
+			hNames = append(hNames, v.Name)
+			hPaths = append(hPaths, p)
+		}
 
-			if !cmp.Equal(Entrypoints, hNames, cmpopts.SortSlices(func(n1, n2 EntrypointName) bool {
-				return n1 < n2
-			})) {
-				t.Errorf("Handler names mismatch got: %v, want: %v", hNames, Entrypoints)
-			}
-		})
-	}
+		if !cmp.Equal(Entrypoints, hNames, cmpopts.SortSlices(func(n1, n2 EntrypointName) bool {
+			return n1 < n2
+		})) {
+			t.Errorf("Handler names mismatch got: %v, want: %v", hNames, Entrypoints)
+		}
+
+		if !cmp.Equal(entrypaths, hPaths, cmpopts.SortSlices(func(n1, n2 string) bool {
+			return n1 < n2
+		})) {
+			t.Errorf("Handler paths mismatch got: %v, want: %v", hPaths, entrypaths)
+		}
+	})
 }
 
 func parseChain(t *testing.T, isPrecert bool, pemChain []string, root *x509.Certificate) (*ctonly.Entry, []*x509.Certificate) {
@@ -301,7 +325,10 @@ func TestAddChainWhitespace(t *testing.T) {
 			}
 
 			recorder := httptest.NewRecorder()
-			handler := AppHandler{Info: info.li, Handler: addChain, Name: "AddChain", Method: http.MethodPost}
+			handler, ok := info.handlers["example.com/ct/v1/add-chain"]
+			if !ok {
+				t.Fatalf("%q path not registered", ct.AddChainStr)
+			}
 			req, err := http.NewRequest(http.MethodPost, "http://example.com/ct/v1/add-chain", strings.NewReader(test.body))
 			if err != nil {
 				t.Fatalf("Failed to create POST request: %v", err)
@@ -378,7 +405,7 @@ func TestAddChain(t *testing.T) {
 				}
 			}
 
-			recorder := makeAddChainRequest(t, info.li, chain)
+			recorder := makeAddChainRequest(t, info.handlers, chain)
 			if recorder.Code != test.want {
 				t.Fatalf("addChain()=%d (body:%v); want %dv", recorder.Code, recorder.Body, test.want)
 			}
@@ -475,7 +502,7 @@ func TestAddPrechain(t *testing.T) {
 				}
 			}
 
-			recorder := makeAddPrechainRequest(t, info.li, chain)
+			recorder := makeAddPrechainRequest(t, info.handlers, chain)
 			if recorder.Code != test.want {
 				t.Fatalf("addPrechain()=%d (body:%v); want %d", recorder.Code, recorder.Body, test.want)
 			}
@@ -549,15 +576,21 @@ func (d dlMatcher) String() string {
 	return fmt.Sprintf("deadline is %v", fakeDeadlineTime)
 }
 
-func makeAddPrechainRequest(t *testing.T, li *logInfo, body io.Reader) *httptest.ResponseRecorder {
+func makeAddPrechainRequest(t *testing.T, handlers PathHandlers, body io.Reader) *httptest.ResponseRecorder {
 	t.Helper()
-	handler := AppHandler{Info: li, Handler: addPreChain, Name: "AddPreChain", Method: http.MethodPost}
+	handler, ok := handlers[origin+ct.AddPreChainPath]
+	if !ok {
+		t.Fatalf("%q path not registered", ct.AddPreChainStr)
+	}
 	return makeAddChainRequestInternal(t, handler, "add-pre-chain", body)
 }
 
-func makeAddChainRequest(t *testing.T, li *logInfo, body io.Reader) *httptest.ResponseRecorder {
+func makeAddChainRequest(t *testing.T, handlers PathHandlers, body io.Reader) *httptest.ResponseRecorder {
 	t.Helper()
-	handler := AppHandler{Info: li, Handler: addChain, Name: "AddChain", Method: http.MethodPost}
+	handler, ok := handlers[origin+ct.AddChainPath]
+	if !ok {
+		t.Fatalf("%q path not registered", ct.AddChainStr)
+	}
 	return makeAddChainRequestInternal(t, handler, "add-chain", body)
 }
 
