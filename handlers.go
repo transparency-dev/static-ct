@@ -100,11 +100,11 @@ func (a appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	label0 := a.info.log.origin
 	label1 := string(a.name)
 	reqsCounter.Inc(label0, label1)
-	startTime := a.info.iOpts.TimeSource.Now()
-	logCtx := a.info.iOpts.RequestLog.start(r.Context())
-	a.info.iOpts.RequestLog.origin(logCtx, a.info.log.origin)
+	startTime := a.info.hOpts.TimeSource.Now()
+	logCtx := a.info.hOpts.RequestLog.start(r.Context())
+	a.info.hOpts.RequestLog.origin(logCtx, a.info.log.origin)
 	defer func() {
-		latency := a.info.iOpts.TimeSource.Now().Sub(startTime).Seconds()
+		latency := a.info.hOpts.TimeSource.Now().Sub(startTime).Seconds()
 		rspLatency.Observe(latency, label0, label1, strconv.Itoa(statusCode))
 	}()
 	klog.V(2).Infof("%s: request %v %q => %s", a.info.log.origin, r.Method, r.URL, a.name)
@@ -112,7 +112,7 @@ func (a appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if r.Method != a.method {
 		klog.Warningf("%s: %s wrong HTTP method: %v", a.info.log.origin, a.name, r.Method)
 		a.info.sendHTTPError(w, http.StatusMethodNotAllowed, fmt.Errorf("method not allowed: %s", r.Method))
-		a.info.iOpts.RequestLog.status(logCtx, http.StatusMethodNotAllowed)
+		a.info.hOpts.RequestLog.status(logCtx, http.StatusMethodNotAllowed)
 		return
 	}
 
@@ -121,7 +121,7 @@ func (a appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodGet {
 		if err := r.ParseForm(); err != nil {
 			a.info.sendHTTPError(w, http.StatusBadRequest, fmt.Errorf("failed to parse form data: %s", err))
-			a.info.iOpts.RequestLog.status(logCtx, http.StatusBadRequest)
+			a.info.hOpts.RequestLog.status(logCtx, http.StatusBadRequest)
 			return
 		}
 	}
@@ -132,7 +132,7 @@ func (a appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	var err error
 	statusCode, err = a.handler(ctx, a.info, w, r)
-	a.info.iOpts.RequestLog.status(ctx, statusCode)
+	a.info.hOpts.RequestLog.status(ctx, statusCode)
 	klog.V(2).Infof("%s: %s <= st=%d", a.info.log.origin, a.name, statusCode)
 	rspsCounter.Inc(label0, label1, strconv.Itoa(statusCode))
 	if err != nil {
@@ -152,7 +152,7 @@ func (a appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 // logInfo holds information for a specific log instance.
 type logInfo struct {
 	log   *log
-	iOpts *HandlerOptions
+	hOpts *HandlerOptions
 }
 
 // HandlerOptions describes log handlers options.
@@ -173,7 +173,7 @@ type HandlerOptions struct {
 func NewPathHandlers(opts *HandlerOptions, log *log) pathHandlers {
 	li := &logInfo{
 		log:   log,
-		iOpts: opts,
+		hOpts: opts,
 	}
 
 	once.Do(func() { setupMetrics(opts.MetricFactory) })
@@ -200,7 +200,7 @@ func (li *logInfo) handlers(prefix string) pathHandlers {
 // sendHTTPError generates a custom error page to give more information on why something didn't work
 func (li *logInfo) sendHTTPError(w http.ResponseWriter, statusCode int, err error) {
 	errorBody := http.StatusText(statusCode)
-	if !li.iOpts.MaskInternalErrors || statusCode != http.StatusInternalServerError {
+	if !li.hOpts.MaskInternalErrors || statusCode != http.StatusInternalServerError {
 		errorBody += fmt.Sprintf("\n%v", err)
 	}
 	http.Error(w, errorBody, statusCode)
@@ -246,18 +246,18 @@ func addChainInternal(ctx context.Context, li *logInfo, w http.ResponseWriter, r
 	}
 	// Log the DERs now because they might not parse as valid X.509.
 	for _, der := range addChainReq.Chain {
-		li.iOpts.RequestLog.addDERToChain(ctx, der)
+		li.hOpts.RequestLog.addDERToChain(ctx, der)
 	}
 	chain, err := verifyAddChain(li, addChainReq, isPrecert)
 	if err != nil {
 		return http.StatusBadRequest, fmt.Errorf("failed to verify add-chain contents: %s", err)
 	}
 	for _, cert := range chain {
-		li.iOpts.RequestLog.addCertToChain(ctx, cert)
+		li.hOpts.RequestLog.addCertToChain(ctx, cert)
 	}
 	// Get the current time in the form used throughout RFC6962, namely milliseconds since Unix
 	// epoch, and use this throughout.
-	timeMillis := uint64(li.iOpts.TimeSource.Now().UnixNano() / nanosPerMilli)
+	timeMillis := uint64(li.hOpts.TimeSource.Now().UnixNano() / nanosPerMilli)
 
 	entry, err := entryFromChain(chain, isPrecert, timeMillis)
 	if err != nil {
@@ -320,7 +320,7 @@ func addChainInternal(ctx context.Context, li *logInfo, w http.ResponseWriter, r
 		return http.StatusInternalServerError, fmt.Errorf("failed to marshall SCT: %s", err)
 	}
 	// We could possibly fail to issue the SCT after this but it's v. unlikely.
-	li.iOpts.RequestLog.issueSCT(ctx, sctBytes)
+	li.hOpts.RequestLog.issueSCT(ctx, sctBytes)
 	err = marshalAndWriteAddChainResponse(sct, w)
 	if err != nil {
 		// reason is logged and http status is already set
@@ -363,7 +363,7 @@ func getRoots(_ context.Context, li *logInfo, w http.ResponseWriter, _ *http.Req
 
 // deadlineTime calculates the future time a request should expire based on our config.
 func deadlineTime(li *logInfo) time.Time {
-	return li.iOpts.TimeSource.Now().Add(li.iOpts.Deadline)
+	return li.hOpts.TimeSource.Now().Add(li.hOpts.Deadline)
 }
 
 // verifyAddChain is used by add-chain and add-pre-chain. It does the checks that the supplied
