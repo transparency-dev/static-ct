@@ -221,3 +221,11 @@ func (t *timestampFlag) Set(w string) error {
 	t.t = &tt
 	return nil
 }
+
+// SystemTimeSource provides the current system local time
+type SystemTimeSource struct{}
+
+// Now returns the true current local time.
+func (s SystemTimeSource) Now() time.Time {
+	return time.Now()
+}

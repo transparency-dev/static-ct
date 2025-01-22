@@ -29,6 +29,7 @@ import (
 	"github.com/google/certificate-transparency-go/asn1"
 	"github.com/google/certificate-transparency-go/x509"
 	"github.com/google/certificate-transparency-go/x509util"
+	"github.com/transparency-dev/static-ct/internal/sctfi"
 	"golang.org/x/mod/sumdb/note"
 	"k8s.io/klog/v2"
 )
@@ -75,10 +76,10 @@ type log struct {
 	// is also its submission prefix, as per https://c2sp.org/static-ct-api.
 	origin string
 	// signSCT Signs SCTs.
-	signSCT signSCT
+	signSCT sctfi.SignSCT
 	// chainValidationOpts contains various parameters for certificate chain
 	// validation.
-	chainValidationOpts chainValidationOpts
+	chainValidationOpts sctfi.chainValidationOpts
 	// storage stores certificate data.
 	storage Storage
 }
@@ -107,7 +108,7 @@ func newLog(ctx context.Context, origin string, signer crypto.Signer, cfg ChainV
 	}
 
 	log.signSCT = func(leaf *ct.MerkleTreeLeaf) (*ct.SignedCertificateTimestamp, error) {
-		return buildV1SCT(signer, leaf)
+		return sign.BuildV1SCT(signer, leaf)
 	}
 
 	vlc, err := newCertValidationOpts(cfg)
@@ -116,7 +117,7 @@ func newLog(ctx context.Context, origin string, signer crypto.Signer, cfg ChainV
 	}
 	log.chainValidationOpts = *vlc
 
-	cpSigner, err := newCpSigner(signer, origin, sysTimeSource)
+	cpSigner, err := sign.newCpSigner(signer, origin, sysTimeSource)
 	if err != nil {
 		klog.Exitf("failed to create checkpoint Signer: %v", err)
 	}
