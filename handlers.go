@@ -28,10 +28,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/google/certificate-transparency-go/asn1"
 	"github.com/google/certificate-transparency-go/tls"
 	"github.com/google/certificate-transparency-go/x509"
-	"github.com/google/certificate-transparency-go/x509util"
 	"github.com/google/trillian/monitoring"
 	"github.com/transparency-dev/static-ct/modules/dedup"
 	tessera "github.com/transparency-dev/trillian-tessera"
@@ -151,30 +149,6 @@ func (a AppHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// CertValidationOpts contains various parameters for certificate chain validation
-type CertValidationOpts struct {
-	// trustedRoots is a pool of certificates that defines the roots the CT log will accept
-	trustedRoots *x509util.PEMCertPool
-	// currentTime is the time used for checking a certificate's validity period
-	// against. If it's zero then time.Now() is used. Only for testing.
-	currentTime time.Time
-	// rejectExpired indicates that expired certificates will be rejected.
-	rejectExpired bool
-	// rejectUnexpired indicates that certificates that are currently valid or not yet valid will be rejected.
-	rejectUnexpired bool
-	// notAfterStart is the earliest notAfter date which will be accepted.
-	// nil means no lower bound on the accepted range.
-	notAfterStart *time.Time
-	// notAfterLimit defines the cut off point of notAfter dates - only notAfter
-	// dates strictly *before* notAfterLimit will be accepted.
-	// nil means no upper bound on the accepted range.
-	notAfterLimit *time.Time
-	// extKeyUsages contains the list of EKUs to use during chain verification
-	extKeyUsages []x509.ExtKeyUsage
-	// rejectExtIds contains a list of X.509 extension IDs to reject during chain verification.
-	rejectExtIds []asn1.ObjectIdentifier
-}
-
 // logInfo holds information for a specific log instance.
 type logInfo struct {
 	// Origin identifies the log, as per https://c2sp.org/static-ct-api
@@ -190,7 +164,7 @@ type logInfo struct {
 	// deadline is a timeout for HTTP requests.
 	deadline time.Duration
 	// validationOpts contains the certificate chain validation parameters.
-	validationOpts CertValidationOpts
+	validationOpts ChainValidationOpts
 	// storage stores log data.
 	storage Storage
 	// signSCT signs SCTs.
@@ -215,7 +189,7 @@ type HandlerOptions struct {
 // newLogInfo creates a new instance of logInfo.
 func newLogInfo(
 	hOpts HandlerOptions,
-	validationOpts CertValidationOpts,
+	validationOpts ChainValidationOpts,
 	signSCT signSCT,
 	timeSource TimeSource,
 	storage Storage,
@@ -240,7 +214,7 @@ func newLogInfo(
 
 func NewPathHandlers(opts *HandlerOptions, log *log) PathHandlers {
 	// TODO(phboneff): simplify signature of newLogInfo
-	logInfo := newLogInfo(*opts, log.certValidationOpts, log.signSCT, opts.TimeSource, log.storage, log.origin)
+	logInfo := newLogInfo(*opts, log.chainValidationOpts, log.signSCT, opts.TimeSource, log.storage, log.origin)
 	return logInfo.Handlers(log.origin)
 }
 
