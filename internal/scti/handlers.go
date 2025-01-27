@@ -73,6 +73,7 @@ var (
 
 // setupMetrics initializes all the exported metrics.
 func setupMetrics() {
+	// TODO(phboneff): add metrics for deduplication and chain storage.
 	knownLogs = promauto.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Name: "known_logs",
