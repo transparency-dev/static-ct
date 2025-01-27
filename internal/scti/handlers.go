@@ -30,7 +30,8 @@ import (
 
 	"github.com/google/certificate-transparency-go/tls"
 	"github.com/google/certificate-transparency-go/x509"
-	"github.com/google/trillian/monitoring"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/transparency-dev/static-ct/modules/dedup"
 	tessera "github.com/transparency-dev/trillian-tessera"
 	"github.com/transparency-dev/trillian-tessera/ctonly"
@@ -61,21 +62,47 @@ const (
 var (
 	// Metrics are all per-log (label "origin"), but may also be
 	// per-entrypoint (label "ep") or per-return-code (label "rc").
-	once             sync.Once
-	knownLogs        monitoring.Gauge     // origin => value (always 1.0)
-	lastSCTTimestamp monitoring.Gauge     // origin => value
-	reqsCounter      monitoring.Counter   // origin, ep => value
-	rspsCounter      monitoring.Counter   // origin, ep, rc => value
-	rspLatency       monitoring.Histogram // origin, ep, rc => value
+	once      sync.Once
+	knownLogs *prometheus.GaugeVec // origin => value (always 1.0)
+	// TODO(phboneff): add lastSCTIndex
+	lastSCTTimestamp *prometheus.GaugeVec     // origin => value
+	reqsCounter      *prometheus.CounterVec   // origin, op => value
+	rspsCounter      *prometheus.CounterVec   // origin, op, code => value
+	rspLatency       *prometheus.HistogramVec // origin, op, code => value
 )
 
 // setupMetrics initializes all the exported metrics.
-func setupMetrics(mf monitoring.MetricFactory) {
-	knownLogs = mf.NewGauge("known_logs", "Set to 1 for known logs", "logid")
-	lastSCTTimestamp = mf.NewGauge("last_sct_timestamp", "Time of last SCT in ms since epoch", "logid")
-	reqsCounter = mf.NewCounter("http_reqs", "Number of requests", "logid", "ep")
-	rspsCounter = mf.NewCounter("http_rsps", "Number of responses", "logid", "ep", "rc")
-	rspLatency = mf.NewHistogram("http_latency", "Latency of responses in seconds", "logid", "ep", "rc")
+func setupMetrics() {
+	knownLogs = promauto.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "known_logs",
+			Help: "Set to 1 for known logs",
+		},
+		[]string{"origin"})
+	lastSCTTimestamp = promauto.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "last_sct_timestamp",
+			Help: "Time of last SCT in ms isnce epoch",
+		},
+		[]string{"origin"})
+	reqsCounter = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "http_reqs",
+			Help: "Number of requests",
+		},
+		[]string{"origin", "ep"})
+	rspsCounter = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "http_rsps",
+			Help: "Number of responses",
+		},
+		[]string{"origin", "op", "code"})
+	rspLatency = promauto.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name: "http_latency",
+			Help: "Latency of responses in seconds",
+		},
+		[]string{"origin", "op", "code"})
 }
 
 // entrypoints is a list of entrypoint names as exposed in statistics/logging.
@@ -100,13 +127,13 @@ func (a appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var statusCode int
 	label0 := a.log.origin
 	label1 := string(a.name)
-	reqsCounter.Inc(label0, label1)
+	reqsCounter.WithLabelValues(label0, label1).Inc()
 	startTime := a.opts.TimeSource.Now()
 	logCtx := a.opts.RequestLog.start(r.Context())
 	a.opts.RequestLog.origin(logCtx, a.log.origin)
 	defer func() {
 		latency := a.opts.TimeSource.Now().Sub(startTime).Seconds()
-		rspLatency.Observe(latency, label0, label1, strconv.Itoa(statusCode))
+		rspLatency.WithLabelValues(label0, label1, strconv.Itoa(statusCode)).Observe(latency)
 	}()
 	klog.V(2).Infof("%s: request %v %q => %s", a.log.origin, r.Method, r.URL, a.name)
 	// TODO(phboneff): add a.Method directly on the handler path and remove this test.
@@ -135,7 +162,7 @@ func (a appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	statusCode, err = a.handler(ctx, a.opts, a.log, w, r)
 	a.opts.RequestLog.status(ctx, statusCode)
 	klog.V(2).Infof("%s: %s <= st=%d", a.log.origin, a.name, statusCode)
-	rspsCounter.Inc(label0, label1, strconv.Itoa(statusCode))
+	rspsCounter.WithLabelValues(label0, label1, strconv.Itoa(statusCode)).Inc()
 	if err != nil {
 		klog.Warningf("%s: %s handler error: %v", a.log.origin, a.name, err)
 		a.opts.sendHTTPError(w, statusCode, err)
@@ -154,8 +181,6 @@ func (a appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 type HandlerOptions struct {
 	// Deadline is a timeout for HTTP requests.
 	Deadline time.Duration
-	// MetricFactory allows creating metrics.
-	MetricFactory monitoring.MetricFactory
 	// RequestLog provides structured logging of CTFE requests.
 	RequestLog requestLog
 	// MaskInternalErrors indicates if internal server errors should be masked
@@ -166,8 +191,8 @@ type HandlerOptions struct {
 }
 
 func NewPathHandlers(opts *HandlerOptions, log *log) pathHandlers {
-	once.Do(func() { setupMetrics(opts.MetricFactory) })
-	knownLogs.Set(1.0, log.origin)
+	once.Do(func() { setupMetrics() })
+	knownLogs.WithLabelValues(log.origin).Set(1.0)
 
 	prefix := strings.TrimRight(log.origin, "/")
 
@@ -314,7 +339,7 @@ func addChainInternal(ctx context.Context, opts *HandlerOptions, log *log, w htt
 	}
 	klog.V(3).Infof("%s: %s <= SCT", log.origin, method)
 	if sct.Timestamp == timeMillis {
-		lastSCTTimestamp.Set(float64(sct.Timestamp), log.origin)
+		lastSCTTimestamp.WithLabelValues(log.origin).Set(float64(sct.Timestamp))
 	}
 
 	return http.StatusOK, nil
