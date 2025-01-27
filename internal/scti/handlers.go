@@ -62,9 +62,9 @@ const (
 var (
 	// Metrics are all per-log (label "origin"), but may also be
 	// per-entrypoint (label "ep") or per-return-code (label "rc").
-	once      sync.Once
-	knownLogs *prometheus.GaugeVec // origin => value (always 1.0)
-	// TODO(phboneff): add lastSCTIndex
+	once             sync.Once
+	knownLogs        *prometheus.GaugeVec     // origin => value (always 1.0)
+	lastSCTIndex     *prometheus.GaugeVec     // origin => value
 	lastSCTTimestamp *prometheus.GaugeVec     // origin => value
 	reqsCounter      *prometheus.CounterVec   // origin, op => value
 	rspsCounter      *prometheus.CounterVec   // origin, op, code => value
@@ -82,7 +82,13 @@ func setupMetrics() {
 	lastSCTTimestamp = promauto.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Name: "last_sct_timestamp",
-			Help: "Time of last SCT in ms isnce epoch",
+			Help: "Time of last SCT in ms since epoch",
+		},
+		[]string{"origin"})
+	lastSCTIndex = promauto.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "last_sct_index",
+			Help: "Index of last SCT",
 		},
 		[]string{"origin"})
 	reqsCounter = promauto.NewCounterVec(
@@ -340,6 +346,7 @@ func addChainInternal(ctx context.Context, opts *HandlerOptions, log *log, w htt
 	klog.V(3).Infof("%s: %s <= SCT", log.origin, method)
 	if sct.Timestamp == timeMillis {
 		lastSCTTimestamp.WithLabelValues(log.origin).Set(float64(sct.Timestamp))
+		lastSCTIndex.WithLabelValues(log.origin).Set(float64(idx))
 	}
 
 	return http.StatusOK, nil
