@@ -19,6 +19,7 @@ import (
 	"bytes"
 	"context"
 	"crypto"
+	"crypto/x509"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -28,8 +29,6 @@ import (
 	"strings"
 	"testing"
 	"time"
-
-	"crypto/x509"
 
 	"github.com/golang/mock/gomock"
 	"github.com/google/go-cmp/cmp"

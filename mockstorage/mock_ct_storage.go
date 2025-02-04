@@ -7,9 +7,9 @@ package mockstorage
 import (
 	context "context"
 	reflect "reflect"
+	x509 "crypto/x509"
 
 	gomock "github.com/golang/mock/gomock"
-	x509 "crypto/x509"
 	dedup "github.com/transparency-dev/static-ct/modules/dedup"
 	tessera "github.com/transparency-dev/trillian-tessera"
 	ctonly "github.com/transparency-dev/trillian-tessera/ctonly"
