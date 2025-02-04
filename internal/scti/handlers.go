@@ -29,7 +29,7 @@ import (
 	"time"
 
 	"github.com/google/certificate-transparency-go/tls"
-	"github.com/google/certificate-transparency-go/x509"
+	"crypto/x509"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/transparency-dev/static-ct/internal/types"

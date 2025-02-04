@@ -23,8 +23,13 @@ import (
 	"time"
 
 	"github.com/google/certificate-transparency-go/asn1"
+<<<<<<< HEAD
 	"github.com/google/certificate-transparency-go/x509"
 	"github.com/transparency-dev/static-ct/internal/x509util"
+=======
+	"crypto/x509"
+	"github.com/google/certificate-transparency-go/x509util"
+>>>>>>> eaf33bf (sed ctgo/x509 - crypto/x509)
 	"k8s.io/klog/v2"
 )
 

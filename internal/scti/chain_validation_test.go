@@ -21,8 +21,9 @@ import (
 	"testing"
 	"time"
 
+	"crypto/x509"
+
 	"github.com/google/certificate-transparency-go/asn1"
-	"github.com/google/certificate-transparency-go/x509"
 	"github.com/google/certificate-transparency-go/x509/pkix"
 	"github.com/transparency-dev/static-ct/internal/testdata"
 	"github.com/transparency-dev/static-ct/internal/x509util"
