@@ -17,6 +17,7 @@ package scti
 import (
 	"context"
 	"crypto/sha256"
+	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -29,7 +30,6 @@ import (
 	"time"
 
 	"github.com/google/certificate-transparency-go/tls"
-	"crypto/x509"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/transparency-dev/static-ct/internal/types"

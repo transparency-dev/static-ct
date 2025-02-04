@@ -17,13 +17,12 @@ package sctfe
 import (
 	"context"
 	"crypto"
+	"crypto/x509"
 	"errors"
 	"fmt"
 	"net/http"
 	"strings"
 	"time"
-
-	"crypto/x509"
 
 	"github.com/google/certificate-transparency-go/asn1"
 	"github.com/transparency-dev/static-ct/internal/scti"
