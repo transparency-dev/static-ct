@@ -15,10 +15,10 @@
 package x509util_test
 
 import (
+	"crypto/x509"
 	"encoding/pem"
 	"testing"
 
-	"github.com/google/certificate-transparency-go/x509"
 	"github.com/transparency-dev/static-ct/internal/x509util"
 )
 
