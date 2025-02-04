@@ -9,7 +9,7 @@ import (
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
-	x509 "github.com/google/certificate-transparency-go/x509"
+	x509 "crypto/x509"
 	dedup "github.com/transparency-dev/static-ct/modules/dedup"
 	tessera "github.com/transparency-dev/trillian-tessera"
 	ctonly "github.com/transparency-dev/trillian-tessera/ctonly"

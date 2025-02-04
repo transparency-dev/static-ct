@@ -19,7 +19,7 @@ import (
 	"encoding/hex"
 	"time"
 
-	"github.com/google/certificate-transparency-go/x509"
+	"crypto/x509"
 	"github.com/google/certificate-transparency-go/x509util"
 	"k8s.io/klog/v2"
 )

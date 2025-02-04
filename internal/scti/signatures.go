@@ -23,7 +23,7 @@ import (
 	"time"
 
 	"github.com/google/certificate-transparency-go/tls"
-	"github.com/google/certificate-transparency-go/x509"
+	"crypto/x509"
 	tfl "github.com/transparency-dev/formats/log"
 	"github.com/transparency-dev/static-ct/internal/types"
 	"golang.org/x/mod/sumdb/note"

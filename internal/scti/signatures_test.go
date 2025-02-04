@@ -23,8 +23,9 @@ import (
 	"testing"
 	"time"
 
+	"crypto/x509"
+
 	"github.com/google/certificate-transparency-go/tls"
-	"github.com/google/certificate-transparency-go/x509"
 	"github.com/kylelemons/godebug/pretty"
 	"github.com/transparency-dev/static-ct/internal/testdata"
 	"github.com/transparency-dev/static-ct/internal/types"
