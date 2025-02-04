@@ -16,6 +16,7 @@ package scti
 
 import (
 	"bytes"
+	"crypto/x509"
 	"errors"
 	"fmt"
 	"strconv"
@@ -23,7 +24,6 @@ import (
 	"time"
 
 	"github.com/google/certificate-transparency-go/asn1"
-	"github.com/google/certificate-transparency-go/x509"
 	"github.com/transparency-dev/static-ct/internal/x509util"
 	"k8s.io/klog/v2"
 )

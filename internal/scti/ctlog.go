@@ -4,10 +4,10 @@ import (
 	"context"
 	"crypto"
 	"crypto/ecdsa"
+	"crypto/x509"
 	"errors"
 	"fmt"
 
-	"github.com/google/certificate-transparency-go/x509"
 	"github.com/transparency-dev/static-ct/internal/types"
 	"github.com/transparency-dev/static-ct/modules/dedup"
 	"github.com/transparency-dev/static-ct/storage"

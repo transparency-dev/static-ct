@@ -16,10 +16,10 @@ package scti
 
 import (
 	"context"
+	"crypto/x509"
 	"encoding/hex"
 	"time"
 
-	"github.com/google/certificate-transparency-go/x509"
 	"github.com/google/certificate-transparency-go/x509util"
 	"k8s.io/klog/v2"
 )
