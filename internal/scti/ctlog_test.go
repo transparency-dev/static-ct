@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/google/certificate-transparency-go/x509util"
 	"github.com/google/trillian/crypto/keys/pem"
+	"github.com/transparency-dev/static-ct/internal/x509util"
 	"github.com/transparency-dev/static-ct/storage"
 	"golang.org/x/mod/sumdb/note"
 )

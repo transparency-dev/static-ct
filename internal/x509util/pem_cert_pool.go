@@ -57,6 +57,13 @@ func (p *PEMCertPool) AddCert(cert *x509.Certificate) {
 	}
 }
 
+// Included indicates whether the given cert is included in the pool.
+func (p *PEMCertPool) Included(cert *x509.Certificate) bool {
+	fingerprint := sha256.Sum256(cert.Raw)
+	_, ok := p.fingerprintToCertMap[fingerprint]
+	return ok
+}
+
 // AppendCertsFromPEM adds certs to the pool from a byte slice assumed to contain PEM encoded data.
 // Skips over non certificate blocks in the data. Returns true if all certificates in the
 // data were parsed and added to the pool successfully and at least one certificate was found.
