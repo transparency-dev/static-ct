@@ -84,8 +84,8 @@ var entrypoints = []entrypointName{addChainName, addPreChainName, getRootsName}
 // pathHandlers maps from a path to the relevant AppHandler instance.
 type pathHandlers map[string]appHandler
 
-// appHandler holds a logInfo and a handler function that uses it, and is
-// an implementation of the http.Handler interface.
+// appHandler holds a log, common handler options and a handler function.
+// It is an implementation of the http.Handler interface.
 type appHandler struct {
 	log     *log
 	opts    *HandlerOptions
@@ -171,7 +171,7 @@ func NewPathHandlers(opts *HandlerOptions, log *log) pathHandlers {
 
 	prefix := strings.TrimRight(log.origin, "/")
 
-	// Bind the logInfo instance to give an AppHandler instance for each endpoint.
+	// Bind each endpoint to an appHandler instance.
 	ph := pathHandlers{
 		prefix + ct.AddChainPath:    appHandler{opts: opts, log: log, handler: addChain, name: addChainName, method: http.MethodPost},
 		prefix + ct.AddPreChainPath: appHandler{opts: opts, log: log, handler: addPreChain, name: addPreChainName, method: http.MethodPost},
