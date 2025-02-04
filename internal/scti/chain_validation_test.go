@@ -15,12 +15,11 @@
 package scti
 
 import (
+	"crypto/x509"
 	"encoding/pem"
 	"strings"
 	"testing"
 	"time"
-
-	"crypto/x509"
 
 	"github.com/google/certificate-transparency-go/asn1"
 	"github.com/google/certificate-transparency-go/x509/pkix"
