@@ -19,7 +19,7 @@ import (
 	"testing"
 
 	"github.com/google/certificate-transparency-go/x509"
-	"github.com/google/certificate-transparency-go/x509util"
+	"github.com/transparency-dev/static-ct/internal/x509util"
 )
 
 func TestLoadSingleCertFromPEMs(t *testing.T) {

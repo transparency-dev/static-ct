@@ -24,8 +24,8 @@ import (
 	"github.com/google/certificate-transparency-go/asn1"
 	"github.com/google/certificate-transparency-go/x509"
 	"github.com/google/certificate-transparency-go/x509/pkix"
-	"github.com/google/certificate-transparency-go/x509util"
 	"github.com/transparency-dev/static-ct/internal/testdata"
+	"github.com/transparency-dev/static-ct/internal/x509util"
 )
 
 func wipeExtensions(cert *x509.Certificate) *x509.Certificate {
