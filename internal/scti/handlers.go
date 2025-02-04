@@ -69,6 +69,33 @@ var (
 	rspLatency       monitoring.Histogram // origin, ep, rc => value
 )
 
+// Log provides objects and functions to implement static-ct-api write api.
+// TODO(phboneff): consider moving to methods.
+type Log struct {
+	// Origin identifies the log. It will be used in its checkpoint, and
+	// is also its submission prefix, as per https://c2sp.org/static-ct-api.
+	Origin string
+	// SignSCT Signs SCTs.
+	SignSCT SignSCT
+	// ChainValidationOpts contains various parameters for certificate chain
+	// validation.
+	ChainValidationOpts ChainValidationOpts
+	// Storage stores certificate data.
+	Storage Storage
+}
+
+// Storage provides functions to store certificates in a static-ct-api log.
+type Storage interface {
+	// Add assigns an index to the provided Entry, stages the entry for integration, and returns a future for the assigned index.
+	Add(context.Context, *ctonly.Entry) tessera.IndexFuture
+	// AddIssuerChain stores every the chain certificate in a content-addressable store under their sha256 hash.
+	AddIssuerChain(context.Context, []*x509.Certificate) error
+	// AddCertDedupInfo stores the SCTDedupInfo of certificate in a log under its hash.
+	AddCertDedupInfo(context.Context, *x509.Certificate, dedup.SCTDedupInfo) error
+	// GetCertDedupInfo gets the SCTDedupInfo of certificate in a log from its hash.
+	GetCertDedupInfo(context.Context, *x509.Certificate) (dedup.SCTDedupInfo, bool, error)
+}
+
 // setupMetrics initializes all the exported metrics.
 func setupMetrics(mf monitoring.MetricFactory) {
 	knownLogs = mf.NewGauge("known_logs", "Set to 1 for known logs", "logid")
@@ -480,31 +507,4 @@ func isPreIssuer(issuer *x509.Certificate) bool {
 		}
 	}
 	return false
-}
-
-// Log offers all the primitives necessary to run a static-ct-api Log.
-// TODO(phboneff): consider moving to methods when refactoring logInfo.
-type Log struct {
-	// Origin identifies the log. It will be used in its checkpoint, and
-	// is also its submission prefix, as per https://c2sp.org/static-ct-api.
-	Origin string
-	// SignSCT Signs SCTs.
-	SignSCT SignSCT
-	// ChainValidationOpts contains various parameters for certificate chain
-	// validation.
-	ChainValidationOpts ChainValidationOpts
-	// Storage stores certificate data.
-	Storage Storage
-}
-
-// Storage provides all the storage primitives necessary to write to a ct-static-api log.
-type Storage interface {
-	// Add assigns an index to the provided Entry, stages the entry for integration, and returns a future for the assigned index.
-	Add(context.Context, *ctonly.Entry) tessera.IndexFuture
-	// AddIssuerChain stores every the chain certificate in a content-addressable store under their sha256 hash.
-	AddIssuerChain(context.Context, []*x509.Certificate) error
-	// AddCertDedupInfo stores the SCTDedupInfo of certificate in a log under its hash.
-	AddCertDedupInfo(context.Context, *x509.Certificate, dedup.SCTDedupInfo) error
-	// GetCertDedupInfo gets the SCTDedupInfo of certificate in a log from its hash.
-	GetCertDedupInfo(context.Context, *x509.Certificate) (dedup.SCTDedupInfo, bool, error)
 }
