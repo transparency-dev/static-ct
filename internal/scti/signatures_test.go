@@ -18,12 +18,11 @@ import (
 	"bytes"
 	"crypto"
 	"crypto/sha256"
+	"crypto/x509"
 	"encoding/hex"
 	"encoding/pem"
 	"testing"
 	"time"
-
-	"crypto/x509"
 
 	"github.com/google/certificate-transparency-go/tls"
 	"github.com/kylelemons/godebug/pretty"

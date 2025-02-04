@@ -18,12 +18,12 @@ import (
 	"crypto"
 	"crypto/rand"
 	"crypto/sha256"
+	"crypto/x509"
 	"encoding/binary"
 	"fmt"
 	"time"
 
 	"github.com/google/certificate-transparency-go/tls"
-	"crypto/x509"
 	tfl "github.com/transparency-dev/formats/log"
 	"github.com/transparency-dev/static-ct/internal/types"
 	"golang.org/x/mod/sumdb/note"
