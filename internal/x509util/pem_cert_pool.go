@@ -16,12 +16,12 @@ package x509util
 
 import (
 	"crypto/sha256"
+	"crypto/x509"
 	"encoding/pem"
 	"errors"
 	"fmt"
 	"os"
 
-	"github.com/google/certificate-transparency-go/x509"
 	"k8s.io/klog/v2"
 )
 
