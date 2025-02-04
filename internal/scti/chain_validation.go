@@ -17,13 +17,14 @@ package scti
 import (
 	"bytes"
 	"crypto/x509"
+	"encoding/asn1"
 	"errors"
 	"fmt"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/google/certificate-transparency-go/asn1"
+	"github.com/transparency-dev/static-ct/internal/types"
 	"github.com/transparency-dev/static-ct/internal/x509util"
 	"k8s.io/klog/v2"
 )
@@ -127,7 +128,7 @@ func NewChainValidationOpts(trustedRoots *x509util.PEMCertPool, rejectExpired, r
 // by the spec.
 func isPrecertificate(cert *x509.Certificate) (bool, error) {
 	for _, ext := range cert.Extensions {
-		if x509.OIDExtensionCTPoison.Equal(ext.Id) {
+		if types.OIDExtensionCTPoison.Equal(ext.Id) {
 			if !ext.Critical || !bytes.Equal(asn1.NullBytes, ext.Value) {
 				return false, fmt.Errorf("CT poison ext is not critical or invalid: %v", ext)
 			}
