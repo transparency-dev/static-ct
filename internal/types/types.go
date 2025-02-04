@@ -2,12 +2,13 @@ package types
 
 import (
 	"crypto/sha256"
+	"crypto/x509"
+	"encoding/asn1"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
 
 	"github.com/google/certificate-transparency-go/tls"
-	"github.com/google/certificate-transparency-go/x509"
 )
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -42,6 +43,9 @@ const (
 	TreeLeafPrefix = byte(0x00)
 	TreeNodePrefix = byte(0x01)
 )
+
+// OIDExtensionCTPoison is defined in RFC 6962 s3.1.
+var OIDExtensionCTPoison = asn1.ObjectIdentifier{1, 3, 6, 1, 4, 1, 11129, 2, 4, 3}
 
 // MerkleLeafType represents the MerkleLeafType enum from section 3.4:
 //
