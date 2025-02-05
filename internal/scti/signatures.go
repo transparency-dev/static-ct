@@ -36,7 +36,7 @@ const nanosPerMilli int64 = int64(time.Millisecond / time.Nanosecond)
 type SignSCT func(leaf *ct.MerkleTreeLeaf) (*ct.SignedCertificateTimestamp, error)
 
 // TODO(phboneff): create an SCTSigner object
-func buildV1SCT(signer crypto.Signer, leaf *ct.MerkleTreeLeaf) (*ct.SignedCertificateTimestamp, error) {
+func BuildV1SCT(signer crypto.Signer, leaf *ct.MerkleTreeLeaf) (*ct.SignedCertificateTimestamp, error) {
 	// Serialize SCT signature input to get the bytes that need to be signed
 	sctInput := ct.SignedCertificateTimestamp{
 		SCTVersion: ct.V1,
@@ -126,7 +126,7 @@ type cpSigner struct {
 	sthSigner  crypto.Signer
 	origin     string
 	keyHash    uint32
-	timeSource timeSource
+	timeSource TimeSource
 }
 
 // Sign takes an unsigned checkpoint, and signs it with a https://c2sp.org/static-ct-api signature.
@@ -164,7 +164,7 @@ func (cts *cpSigner) KeyHash() uint32 {
 
 // NewCpSigner returns a new note signer that can sign https://c2sp.org/static-ct-api checkpoints.
 // TODO(phboneff): add tests
-func newCpSigner(cs crypto.Signer, origin string, timeSource timeSource) (note.Signer, error) {
+func NewCpSigner(cs crypto.Signer, origin string, timeSource TimeSource) (note.Signer, error) {
 	logID, err := getCTLogID(cs.Public())
 	if err != nil {
 		return nil, fmt.Errorf("failed to get logID for signing: %v", err)

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package sctfe
+package storage
 
 import (
 	"context"
@@ -35,18 +35,6 @@ const (
 	maxCachedIssuerKeys = 1 << 20
 )
 
-// Storage provides all the storage primitives necessary to write to a ct-static-api log.
-type Storage interface {
-	// Add assigns an index to the provided Entry, stages the entry for integration, and returns a future for the assigned index.
-	Add(context.Context, *ctonly.Entry) tessera.IndexFuture
-	// AddIssuerChain stores every the chain certificate in a content-addressable store under their sha256 hash.
-	AddIssuerChain(context.Context, []*x509.Certificate) error
-	// AddCertDedupInfo stores the SCTDedupInfo of certificate in a log under its hash.
-	AddCertDedupInfo(context.Context, *x509.Certificate, dedup.SCTDedupInfo) error
-	// GetCertDedupInfo gets the SCTDedupInfo of certificate in a log from its hash.
-	GetCertDedupInfo(context.Context, *x509.Certificate) (dedup.SCTDedupInfo, bool, error)
-}
-
 type KV struct {
 	K []byte
 	V []byte
@@ -65,7 +53,7 @@ type CTStorage struct {
 }
 
 // NewCTStorage instantiates a CTStorage object.
-func NewCTSTorage(logStorage tessera.Storage, issuerStorage IssuerStorage, dedupStorage dedup.BEDedupStorage) (*CTStorage, error) {
+func NewCTStorage(logStorage tessera.Storage, issuerStorage IssuerStorage, dedupStorage dedup.BEDedupStorage) (*CTStorage, error) {
 	ctStorage := &CTStorage{
 		storeData:    tessera.NewCertificateTransparencySequencedWriter(logStorage),
 		storeIssuers: cachedStoreIssuers(issuerStorage),

@@ -25,28 +25,28 @@ import (
 	"github.com/google/certificate-transparency-go/x509util"
 )
 
-// chainValidationOpts contains various parameters for certificate chain validation
-type chainValidationOpts struct {
-	// trustedRoots is a pool of certificates that defines the roots the CT log will accept
-	trustedRoots *x509util.PEMCertPool
-	// currentTime is the time used for checking a certificate's validity period
+// ChainValidationOpts contains various parameters for certificate chain validation
+type ChainValidationOpts struct {
+	// TrustedRoots is a pool of certificates that defines the roots the CT log will accept
+	TrustedRoots *x509util.PEMCertPool
+	// CurrentTime is the time used for checking a certificate's validity period
 	// against. If it's zero then time.Now() is used. Only for testing.
-	currentTime time.Time
-	// rejectExpired indicates that expired certificates will be rejected.
-	rejectExpired bool
-	// rejectUnexpired indicates that certificates that are currently valid or not yet valid will be rejected.
-	rejectUnexpired bool
-	// notAfterStart is the earliest notAfter date which will be accepted.
+	CurrentTime time.Time
+	// RejectExpired indicates that expired certificates will be rejected.
+	RejectExpired bool
+	// RejectUnexpired indicates that certificates that are currently valid or not yet valid will be rejected.
+	RejectUnexpired bool
+	// NotAfterStart is the earliest notAfter date which will be accepted.
 	// nil means no lower bound on the accepted range.
-	notAfterStart *time.Time
-	// notAfterLimit defines the cut off point of notAfter dates - only notAfter
-	// dates strictly *before* notAfterLimit will be accepted.
+	NotAfterStart *time.Time
+	// NotAfterLimit defines the cut off point of notAfter dates - only notAfter
+	// dates strictly *before* NotAfterLimit will be accepted.
 	// nil means no upper bound on the accepted range.
-	notAfterLimit *time.Time
-	// extKeyUsages contains the list of EKUs to use during chain verification
-	extKeyUsages []x509.ExtKeyUsage
-	// rejectExtIds contains a list of X.509 extension IDs to reject during chain verification.
-	rejectExtIds []asn1.ObjectIdentifier
+	NotAfterLimit *time.Time
+	// ExtKeyUsages contains the list of EKUs to use during chain verification
+	ExtKeyUsages []x509.ExtKeyUsage
+	// RejectExtIds contains a list of X.509 extension IDs to reject during chain verification.
+	RejectExtIds []asn1.ObjectIdentifier
 }
 
 // isPrecertificate tests if a certificate is a pre-certificate as defined in CT.
@@ -71,7 +71,7 @@ func isPrecertificate(cert *x509.Certificate) (bool, error) {
 // end entity certificate in the chain to a trusted root cert, possibly using the intermediates
 // supplied in the chain. Then applies the RFC requirement that the path must involve all
 // the submitted chain in the order of submission.
-func validateChain(rawChain [][]byte, validationOpts chainValidationOpts) ([]*x509.Certificate, error) {
+func validateChain(rawChain [][]byte, validationOpts ChainValidationOpts) ([]*x509.Certificate, error) {
 	// First make sure the certs parse as X.509
 	chain := make([]*x509.Certificate, 0, len(rawChain))
 	intermediatePool := x509util.NewPEMCertPool()
@@ -90,8 +90,8 @@ func validateChain(rawChain [][]byte, validationOpts chainValidationOpts) ([]*x5
 		}
 	}
 
-	naStart := validationOpts.notAfterStart
-	naLimit := validationOpts.notAfterLimit
+	naStart := validationOpts.NotAfterStart
+	naLimit := validationOpts.NotAfterLimit
 	cert := chain[0]
 
 	// Check whether the expiry date of the cert is within the acceptable range.
@@ -102,24 +102,24 @@ func validateChain(rawChain [][]byte, validationOpts chainValidationOpts) ([]*x5
 		return nil, fmt.Errorf("certificate NotAfter (%v) >= %v", cert.NotAfter, *naLimit)
 	}
 
-	now := validationOpts.currentTime
+	now := validationOpts.CurrentTime
 	if now.IsZero() {
 		now = time.Now()
 	}
 	expired := now.After(cert.NotAfter)
-	if validationOpts.rejectExpired && expired {
+	if validationOpts.RejectExpired && expired {
 		return nil, errors.New("rejecting expired certificate")
 	}
-	if validationOpts.rejectUnexpired && !expired {
+	if validationOpts.RejectUnexpired && !expired {
 		return nil, errors.New("rejecting unexpired certificate")
 	}
 
 	// Check for unwanted extension types, if required.
 	// TODO(al): Refactor CertValidationOpts c'tor to a builder pattern and
 	// pre-calc this in there
-	if len(validationOpts.rejectExtIds) != 0 {
+	if len(validationOpts.RejectExtIds) != 0 {
 		badIDs := make(map[string]bool)
-		for _, id := range validationOpts.rejectExtIds {
+		for _, id := range validationOpts.RejectExtIds {
 			badIDs[id.String()] = true
 		}
 		for idx, ext := range cert.Extensions {
@@ -132,9 +132,9 @@ func validateChain(rawChain [][]byte, validationOpts chainValidationOpts) ([]*x5
 
 	// TODO(al): Refactor CertValidationOpts c'tor to a builder pattern and
 	// pre-calc this in there too.
-	if len(validationOpts.extKeyUsages) > 0 {
+	if len(validationOpts.ExtKeyUsages) > 0 {
 		acceptEKUs := make(map[x509.ExtKeyUsage]bool)
-		for _, eku := range validationOpts.extKeyUsages {
+		for _, eku := range validationOpts.ExtKeyUsages {
 			acceptEKUs[eku] = true
 		}
 		good := false
@@ -145,14 +145,14 @@ func validateChain(rawChain [][]byte, validationOpts chainValidationOpts) ([]*x5
 			}
 		}
 		if !good {
-			return nil, fmt.Errorf("rejecting certificate without EKU in %v", validationOpts.extKeyUsages)
+			return nil, fmt.Errorf("rejecting certificate without EKU in %v", validationOpts.ExtKeyUsages)
 		}
 	}
 
 	// We can now do the verification.  Use fairly lax options for verification, as
 	// CT is intended to observe certificates rather than police them.
 	verifyOpts := x509.VerifyOptions{
-		Roots:             validationOpts.trustedRoots.CertPool(),
+		Roots:             validationOpts.TrustedRoots.CertPool(),
 		CurrentTime:       now,
 		Intermediates:     intermediatePool.CertPool(),
 		DisableTimeChecks: true,
@@ -171,7 +171,7 @@ func validateChain(rawChain [][]byte, validationOpts chainValidationOpts) ([]*x5
 		DisablePathLenChecks:        true,
 		DisableNameConstraintChecks: true,
 		DisableNameChecks:           false,
-		KeyUsages:                   validationOpts.extKeyUsages,
+		KeyUsages:                   validationOpts.ExtKeyUsages,
 	}
 
 	verifiedChains, err := cert.Verify(verifyOpts)

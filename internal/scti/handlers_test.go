@@ -90,9 +90,9 @@ func setupTest(t *testing.T, pemRoots []string, signer crypto.Signer) handlerTes
 	}
 
 	info.storage = mockstorage.NewMockStorage(info.mockCtrl)
-	vOpts := chainValidationOpts{
-		trustedRoots:  info.roots,
-		rejectExpired: false,
+	vOpts := ChainValidationOpts{
+		TrustedRoots:  info.roots,
+		RejectExpired: false,
 	}
 
 	hOpts := HandlerOptions{
@@ -102,13 +102,13 @@ func setupTest(t *testing.T, pemRoots []string, signer crypto.Signer) handlerTes
 		TimeSource:    fakeTimeSource,
 	}
 	signSCT := func(leaf *ct.MerkleTreeLeaf) (*ct.SignedCertificateTimestamp, error) {
-		return buildV1SCT(signer, leaf)
+		return BuildV1SCT(signer, leaf)
 	}
-	log := log{
-		storage:             info.storage,
-		signSCT:             signSCT,
-		origin:              origin,
-		chainValidationOpts: vOpts,
+	log := Log{
+		Storage:             info.storage,
+		SignSCT:             signSCT,
+		Origin:              origin,
+		ChainValidationOpts: vOpts,
 	}
 	info.handlers = NewPathHandlers(&hOpts, &log)
 
@@ -121,16 +121,16 @@ func setupTest(t *testing.T, pemRoots []string, signer crypto.Signer) handlerTes
 	return info
 }
 
-func (info handlerTestInfo) getHandlers(t *testing.T) pathHandlers {
+func (info handlerTestInfo) getHandlers(t *testing.T) PathHandlers {
 	t.Helper()
 	handler, ok := info.handlers[origin+ct.GetRootsPath]
 	if !ok {
 		t.Fatalf("%q path not registered", ct.GetRootsPath)
 	}
-	return pathHandlers{origin + ct.GetRootsPath: handler}
+	return PathHandlers{origin + ct.GetRootsPath: handler}
 }
 
-func (info handlerTestInfo) postHandlers(t *testing.T) pathHandlers {
+func (info handlerTestInfo) postHandlers(t *testing.T) PathHandlers {
 	t.Helper()
 	addChainHandler, ok := info.handlers[origin+ct.AddChainPath]
 	if !ok {
@@ -590,7 +590,7 @@ func (d dlMatcher) String() string {
 	return fmt.Sprintf("deadline is %v", fakeDeadlineTime)
 }
 
-func makeAddPrechainRequest(t *testing.T, handlers pathHandlers, body io.Reader) *httptest.ResponseRecorder {
+func makeAddPrechainRequest(t *testing.T, handlers PathHandlers, body io.Reader) *httptest.ResponseRecorder {
 	t.Helper()
 	handler, ok := handlers[origin+ct.AddPreChainPath]
 	if !ok {
@@ -599,7 +599,7 @@ func makeAddPrechainRequest(t *testing.T, handlers pathHandlers, body io.Reader)
 	return makeAddChainRequestInternal(t, handler, "add-pre-chain", body)
 }
 
-func makeAddChainRequest(t *testing.T, handlers pathHandlers, body io.Reader) *httptest.ResponseRecorder {
+func makeAddChainRequest(t *testing.T, handlers PathHandlers, body io.Reader) *httptest.ResponseRecorder {
 	t.Helper()
 	handler, ok := handlers[origin+ct.AddChainPath]
 	if !ok {

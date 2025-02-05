@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/google/trillian/crypto/keys/pem"
+	"github.com/transparency-dev/static-ct/storage"
 	"golang.org/x/mod/sumdb/note"
 )
 
@@ -181,8 +182,8 @@ func TestNewLog(t *testing.T) {
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
 			log, err := newLog(ctx, tc.origin, tc.signer, tc.cvcfg,
-				func(_ context.Context, _ note.Signer) (*CTStorage, error) {
-					return &CTStorage{}, nil
+				func(_ context.Context, _ note.Signer) (*storage.CTStorage, error) {
+					return &storage.CTStorage{}, nil
 				})
 			if len(tc.wantErr) == 0 && err != nil {
 				t.Errorf("NewLog()=%v, want nil", err)

@@ -16,10 +16,9 @@ package scti
 
 import "time"
 
-// timeSource can provide the current time, or be replaced by a mock in tests to return
+// TimeSource can provide the current time, or be replaced by a mock in tests to return
 // specific values.
-type timeSource interface {
+type TimeSource interface {
 	// Now returns the current time in real implementations or a suitable value in others
 	Now() time.Time
 }
-

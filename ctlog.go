@@ -29,7 +29,8 @@ import (
 	"github.com/google/certificate-transparency-go/asn1"
 	"github.com/google/certificate-transparency-go/x509"
 	"github.com/google/certificate-transparency-go/x509util"
-	"github.com/transparency-dev/static-ct/internal/sctfi"
+	"github.com/transparency-dev/static-ct/internal/scti"
+	"github.com/transparency-dev/static-ct/storage"
 	"golang.org/x/mod/sumdb/note"
 	"k8s.io/klog/v2"
 )
@@ -67,35 +68,28 @@ type ChainValidationConfig struct {
 }
 
 // CreateStorage instantiates a Tessera storage implementation with a signer option.
-type CreateStorage func(context.Context, note.Signer) (*CTStorage, error)
+type CreateStorage func(context.Context, note.Signer) (*storage.CTStorage, error)
 
-// log offers all the primitives necessary to run a static-ct-api log.
-// TODO(phboneff): consider moving to methods when refactoring logInfo.
-type log struct {
-	// origin identifies the log. It will be used in its checkpoint, and
-	// is also its submission prefix, as per https://c2sp.org/static-ct-api.
-	origin string
-	// signSCT Signs SCTs.
-	signSCT sctfi.SignSCT
-	// chainValidationOpts contains various parameters for certificate chain
-	// validation.
-	chainValidationOpts sctfi.chainValidationOpts
-	// storage stores certificate data.
-	storage Storage
+// systemTimeSource implments scti.TimeSource.
+type systemTimeSource struct{}
+
+// Now returns the true current local time.
+func (s systemTimeSource) Now() time.Time {
+	return time.Now()
 }
 
-var sysTimeSource = SystemTimeSource{}
+var sysTimeSource = systemTimeSource{}
 
 // newLog instantiates a new log instance, with write endpoints.
 // It initiates chain validation to validate writes, and storage to persist
 // chains.
-func newLog(ctx context.Context, origin string, signer crypto.Signer, cfg ChainValidationConfig, cs CreateStorage) (*log, error) {
-	log := &log{}
+func newLog(ctx context.Context, origin string, signer crypto.Signer, cfg ChainValidationConfig, cs CreateStorage) (*scti.Log, error) {
+	log := &scti.Log{}
 
 	if origin == "" {
 		return nil, errors.New("empty origin")
 	}
-	log.origin = origin
+	log.Origin = origin
 
 	// Validate signer that only ECDSA is supported.
 	if signer == nil {
@@ -107,17 +101,17 @@ func newLog(ctx context.Context, origin string, signer crypto.Signer, cfg ChainV
 		return nil, fmt.Errorf("unsupported key type: %v", keyType)
 	}
 
-	log.signSCT = func(leaf *ct.MerkleTreeLeaf) (*ct.SignedCertificateTimestamp, error) {
-		return sign.BuildV1SCT(signer, leaf)
+	log.SignSCT = func(leaf *ct.MerkleTreeLeaf) (*ct.SignedCertificateTimestamp, error) {
+		return scti.BuildV1SCT(signer, leaf)
 	}
 
 	vlc, err := newCertValidationOpts(cfg)
 	if err != nil {
 		return nil, fmt.Errorf("invalid cert validation config: %v", err)
 	}
-	log.chainValidationOpts = *vlc
+	log.ChainValidationOpts = *vlc
 
-	cpSigner, err := sign.newCpSigner(signer, origin, sysTimeSource)
+	cpSigner, err := scti.NewCpSigner(signer, origin, sysTimeSource)
 	if err != nil {
 		klog.Exitf("failed to create checkpoint Signer: %v", err)
 	}
@@ -126,14 +120,14 @@ func newLog(ctx context.Context, origin string, signer crypto.Signer, cfg ChainV
 	if err != nil {
 		klog.Exitf("failed to initiate storage backend: %v", err)
 	}
-	log.storage = storage
+	log.Storage = storage
 
 	return log, nil
 }
 
 // newCertValidationOpts checks that a chain validation config is valid,
 // parses it, and loads resources to validate chains.
-func newCertValidationOpts(cfg ChainValidationConfig) (*chainValidationOpts, error) {
+func newCertValidationOpts(cfg ChainValidationConfig) (*scti.ChainValidationOpts, error) {
 	// Load the trusted roots.
 	if cfg.RootsPEMFile == "" {
 		return nil, errors.New("empty rootsPemFile")
@@ -152,12 +146,12 @@ func newCertValidationOpts(cfg ChainValidationConfig) (*chainValidationOpts, err
 		return nil, fmt.Errorf("'Not After' limit %q before start %q", cfg.NotAfterLimit.Format(time.RFC3339), cfg.NotAfterStart.Format(time.RFC3339))
 	}
 
-	validationOpts := chainValidationOpts{
-		trustedRoots:    roots,
-		rejectExpired:   cfg.RejectExpired,
-		rejectUnexpired: cfg.RejectUnexpired,
-		notAfterStart:   cfg.NotAfterStart,
-		notAfterLimit:   cfg.NotAfterLimit,
+	validationOpts := scti.ChainValidationOpts{
+		TrustedRoots:    roots,
+		RejectExpired:   cfg.RejectExpired,
+		RejectUnexpired: cfg.RejectUnexpired,
+		NotAfterStart:   cfg.NotAfterStart,
+		NotAfterLimit:   cfg.NotAfterLimit,
 	}
 
 	// Filter which extended key usages are allowed.
@@ -172,10 +166,10 @@ func newCertValidationOpts(cfg ChainValidationConfig) (*chainValidationOpts, err
 			// just disable EKU checking.
 			if ku == x509.ExtKeyUsageAny {
 				klog.Info("Found ExtKeyUsageAny, allowing all EKUs")
-				validationOpts.extKeyUsages = nil
+				validationOpts.ExtKeyUsages = nil
 				break
 			}
-			validationOpts.extKeyUsages = append(validationOpts.extKeyUsages, ku)
+			validationOpts.ExtKeyUsages = append(validationOpts.ExtKeyUsages, ku)
 		} else {
 			return nil, fmt.Errorf("unknown extended key usage: %s", kuStr)
 		}
@@ -184,7 +178,7 @@ func newCertValidationOpts(cfg ChainValidationConfig) (*chainValidationOpts, err
 	var err error
 	if cfg.RejectExtensions != "" {
 		lRejectExtensions := strings.Split(cfg.RejectExtensions, ",")
-		validationOpts.rejectExtIds, err = parseOIDs(lRejectExtensions)
+		validationOpts.RejectExtIds, err = parseOIDs(lRejectExtensions)
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse RejectExtensions: %v", err)
 		}
@@ -234,14 +228,14 @@ func NewLogHandler(ctx context.Context, origin string, signer crypto.Signer, cfg
 		return nil, fmt.Errorf("newLog(): %v", err)
 	}
 
-	opts := &HandlerOptions{
+	opts := &scti.HandlerOptions{
 		Deadline:           httpDeadline,
-		RequestLog:         &DefaultRequestLog{},
+		RequestLog:         &scti.DefaultRequestLog{},
 		MaskInternalErrors: maskInternalErrors,
 		TimeSource:         sysTimeSource,
 	}
 
-	handlers := NewPathHandlers(opts, log)
+	handlers := scti.NewPathHandlers(opts, log)
 	mux := http.NewServeMux()
 	// Register handlers for all the configured logs.
 	for path, handler := range handlers {

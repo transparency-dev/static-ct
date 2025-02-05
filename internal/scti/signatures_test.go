@@ -53,7 +53,7 @@ func TestBuildV1MerkleTreeLeafForCert(t *testing.T) {
 	if err != nil {
 		t.Fatalf("buildV1MerkleTreeLeafForCert()=nil,%v; want _,nil", err)
 	}
-	got, err := buildV1SCT(signer, leaf)
+	got, err := BuildV1SCT(signer, leaf)
 	if err != nil {
 		t.Fatalf("buildV1SCT()=nil,%v; want _,nil", err)
 	}
@@ -109,7 +109,7 @@ func TestSignV1SCTForPrecertificate(t *testing.T) {
 	if err != nil {
 		t.Fatalf("buildV1MerkleTreeLeafForCert()=nil,%v; want _,nil", err)
 	}
-	got, err := buildV1SCT(signer, leaf)
+	got, err := BuildV1SCT(signer, leaf)
 	if err != nil {
 		t.Fatalf("buildV1SCT()=nil,%v; want _,nil", err)
 	}
