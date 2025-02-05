@@ -18,6 +18,7 @@ import (
 	"bytes"
 	"crypto"
 	"crypto/sha256"
+	"encoding/hex"
 	"encoding/pem"
 	"testing"
 	"time"
@@ -36,6 +37,208 @@ var (
 	demoLogID       = [32]byte{19, 56, 222, 93, 229, 36, 102, 128, 227, 214, 3, 121, 93, 175, 126, 236, 97, 217, 34, 32, 40, 233, 98, 27, 46, 179, 164, 251, 84, 10, 60, 57}
 	fakeSignature   = []byte("signed")
 )
+
+const (
+	defaultSCTLogIDString          string = "iamapublickeyshatwofivesixdigest"
+	defaultSCTTimestamp            uint64 = 1234
+	defaultSCTSignatureString      string = "\x04\x03\x00\x09signature"
+	defaultCertifictateString      string = "certificate"
+	defaultPrecertIssuerHashString string = "iamapublickeyshatwofivesixdigest"
+	defaultPrecertTBSString        string = "tbs"
+
+	defaultCertificateSCTSignatureInputHexString string =
+	// version, 1 byte
+	"00" +
+		// signature type, 1 byte
+		"00" +
+		// timestamp, 8 bytes
+		"00000000000004d2" +
+		// entry type, 2 bytes
+		"0000" +
+		// leaf certificate length, 3 bytes
+		"00000b" +
+		// leaf certificate, 11 bytes
+		"6365727469666963617465" +
+		// extensions length, 2 bytes
+		"0000" +
+		// extensions, 0 bytes
+		""
+
+	defaultPrecertSCTSignatureInputHexString string =
+	// version, 1 byte
+	"00" +
+		// signature type, 1 byte
+		"00" +
+		// timestamp, 8 bytes
+		"00000000000004d2" +
+		// entry type, 2 bytes
+		"0001" +
+		// issuer key hash, 32 bytes
+		"69616d617075626c69636b657973686174776f66697665736978646967657374" +
+		// tbs certificate length, 3 bytes
+		"000003" +
+		// tbs certificate, 3 bytes
+		"746273" +
+		// extensions length, 2 bytes
+		"0000" +
+		// extensions, 0 bytes
+		""
+
+	defaultSTHSignedHexString string =
+	// version, 1 byte
+	"00" +
+		// signature type, 1 byte
+		"01" +
+		// timestamp, 8 bytes
+		"0000000000000929" +
+		// tree size, 8 bytes
+		"0000000000000006" +
+		// root hash, 32 bytes
+		"696d757374626565786163746c7974686972747974776f62797465736c6f6e67"
+)
+
+func defaultSCTLogID() types.LogID {
+	var id types.LogID
+	copy(id.KeyID[:], defaultSCTLogIDString)
+	return id
+}
+
+func defaultSCTSignature() types.DigitallySigned {
+	var ds types.DigitallySigned
+	if _, err := tls.Unmarshal([]byte(defaultSCTSignatureString), &ds); err != nil {
+		panic(err)
+	}
+	return ds
+}
+
+func defaultSCT() types.SignedCertificateTimestamp {
+	return types.SignedCertificateTimestamp{
+		SCTVersion: types.V1,
+		LogID:      defaultSCTLogID(),
+		Timestamp:  defaultSCTTimestamp,
+		Extensions: []byte{},
+		Signature:  defaultSCTSignature()}
+}
+
+func defaultCertificate() []byte {
+	return []byte(defaultCertifictateString)
+}
+
+func defaultCertificateSCTSignatureInput(t *testing.T) []byte {
+	t.Helper()
+	r, err := hex.DecodeString(defaultCertificateSCTSignatureInputHexString)
+	if err != nil {
+		t.Fatalf("failed to decode defaultCertificateSCTSignatureInputHexString: %v", err)
+	}
+	return r
+}
+
+func defaultCertificateLogEntry() types.LogEntry {
+	return types.LogEntry{
+		Index: 1,
+		Leaf: types.MerkleTreeLeaf{
+			Version:  types.V1,
+			LeafType: types.TimestampedEntryLeafType,
+			TimestampedEntry: &types.TimestampedEntry{
+				Timestamp: defaultSCTTimestamp,
+				EntryType: types.X509LogEntryType,
+				X509Entry: &types.ASN1Cert{Data: defaultCertificate()},
+			},
+		},
+	}
+}
+
+func defaultPrecertSCTSignatureInput(t *testing.T) []byte {
+	t.Helper()
+	r, err := hex.DecodeString(defaultPrecertSCTSignatureInputHexString)
+	if err != nil {
+		t.Fatalf("failed to decode defaultPrecertSCTSignatureInputHexString: %v", err)
+	}
+	return r
+}
+
+func defaultPrecertTBS() []byte {
+	return []byte(defaultPrecertTBSString)
+}
+
+func defaultPrecertIssuerHash() [32]byte {
+	var b [32]byte
+	copy(b[:], []byte(defaultPrecertIssuerHashString))
+	return b
+}
+
+func defaultPrecertLogEntry() types.LogEntry {
+	return types.LogEntry{
+		Index: 1,
+		Leaf: types.MerkleTreeLeaf{
+			Version:  types.V1,
+			LeafType: types.TimestampedEntryLeafType,
+			TimestampedEntry: &types.TimestampedEntry{
+				Timestamp: defaultSCTTimestamp,
+				EntryType: types.PrecertLogEntryType,
+				PrecertEntry: &types.PreCert{
+					IssuerKeyHash:  defaultPrecertIssuerHash(),
+					TBSCertificate: defaultPrecertTBS(),
+				},
+			},
+		},
+	}
+}
+
+func defaultSTH() types.SignedTreeHead {
+	var root types.SHA256Hash
+	copy(root[:], "imustbeexactlythirtytwobyteslong")
+	return types.SignedTreeHead{
+		TreeSize:       6,
+		Timestamp:      2345,
+		SHA256RootHash: root,
+		TreeHeadSignature: types.DigitallySigned{
+			Algorithm: tls.SignatureAndHashAlgorithm{
+				Hash:      tls.SHA256,
+				Signature: tls.ECDSA},
+			Signature: []byte("tree_signature"),
+		},
+	}
+}
+
+func mustDehex(t *testing.T, h string) []byte {
+	t.Helper()
+	r, err := hex.DecodeString(h)
+	if err != nil {
+		t.Fatalf("Failed to decode hex string (%s): %v", h, err)
+	}
+	return r
+}
+
+func TestSerializeV1SCTSignatureInputForCertificateKAT(t *testing.T) {
+	serialized, err := serializeSCTSignatureInput(defaultSCT(), defaultCertificateLogEntry())
+	if err != nil {
+		t.Fatalf("Failed to serialize SCT for signing: %v", err)
+	}
+	if !bytes.Equal(serialized, defaultCertificateSCTSignatureInput(t)) {
+		t.Fatalf("Serialized certificate signature input doesn't match expected answer:\n%v\n%v", serialized, defaultCertificateSCTSignatureInput(t))
+	}
+}
+
+func TestSerializeV1SCTSignatureInputForPrecertKAT(t *testing.T) {
+	serialized, err := serializeSCTSignatureInput(defaultSCT(), defaultPrecertLogEntry())
+	if err != nil {
+		t.Fatalf("Failed to serialize SCT for signing: %v", err)
+	}
+	if !bytes.Equal(serialized, defaultPrecertSCTSignatureInput(t)) {
+		t.Fatalf("Serialized precertificate signature input doesn't match expected answer:\n%v\n%v", serialized, defaultPrecertSCTSignatureInput(t))
+	}
+}
+
+func TestSerializeV1STHSignatureKAT(t *testing.T) {
+	b, err := serializeSTHSignatureInput(defaultSTH())
+	if err != nil {
+		t.Fatalf("Failed to serialize defaultSTH: %v", err)
+	}
+	if !bytes.Equal(b, mustDehex(t, defaultSTHSignedHexString)) {
+		t.Fatalf("defaultSTH incorrectly serialized, expected:\n%v\ngot:\n%v", mustDehex(t, defaultSTHSignedHexString), b)
+	}
+}
 
 func TestBuildV1MerkleTreeLeafForCert(t *testing.T) {
 	cert, err := x509util.CertificateFromPEM([]byte(testdata.LeafSignedByFakeIntermediateCertPEM))
