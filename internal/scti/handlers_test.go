@@ -35,6 +35,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/transparency-dev/static-ct/internal/testdata"
+	"github.com/transparency-dev/static-ct/internal/types"
 	"github.com/transparency-dev/static-ct/mockstorage"
 	"github.com/transparency-dev/static-ct/modules/dedup"
 	"github.com/transparency-dev/trillian-tessera/ctonly"
@@ -42,8 +43,6 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
 	"k8s.io/klog/v2"
-
-	ct "github.com/google/certificate-transparency-go"
 )
 
 // Arbitrary time for use in tests
@@ -57,7 +56,7 @@ var origin = "example.com"
 var fakeDeadlineTime = time.Date(2016, 7, 22, 11, 01, 13, 500*1000*1000, time.UTC)
 var fakeTimeSource = newFixedTimeSource(fakeTime)
 
-var entrypaths = []string{origin + ct.AddChainPath, origin + ct.AddPreChainPath, origin + ct.GetRootsPath}
+var entrypaths = []string{origin + types.AddChainPath, origin + types.AddPreChainPath, origin + types.GetRootsPath}
 
 type handlerTestInfo struct {
 	mockCtrl *gomock.Controller
@@ -99,7 +98,7 @@ func setupTest(t *testing.T, pemRoots []string, signer crypto.Signer) handlerTes
 		RequestLog: new(DefaultRequestLog),
 		TimeSource: fakeTimeSource,
 	}
-	signSCT := func(leaf *ct.MerkleTreeLeaf) (*ct.SignedCertificateTimestamp, error) {
+	signSCT := func(leaf *types.MerkleTreeLeaf) (*types.SignedCertificateTimestamp, error) {
 		return buildV1SCT(signer, leaf)
 	}
 	log := log{
@@ -121,27 +120,27 @@ func setupTest(t *testing.T, pemRoots []string, signer crypto.Signer) handlerTes
 
 func (info handlerTestInfo) getHandlers(t *testing.T) pathHandlers {
 	t.Helper()
-	handler, ok := info.handlers[origin+ct.GetRootsPath]
+	handler, ok := info.handlers[origin+types.GetRootsPath]
 	if !ok {
-		t.Fatalf("%q path not registered", ct.GetRootsPath)
+		t.Fatalf("%q path not registered", types.GetRootsPath)
 	}
-	return pathHandlers{origin + ct.GetRootsPath: handler}
+	return pathHandlers{origin + types.GetRootsPath: handler}
 }
 
 func (info handlerTestInfo) postHandlers(t *testing.T) pathHandlers {
 	t.Helper()
-	addChainHandler, ok := info.handlers[origin+ct.AddChainPath]
+	addChainHandler, ok := info.handlers[origin+types.AddChainPath]
 	if !ok {
-		t.Fatalf("%q path not registered", ct.AddPreChainStr)
+		t.Fatalf("%q path not registered", types.AddPreChainStr)
 	}
-	addPreChainHandler, ok := info.handlers[origin+ct.AddPreChainPath]
+	addPreChainHandler, ok := info.handlers[origin+types.AddPreChainPath]
 	if !ok {
-		t.Fatalf("%q path not registered", ct.AddPreChainStr)
+		t.Fatalf("%q path not registered", types.AddPreChainStr)
 	}
 
 	return map[string]appHandler{
-		origin + ct.AddChainPath:    addChainHandler,
-		origin + ct.AddPreChainPath: addPreChainHandler,
+		origin + types.AddChainPath:    addChainHandler,
+		origin + types.AddPreChainPath: addPreChainHandler,
 	}
 }
 
@@ -339,7 +338,7 @@ func TestAddChainWhitespace(t *testing.T) {
 			recorder := httptest.NewRecorder()
 			handler, ok := info.handlers["example.com/ct/v1/add-chain"]
 			if !ok {
-				t.Fatalf("%q path not registered", ct.AddChainStr)
+				t.Fatalf("%q path not registered", types.AddChainStr)
 			}
 			req, err := http.NewRequest(http.MethodPost, "http://example.com/ct/v1/add-chain", strings.NewReader(test.body))
 			if err != nil {
@@ -422,12 +421,12 @@ func TestAddChain(t *testing.T) {
 				t.Fatalf("addChain()=%d (body:%v); want %dv", recorder.Code, recorder.Body, test.want)
 			}
 			if test.want == http.StatusOK {
-				var resp ct.AddChainResponse
+				var resp types.AddChainResponse
 				if err := json.NewDecoder(recorder.Body).Decode(&resp); err != nil {
 					t.Fatalf("json.Decode(%s)=%v; want nil", recorder.Body.Bytes(), err)
 				}
 
-				if got, want := ct.Version(resp.SCTVersion), ct.V1; got != want {
+				if got, want := types.Version(resp.SCTVersion), types.V1; got != want {
 					t.Errorf("resp.SCTVersion=%v; want %v", got, want)
 				}
 				if got, want := resp.ID, demoLogID[:]; !bytes.Equal(got, want) {
@@ -519,12 +518,12 @@ func TestAddPrechain(t *testing.T) {
 				t.Fatalf("addPrechain()=%d (body:%v); want %d", recorder.Code, recorder.Body, test.want)
 			}
 			if test.want == http.StatusOK {
-				var resp ct.AddChainResponse
+				var resp types.AddChainResponse
 				if err := json.NewDecoder(recorder.Body).Decode(&resp); err != nil {
 					t.Fatalf("json.Decode(%s)=%v; want nil", recorder.Body.Bytes(), err)
 				}
 
-				if got, want := ct.Version(resp.SCTVersion), ct.V1; got != want {
+				if got, want := types.Version(resp.SCTVersion), types.V1; got != want {
 					t.Errorf("resp.SCTVersion=%v; want %v", got, want)
 				}
 				if got, want := resp.ID, demoLogID[:]; !bytes.Equal(got, want) {
@@ -543,7 +542,7 @@ func TestAddPrechain(t *testing.T) {
 
 func createJSONChain(t *testing.T, p x509util.PEMCertPool) io.Reader {
 	t.Helper()
-	var req ct.AddChainRequest
+	var req types.AddChainRequest
 	for _, rawCert := range p.RawCertificates() {
 		req.Chain = append(req.Chain, rawCert.Raw)
 	}
@@ -590,18 +589,18 @@ func (d dlMatcher) String() string {
 
 func makeAddPrechainRequest(t *testing.T, handlers pathHandlers, body io.Reader) *httptest.ResponseRecorder {
 	t.Helper()
-	handler, ok := handlers[origin+ct.AddPreChainPath]
+	handler, ok := handlers[origin+types.AddPreChainPath]
 	if !ok {
-		t.Fatalf("%q path not registered", ct.AddPreChainStr)
+		t.Fatalf("%q path not registered", types.AddPreChainStr)
 	}
 	return makeAddChainRequestInternal(t, handler, "add-pre-chain", body)
 }
 
 func makeAddChainRequest(t *testing.T, handlers pathHandlers, body io.Reader) *httptest.ResponseRecorder {
 	t.Helper()
-	handler, ok := handlers[origin+ct.AddChainPath]
+	handler, ok := handlers[origin+types.AddChainPath]
 	if !ok {
-		t.Fatalf("%q path not registered", ct.AddChainStr)
+		t.Fatalf("%q path not registered", types.AddChainStr)
 	}
 	return makeAddChainRequestInternal(t, handler, "add-chain", body)
 }

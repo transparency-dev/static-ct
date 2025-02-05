@@ -27,8 +27,7 @@ import (
 	"github.com/google/certificate-transparency-go/x509util"
 	"github.com/kylelemons/godebug/pretty"
 	"github.com/transparency-dev/static-ct/internal/testdata"
-
-	ct "github.com/google/certificate-transparency-go"
+	"github.com/transparency-dev/static-ct/internal/types"
 )
 
 var (
@@ -49,7 +48,7 @@ func TestBuildV1MerkleTreeLeafForCert(t *testing.T) {
 		t.Fatalf("could not create signer: %v", err)
 	}
 
-	leaf, err := ct.MerkleTreeLeafFromChain([]*x509.Certificate{cert}, ct.X509LogEntryType, fixedTimeMillis)
+	leaf, err := types.MerkleTreeLeafFromChain([]*x509.Certificate{cert}, types.X509LogEntryType, fixedTimeMillis)
 	if err != nil {
 		t.Fatalf("buildV1MerkleTreeLeafForCert()=nil,%v; want _,nil", err)
 	}
@@ -58,12 +57,12 @@ func TestBuildV1MerkleTreeLeafForCert(t *testing.T) {
 		t.Fatalf("buildV1SCT()=nil,%v; want _,nil", err)
 	}
 
-	expected := ct.SignedCertificateTimestamp{
+	expected := types.SignedCertificateTimestamp{
 		SCTVersion: 0,
-		LogID:      ct.LogID{KeyID: demoLogID},
+		LogID:      types.LogID{KeyID: demoLogID},
 		Timestamp:  fixedTimeMillis,
-		Extensions: ct.CTExtensions{},
-		Signature: ct.DigitallySigned{
+		Extensions: types.CTExtensions{},
+		Signature: types.DigitallySigned{
 			Algorithm: tls.SignatureAndHashAlgorithm{
 				Hash:      tls.SHA256,
 				Signature: tls.ECDSA},
@@ -76,13 +75,13 @@ func TestBuildV1MerkleTreeLeafForCert(t *testing.T) {
 	}
 
 	// Additional checks that the MerkleTreeLeaf we built is correct
-	if got, want := leaf.Version, ct.V1; got != want {
+	if got, want := leaf.Version, types.V1; got != want {
 		t.Fatalf("Got a %v leaf, expected a %v leaf", got, want)
 	}
-	if got, want := leaf.LeafType, ct.TimestampedEntryLeafType; got != want {
+	if got, want := leaf.LeafType, types.TimestampedEntryLeafType; got != want {
 		t.Fatalf("Got leaf type %v, expected %v", got, want)
 	}
-	if got, want := leaf.TimestampedEntry.EntryType, ct.X509LogEntryType; got != want {
+	if got, want := leaf.TimestampedEntry.EntryType, types.X509LogEntryType; got != want {
 		t.Fatalf("Got entry type %v, expected %v", got, want)
 	}
 	if got, want := leaf.TimestampedEntry.Timestamp, got.Timestamp; got != want {
@@ -105,7 +104,7 @@ func TestSignV1SCTForPrecertificate(t *testing.T) {
 	}
 
 	// Use the same cert as the issuer for convenience.
-	leaf, err := ct.MerkleTreeLeafFromChain([]*x509.Certificate{cert, cert}, ct.PrecertLogEntryType, fixedTimeMillis)
+	leaf, err := types.MerkleTreeLeafFromChain([]*x509.Certificate{cert, cert}, types.PrecertLogEntryType, fixedTimeMillis)
 	if err != nil {
 		t.Fatalf("buildV1MerkleTreeLeafForCert()=nil,%v; want _,nil", err)
 	}
@@ -114,12 +113,12 @@ func TestSignV1SCTForPrecertificate(t *testing.T) {
 		t.Fatalf("buildV1SCT()=nil,%v; want _,nil", err)
 	}
 
-	expected := ct.SignedCertificateTimestamp{
+	expected := types.SignedCertificateTimestamp{
 		SCTVersion: 0,
-		LogID:      ct.LogID{KeyID: demoLogID},
+		LogID:      types.LogID{KeyID: demoLogID},
 		Timestamp:  fixedTimeMillis,
-		Extensions: ct.CTExtensions{},
-		Signature: ct.DigitallySigned{
+		Extensions: types.CTExtensions{},
+		Signature: types.DigitallySigned{
 			Algorithm: tls.SignatureAndHashAlgorithm{
 				Hash:      tls.SHA256,
 				Signature: tls.ECDSA},
@@ -130,13 +129,13 @@ func TestSignV1SCTForPrecertificate(t *testing.T) {
 	}
 
 	// Additional checks that the MerkleTreeLeaf we built is correct
-	if got, want := leaf.Version, ct.V1; got != want {
+	if got, want := leaf.Version, types.V1; got != want {
 		t.Fatalf("Got a %v leaf, expected a %v leaf", got, want)
 	}
-	if got, want := leaf.LeafType, ct.TimestampedEntryLeafType; got != want {
+	if got, want := leaf.LeafType, types.TimestampedEntryLeafType; got != want {
 		t.Fatalf("Got leaf type %v, expected %v", got, want)
 	}
-	if got, want := leaf.TimestampedEntry.EntryType, ct.PrecertLogEntryType; got != want {
+	if got, want := leaf.TimestampedEntry.EntryType, types.PrecertLogEntryType; got != want {
 		t.Fatalf("Got entry type %v, expected %v", got, want)
 	}
 	if got, want := got.Timestamp, leaf.TimestampedEntry.Timestamp; got != want {

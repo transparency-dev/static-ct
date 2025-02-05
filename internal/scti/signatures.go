@@ -25,25 +25,24 @@ import (
 	"github.com/google/certificate-transparency-go/tls"
 	"github.com/google/certificate-transparency-go/x509"
 	tfl "github.com/transparency-dev/formats/log"
+	"github.com/transparency-dev/static-ct/internal/types"
 	"golang.org/x/mod/sumdb/note"
-
-	ct "github.com/google/certificate-transparency-go"
 )
 
 const nanosPerMilli int64 = int64(time.Millisecond / time.Nanosecond)
 
 // signSCT builds an SCT for a leaf.
-type signSCT func(leaf *ct.MerkleTreeLeaf) (*ct.SignedCertificateTimestamp, error)
+type signSCT func(leaf *types.MerkleTreeLeaf) (*types.SignedCertificateTimestamp, error)
 
 // TODO(phboneff): create an SCTSigner object
-func buildV1SCT(signer crypto.Signer, leaf *ct.MerkleTreeLeaf) (*ct.SignedCertificateTimestamp, error) {
+func buildV1SCT(signer crypto.Signer, leaf *types.MerkleTreeLeaf) (*types.SignedCertificateTimestamp, error) {
 	// Serialize SCT signature input to get the bytes that need to be signed
-	sctInput := ct.SignedCertificateTimestamp{
-		SCTVersion: ct.V1,
+	sctInput := types.SignedCertificateTimestamp{
+		SCTVersion: types.V1,
 		Timestamp:  leaf.TimestampedEntry.Timestamp,
 		Extensions: leaf.TimestampedEntry.Extensions,
 	}
-	data, err := ct.SerializeSCTSignatureInput(sctInput, ct.LogEntry{Leaf: *leaf})
+	data, err := types.SerializeSCTSignatureInput(sctInput, types.LogEntry{Leaf: *leaf})
 	if err != nil {
 		return nil, fmt.Errorf("failed to serialize SCT data: %v", err)
 	}
@@ -54,7 +53,7 @@ func buildV1SCT(signer crypto.Signer, leaf *ct.MerkleTreeLeaf) (*ct.SignedCertif
 		return nil, fmt.Errorf("failed to sign SCT data: %v", err)
 	}
 
-	digitallySigned := ct.DigitallySigned{
+	digitallySigned := types.DigitallySigned{
 		Algorithm: tls.SignatureAndHashAlgorithm{
 			Hash:      tls.SHA256,
 			Signature: tls.SignatureAlgorithmFromPubKey(signer.Public()),
@@ -67,9 +66,9 @@ func buildV1SCT(signer crypto.Signer, leaf *ct.MerkleTreeLeaf) (*ct.SignedCertif
 		return nil, fmt.Errorf("failed to get logID for signing: %v", err)
 	}
 
-	return &ct.SignedCertificateTimestamp{
-		SCTVersion: ct.V1,
-		LogID:      ct.LogID{KeyID: logID},
+	return &types.SignedCertificateTimestamp{
+		SCTVersion: types.V1,
+		LogID:      types.LogID{KeyID: logID},
 		Timestamp:  sctInput.Timestamp,
 		Extensions: sctInput.Extensions,
 		Signature:  digitallySigned,
@@ -78,20 +77,20 @@ func buildV1SCT(signer crypto.Signer, leaf *ct.MerkleTreeLeaf) (*ct.SignedCertif
 
 type rfc6962NoteSignature struct {
 	timestamp uint64
-	signature ct.DigitallySigned
+	signature types.DigitallySigned
 }
 
 // buildCp builds a https://c2sp.org/static-ct-api checkpoint.
 // TODO(phboneff): add tests
 func buildCp(signer crypto.Signer, size uint64, timeMilli uint64, hash []byte) ([]byte, error) {
-	sth := ct.SignedTreeHead{
-		Version:   ct.V1,
+	sth := types.SignedTreeHead{
+		Version:   types.V1,
 		TreeSize:  size,
 		Timestamp: timeMilli,
 	}
 	copy(sth.SHA256RootHash[:], hash)
 
-	sthBytes, err := ct.SerializeSTHSignatureInput(sth)
+	sthBytes, err := types.SerializeSTHSignatureInput(sth)
 	if err != nil {
 		return nil, fmt.Errorf("ct.SerializeSTHSignatureInput(): %v", err)
 	}
@@ -104,7 +103,7 @@ func buildCp(signer crypto.Signer, size uint64, timeMilli uint64, hash []byte) (
 
 	rfc6962Note := rfc6962NoteSignature{
 		timestamp: sth.Timestamp,
-		signature: ct.DigitallySigned{
+		signature: types.DigitallySigned{
 			Algorithm: tls.SignatureAndHashAlgorithm{
 				Hash:      tls.SHA256,
 				Signature: tls.SignatureAlgorithmFromPubKey(signer.Public()),

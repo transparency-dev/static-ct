@@ -7,8 +7,8 @@ import (
 	"errors"
 	"fmt"
 
-	ct "github.com/google/certificate-transparency-go"
 	"github.com/google/certificate-transparency-go/x509"
+	"github.com/transparency-dev/static-ct/internal/types"
 	"github.com/transparency-dev/static-ct/modules/dedup"
 	"github.com/transparency-dev/static-ct/storage"
 	tessera "github.com/transparency-dev/trillian-tessera"
@@ -64,7 +64,7 @@ func NewLog(ctx context.Context, origin string, signer crypto.Signer, cvOpts Cha
 		return nil, fmt.Errorf("unsupported key type: %v", keyType)
 	}
 
-	log.signSCT = func(leaf *ct.MerkleTreeLeaf) (*ct.SignedCertificateTimestamp, error) {
+	log.signSCT = func(leaf *types.MerkleTreeLeaf) (*types.SignedCertificateTimestamp, error) {
 		return buildV1SCT(signer, leaf)
 	}
 
