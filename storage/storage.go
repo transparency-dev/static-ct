@@ -45,7 +45,7 @@ type IssuerStorage interface {
 	AddIssuersIfNotExist(ctx context.Context, kv []KV) error
 }
 
-// CTStorage implements Storage.
+// CTStorage implements scti.Storage.
 type CTStorage struct {
 	storeData    func(context.Context, *ctonly.Entry) tessera.IndexFuture
 	storeIssuers func(context.Context, []KV) error
