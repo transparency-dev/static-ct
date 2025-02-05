@@ -43,14 +43,14 @@ func TestNewCertValidationOpts(t *testing.T) {
 			desc:    "missing-root-cert",
 			wantErr: "failed to read trusted roots",
 			cvcfg: ChainValidationConfig{
-				RootsPEMFile: "./testdata/bogus.cert",
+				RootsPEMFile: "./internal/testdata/bogus.cert",
 			},
 		},
 		{
 			desc:    "rejecting-all",
 			wantErr: "configuration would reject all certificates",
 			cvcfg: ChainValidationConfig{
-				RootsPEMFile:    "./testdata/fake-ca.cert",
+				RootsPEMFile:    "./internal/testdata/fake-ca.cert",
 				RejectExpired:   true,
 				RejectUnexpired: true},
 		},
@@ -58,14 +58,14 @@ func TestNewCertValidationOpts(t *testing.T) {
 			desc:    "unknown-ext-key-usage-1",
 			wantErr: "unknown extended key usage",
 			cvcfg: ChainValidationConfig{
-				RootsPEMFile: "./testdata/fake-ca.cert",
+				RootsPEMFile: "./internal/testdata/fake-ca.cert",
 				ExtKeyUsages: "wrong_usage"},
 		},
 		{
 			desc:    "unknown-ext-key-usage-2",
 			wantErr: "unknown extended key usage",
 			cvcfg: ChainValidationConfig{
-				RootsPEMFile: "./testdata/fake-ca.cert",
+				RootsPEMFile: "./internal/testdata/fake-ca.cert",
 				ExtKeyUsages: "ClientAuth,ServerAuth,TimeStomping",
 			},
 		},
@@ -73,7 +73,7 @@ func TestNewCertValidationOpts(t *testing.T) {
 			desc:    "unknown-ext-key-usage-3",
 			wantErr: "unknown extended key usage",
 			cvcfg: ChainValidationConfig{
-				RootsPEMFile: "./testdata/fake-ca.cert",
+				RootsPEMFile: "./internal/testdata/fake-ca.cert",
 				ExtKeyUsages: "Any ",
 			},
 		},
@@ -81,7 +81,7 @@ func TestNewCertValidationOpts(t *testing.T) {
 			desc:    "unknown-reject-ext",
 			wantErr: "failed to parse RejectExtensions",
 			cvcfg: ChainValidationConfig{
-				RootsPEMFile:     "./testdata/fake-ca.cert",
+				RootsPEMFile:     "./internal/testdata/fake-ca.cert",
 				RejectExtensions: "1.2.3.4,one.banana.two.bananas",
 			},
 		},
@@ -89,7 +89,7 @@ func TestNewCertValidationOpts(t *testing.T) {
 			desc:    "limit-before-start",
 			wantErr: "before start",
 			cvcfg: ChainValidationConfig{
-				RootsPEMFile:  "./testdata/fake-ca.cert",
+				RootsPEMFile:  "./internal/testdata/fake-ca.cert",
 				NotAfterStart: &t200,
 				NotAfterLimit: &t100,
 			},
@@ -97,41 +97,41 @@ func TestNewCertValidationOpts(t *testing.T) {
 		{
 			desc: "ok",
 			cvcfg: ChainValidationConfig{
-				RootsPEMFile: "./testdata/fake-ca.cert",
+				RootsPEMFile: "./internal/testdata/fake-ca.cert",
 			},
 		},
 		{
 			desc: "ok-ext-key-usages",
 			cvcfg: ChainValidationConfig{
-				RootsPEMFile: "./testdata/fake-ca.cert",
+				RootsPEMFile: "./internal/testdata/fake-ca.cert",
 				ExtKeyUsages: "ServerAuth,ClientAuth,OCSPSigning",
 			},
 		},
 		{
 			desc: "ok-reject-ext",
 			cvcfg: ChainValidationConfig{
-				RootsPEMFile:     "./testdata/fake-ca.cert",
+				RootsPEMFile:     "./internal/testdata/fake-ca.cert",
 				RejectExtensions: "1.2.3.4,5.6.7.8",
 			},
 		},
 		{
 			desc: "ok-start-timestamp",
 			cvcfg: ChainValidationConfig{
-				RootsPEMFile:  "./testdata/fake-ca.cert",
+				RootsPEMFile:  "./internal/testdata/fake-ca.cert",
 				NotAfterStart: &t100,
 			},
 		},
 		{
 			desc: "ok-limit-timestamp",
 			cvcfg: ChainValidationConfig{
-				RootsPEMFile:  "./testdata/fake-ca.cert",
+				RootsPEMFile:  "./internal/testdata/fake-ca.cert",
 				NotAfterStart: &t200,
 			},
 		},
 		{
 			desc: "ok-range-timestamp",
 			cvcfg: ChainValidationConfig{
-				RootsPEMFile:  "./testdata/fake-ca.cert",
+				RootsPEMFile:  "./internal/testdata/fake-ca.cert",
 				NotAfterStart: &t100,
 				NotAfterLimit: &t200,
 			},
@@ -154,7 +154,7 @@ func TestNewCertValidationOpts(t *testing.T) {
 
 func TestNewLog(t *testing.T) {
 	ctx := context.Background()
-	signer, err := pem.ReadPrivateKeyFile("./testdata/ct-http-server.privkey.pem", "dirk")
+	signer, err := pem.ReadPrivateKeyFile("./internal/testdata/ct-http-server.privkey.pem", "dirk")
 	if err != nil {
 		t.Fatalf("Can't open key: %v", err)
 	}
@@ -175,7 +175,7 @@ func TestNewLog(t *testing.T) {
 			desc:   "ok",
 			origin: "testlog",
 			cvcfg: ChainValidationConfig{
-				RootsPEMFile: "./testdata/fake-ca.cert",
+				RootsPEMFile: "./internal/testdata/fake-ca.cert",
 			},
 			signer: signer,
 		},

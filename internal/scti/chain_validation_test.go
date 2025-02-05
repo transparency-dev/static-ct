@@ -25,7 +25,7 @@ import (
 	"github.com/google/certificate-transparency-go/x509"
 	"github.com/google/certificate-transparency-go/x509/pkix"
 	"github.com/google/certificate-transparency-go/x509util"
-	"github.com/transparency-dev/static-ct/testdata"
+	"github.com/transparency-dev/static-ct/internal/testdata"
 )
 
 func wipeExtensions(cert *x509.Certificate) *x509.Certificate {
@@ -172,12 +172,12 @@ func TestValidateChain(t *testing.T) {
 		},
 		{
 			desc:        "chain-of-len-4",
-			chain:       pemFileToDERChain(t, "./testdata/subleaf.chain"),
+			chain:       pemFileToDERChain(t, "../testdata/subleaf.chain"),
 			wantPathLen: 4,
 		},
 		{
 			desc:    "misordered-chain-of-len-4",
-			chain:   pemFileToDERChain(t, "./testdata/subleaf.misordered.chain"),
+			chain:   pemFileToDERChain(t, "../testdata/subleaf.misordered.chain"),
 			wantErr: true,
 		},
 		{
