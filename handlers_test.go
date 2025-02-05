@@ -81,7 +81,7 @@ func setupTest(t *testing.T, pemRoots []string, signer crypto.Signer) handlerTes
 		rejectExpired: false,
 	}
 
-	iOpts := HandlerOptions{
+	hOpts := HandlerOptions{
 		Deadline:      time.Millisecond * 500,
 		MetricFactory: monitoring.InertMetricFactory{},
 		RequestLog:    new(DefaultRequestLog),
@@ -96,7 +96,7 @@ func setupTest(t *testing.T, pemRoots []string, signer crypto.Signer) handlerTes
 		origin:              origin,
 		chainValidationOpts: vOpts,
 	}
-	info.handlers = NewPathHandlers(&iOpts, &log)
+	info.handlers = NewPathHandlers(&hOpts, &log)
 
 	for _, pemRoot := range pemRoots {
 		if !info.roots.AppendCertsFromPEM([]byte(pemRoot)) {
