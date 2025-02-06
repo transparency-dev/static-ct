@@ -20,6 +20,7 @@ import (
 	"crypto/ecdsa"
 	"errors"
 	"fmt"
+	"net/http"
 	"strconv"
 	"strings"
 	"time"
@@ -28,6 +29,7 @@ import (
 	"github.com/google/certificate-transparency-go/asn1"
 	"github.com/google/certificate-transparency-go/x509"
 	"github.com/google/certificate-transparency-go/x509util"
+	"github.com/rs/cors"
 	"golang.org/x/mod/sumdb/note"
 	"k8s.io/klog/v2"
 )
@@ -82,7 +84,12 @@ type log struct {
 	storage Storage
 }
 
-func NewLog(ctx context.Context, origin string, signer crypto.Signer, cfg ChainValidationConfig, ts timeSource, cs CreateStorage) (*log, error) {
+var sysTimeSource = SystemTimeSource{}
+
+// newLog instantiates a new log instance, with write endpoints.
+// It initiates chain validation to validate writes, and storage to persist
+// chains.
+func newLog(ctx context.Context, origin string, signer crypto.Signer, cfg ChainValidationConfig, cs CreateStorage) (*log, error) {
 	log := &log{}
 
 	if origin == "" {
@@ -110,7 +117,7 @@ func NewLog(ctx context.Context, origin string, signer crypto.Signer, cfg ChainV
 	}
 	log.chainValidationOpts = *vlc
 
-	cpSigner, err := newCpSigner(signer, origin, ts)
+	cpSigner, err := newCpSigner(signer, origin, sysTimeSource)
 	if err != nil {
 		klog.Exitf("failed to create checkpoint Signer: %v", err)
 	}
@@ -216,4 +223,39 @@ var stringToKeyUsage = map[string]x509.ExtKeyUsage{
 	"OCSPSigning":                x509.ExtKeyUsageOCSPSigning,
 	"MicrosoftServerGatedCrypto": x509.ExtKeyUsageMicrosoftServerGatedCrypto,
 	"NetscapeServerGatedCrypto":  x509.ExtKeyUsageNetscapeServerGatedCrypto,
+}
+
+// NewCTHTTPServer creates a Tessera based CT log pluged into an HTTP server.
+// The HTTP server handlers implement https://c2sp.org/static-ct-api write
+// endpoints.
+// TODO(phboneff): see if we can return an HTTP handler
+func NewCTHTTPServer(ctx context.Context, origin string, signer crypto.Signer, cfg ChainValidationConfig, cs CreateStorage, httpDeadline time.Duration, maskInternalErrors bool) (*http.ServeMux, error) {
+	log, err := newLog(ctx, origin, signer, cfg, cs)
+	if err != nil {
+		return nil, fmt.Errorf("newLog(): %v", err)
+	}
+
+	opts := &HandlerOptions{
+		Deadline:           httpDeadline,
+		RequestLog:         &DefaultRequestLog{},
+		MaskInternalErrors: maskInternalErrors,
+		TimeSource:         sysTimeSource,
+	}
+
+	handlers := NewPathHandlers(opts, log)
+
+	klog.Info("**** CT HTTP Server Starting ****")
+	// Allow cross-origin requests to all handlers registered on corsMux.
+	// This is safe for CT log handlers because the log is public and
+	// unauthenticated so cross-site scripting attacks are not a concern.
+	corsMux := http.NewServeMux()
+	corsHandler := cors.AllowAll().Handler(corsMux)
+	http.Handle("/", corsHandler)
+
+	// Register handlers for all the configured logs.
+	for path, handler := range handlers {
+		corsMux.Handle(path, handler)
+	}
+
+	return corsMux, nil
 }
