@@ -403,19 +403,6 @@ func (m *MerkleTreeLeaf) X509Certificate() (*x509.Certificate, error) {
 	return x509.ParseCertificate(m.TimestampedEntry.X509Entry.Data)
 }
 
-// Precertificate returns the X.509 Precertificate contained within the MerkleTreeLeaf.
-//
-// The returned precertificate is embedded in an x509.Certificate, but is in the
-// form stored internally in the log rather than the original submitted form
-// (i.e. it does not include the poison extension and any changes to reflect the
-// final certificate's issuer have been made; see x509.BuildPrecertTBS).
-func (m *MerkleTreeLeaf) Precertificate() (*x509.Certificate, error) {
-	if m.TimestampedEntry.EntryType != PrecertLogEntryType {
-		return nil, fmt.Errorf("cannot call Precertificate on a MerkleTreeLeaf that is not a precert entry")
-	}
-	return x509.ParseTBSCertificate(m.TimestampedEntry.PrecertEntry.TBSCertificate)
-}
-
 // APIEndpoint is a string that represents one of the Certificate Transparency
 // Log API endpoints.
 type APIEndpoint string
