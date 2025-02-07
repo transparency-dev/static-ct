@@ -19,6 +19,10 @@ package x509util
 import (
 	"bytes"
 	"crypto/rsa"
+	"crypto/tls"
+	"crypto/x509"
+	"crypto/x509/pkix"
+	"encoding/asn1"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/pem"
@@ -27,12 +31,8 @@ import (
 	"net"
 	"strconv"
 
-	ct "github.com/google/certificate-transparency-go"
-	"github.com/google/certificate-transparency-go/asn1"
+	types "github.com/google/certificate-transparency-go"
 	"github.com/google/certificate-transparency-go/gossip/minimal/x509ext"
-	"github.com/google/certificate-transparency-go/tls"
-	"github.com/google/certificate-transparency-go/x509"
-	"github.com/google/certificate-transparency-go/x509/pkix"
 )
 
 // OIDForStandardExtension indicates whether oid identifies a standard extension.
@@ -667,7 +667,7 @@ func showCTSCT(result *bytes.Buffer, cert *x509.Certificate) {
 		showCritical(result, critical)
 		for i, sctData := range cert.SCTList.SCTList {
 			result.WriteString(fmt.Sprintf("              SCT [%d]:\n", i))
-			var sct ct.SignedCertificateTimestamp
+			var sct types.SignedCertificateTimestamp
 			_, err := tls.Unmarshal(sctData.Val, &sct)
 			if err != nil {
 				appendHexData(result, sctData.Val, 16, "                  ")
@@ -790,8 +790,8 @@ func CertificatesFromPEM(pemBytes []byte) ([]*x509.Certificate, error) {
 }
 
 // ParseSCTsFromSCTList parses each of the SCTs contained within an SCT list.
-func ParseSCTsFromSCTList(sctList *x509.SignedCertificateTimestampList) ([]*ct.SignedCertificateTimestamp, error) {
-	var scts []*ct.SignedCertificateTimestamp
+func ParseSCTsFromSCTList(sctList *x509.SignedCertificateTimestampList) ([]*types.SignedCertificateTimestamp, error) {
+	var scts []*types.SignedCertificateTimestamp
 	for i, data := range sctList.SCTList {
 		sct, err := ExtractSCT(&data)
 		if err != nil {
@@ -803,11 +803,11 @@ func ParseSCTsFromSCTList(sctList *x509.SignedCertificateTimestampList) ([]*ct.S
 }
 
 // ExtractSCT deserializes an SCT from a TLS-encoded SCT.
-func ExtractSCT(sctData *x509.SerializedSCT) (*ct.SignedCertificateTimestamp, error) {
+func ExtractSCT(sctData *x509.SerializedSCT) (*types.SignedCertificateTimestamp, error) {
 	if sctData == nil {
 		return nil, errors.New("SCT is nil")
 	}
-	var sct ct.SignedCertificateTimestamp
+	var sct types.SignedCertificateTimestamp
 	if rest, err := tls.Unmarshal(sctData.Val, &sct); err != nil {
 		return nil, fmt.Errorf("error parsing SCT: %s", err)
 	} else if len(rest) > 0 {
@@ -817,7 +817,7 @@ func ExtractSCT(sctData *x509.SerializedSCT) (*ct.SignedCertificateTimestamp, er
 }
 
 // MarshalSCTsIntoSCTList serializes SCTs into SCT list.
-func MarshalSCTsIntoSCTList(scts []*ct.SignedCertificateTimestamp) (*x509.SignedCertificateTimestampList, error) {
+func MarshalSCTsIntoSCTList(scts []*types.SignedCertificateTimestamp) (*x509.SignedCertificateTimestampList, error) {
 	var sctList x509.SignedCertificateTimestampList
 	sctList.SCTList = []x509.SerializedSCT{}
 	for i, sct := range scts {
@@ -840,7 +840,7 @@ var pemCertificatePrefix = []byte("-----BEGIN CERTIFICATE")
 // certificate provided.  The certificate bytes provided can be either DER or
 // PEM, provided the PEM data starts with the PEM block marker (i.e. has no
 // leading text).
-func ParseSCTsFromCertificate(certBytes []byte) ([]*ct.SignedCertificateTimestamp, error) {
+func ParseSCTsFromCertificate(certBytes []byte) ([]*types.SignedCertificateTimestamp, error) {
 	var cert *x509.Certificate
 	var err error
 	if bytes.HasPrefix(certBytes, pemCertificatePrefix) {
