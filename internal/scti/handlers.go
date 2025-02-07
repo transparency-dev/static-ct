@@ -29,8 +29,6 @@ import (
 	"sync"
 	"time"
 
-	"slices"
-
 	"github.com/google/certificate-transparency-go/tls"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
@@ -511,7 +509,11 @@ func entryFromChain(chain []*x509.Certificate, isPrecert bool, timestamp uint64)
 
 // isPreIssuer indicates whether a certificate is a pre-cert issuer with the specific
 // certificate transparency extended key usage.
-// copied form certificate-transparency-go/serialization.go
-func isPreIssuer(issuer *x509.Certificate) bool {
-	return slices.Contains(issuer.ExtKeyUsage, x509.ExtKeyUsageCertificateTransparency)
+func isPreIssuer(cert *x509.Certificate) bool {
+	for _, ext := range cert.Extensions {
+		if types.OIDExtKeyUsageCertificateTransparency.Equal(ext.Id) {
+			return true
+		}
+	}
+	return false
 }
