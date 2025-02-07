@@ -89,34 +89,19 @@ func main() {
 		NotAfterLimit:    notAfterLimit.t,
 	}
 
-	corsMux, err := sctfe.NewCTHTTPServer(ctx, *origin, signer, chainValidationConfig, newGCPStorage, *httpDeadline, *maskInternalErrors)
+	logHandler, err := sctfe.NewLogHandler(ctx, *origin, signer, chainValidationConfig, newGCPStorage, *httpDeadline, *maskInternalErrors)
 	if err != nil {
 		klog.Exitf("Can't initialize CT HTTP Server: %v", err)
 	}
 
 	klog.CopyStandardLogTo("WARNING")
+	klog.Info("**** CT HTTP Server Starting ****")
+	http.Handle("/", logHandler)
 
 	metricsAt := *metricsEndpoint
 	if metricsAt == "" {
 		metricsAt = *httpEndpoint
 	}
-
-	// Return a 200 on the root, for GCE default health checking :/
-	corsMux.HandleFunc("/", func(resp http.ResponseWriter, req *http.Request) {
-		if req.URL.Path == "/" {
-			resp.WriteHeader(http.StatusOK)
-		} else {
-			resp.WriteHeader(http.StatusNotFound)
-		}
-	})
-
-	// Export a healthz target.
-	corsMux.HandleFunc("/healthz", func(resp http.ResponseWriter, req *http.Request) {
-		// TODO(al): Wire this up to tell the truth.
-		if _, err := resp.Write([]byte("ok")); err != nil {
-			klog.Errorf("resp.Write(): %v", err)
-		}
-	})
 
 	if metricsAt != *httpEndpoint {
 		// Run a separate handler for metrics.

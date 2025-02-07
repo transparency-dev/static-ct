@@ -29,7 +29,6 @@ import (
 	"github.com/google/certificate-transparency-go/asn1"
 	"github.com/google/certificate-transparency-go/x509"
 	"github.com/google/certificate-transparency-go/x509util"
-	"github.com/rs/cors"
 	"golang.org/x/mod/sumdb/note"
 	"k8s.io/klog/v2"
 )
@@ -225,11 +224,11 @@ var stringToKeyUsage = map[string]x509.ExtKeyUsage{
 	"NetscapeServerGatedCrypto":  x509.ExtKeyUsageNetscapeServerGatedCrypto,
 }
 
-// NewCTHTTPServer creates a Tessera based CT log pluged into an HTTP server.
+// NewLogHandler creates a Tessera based CT log pluged into HTTP handlers.
 // The HTTP server handlers implement https://c2sp.org/static-ct-api write
 // endpoints.
 // TODO(phboneff): see if we can return an HTTP handler
-func NewCTHTTPServer(ctx context.Context, origin string, signer crypto.Signer, cfg ChainValidationConfig, cs CreateStorage, httpDeadline time.Duration, maskInternalErrors bool) (*http.ServeMux, error) {
+func NewLogHandler(ctx context.Context, origin string, signer crypto.Signer, cfg ChainValidationConfig, cs CreateStorage, httpDeadline time.Duration, maskInternalErrors bool) (http.Handler, error) {
 	log, err := newLog(ctx, origin, signer, cfg, cs)
 	if err != nil {
 		return nil, fmt.Errorf("newLog(): %v", err)
@@ -243,19 +242,11 @@ func NewCTHTTPServer(ctx context.Context, origin string, signer crypto.Signer, c
 	}
 
 	handlers := NewPathHandlers(opts, log)
-
-	klog.Info("**** CT HTTP Server Starting ****")
-	// Allow cross-origin requests to all handlers registered on corsMux.
-	// This is safe for CT log handlers because the log is public and
-	// unauthenticated so cross-site scripting attacks are not a concern.
-	corsMux := http.NewServeMux()
-	corsHandler := cors.AllowAll().Handler(corsMux)
-	http.Handle("/", corsHandler)
-
+	mux := http.NewServeMux()
 	// Register handlers for all the configured logs.
 	for path, handler := range handlers {
-		corsMux.Handle(path, handler)
+		mux.Handle(path, handler)
 	}
 
-	return corsMux, nil
+	return mux, nil
 }
