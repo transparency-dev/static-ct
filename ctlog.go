@@ -20,6 +20,7 @@ import (
 	"crypto/ecdsa"
 	"errors"
 	"fmt"
+	"net/http"
 	"strconv"
 	"strings"
 	"time"
@@ -82,7 +83,12 @@ type log struct {
 	storage Storage
 }
 
-func NewLog(ctx context.Context, origin string, signer crypto.Signer, cfg ChainValidationConfig, ts timeSource, cs CreateStorage) (*log, error) {
+var sysTimeSource = SystemTimeSource{}
+
+// newLog instantiates a new log instance, with write endpoints.
+// It initiates chain validation to validate writes, and storage to persist
+// chains.
+func newLog(ctx context.Context, origin string, signer crypto.Signer, cfg ChainValidationConfig, cs CreateStorage) (*log, error) {
 	log := &log{}
 
 	if origin == "" {
@@ -110,7 +116,7 @@ func NewLog(ctx context.Context, origin string, signer crypto.Signer, cfg ChainV
 	}
 	log.chainValidationOpts = *vlc
 
-	cpSigner, err := newCpSigner(signer, origin, ts)
+	cpSigner, err := newCpSigner(signer, origin, sysTimeSource)
 	if err != nil {
 		klog.Exitf("failed to create checkpoint Signer: %v", err)
 	}
@@ -216,4 +222,30 @@ var stringToKeyUsage = map[string]x509.ExtKeyUsage{
 	"OCSPSigning":                x509.ExtKeyUsageOCSPSigning,
 	"MicrosoftServerGatedCrypto": x509.ExtKeyUsageMicrosoftServerGatedCrypto,
 	"NetscapeServerGatedCrypto":  x509.ExtKeyUsageNetscapeServerGatedCrypto,
+}
+
+// NewLogHandler creates a Tessera based CT log pluged into HTTP handlers.
+// The HTTP server handlers implement https://c2sp.org/static-ct-api write
+// endpoints.
+func NewLogHandler(ctx context.Context, origin string, signer crypto.Signer, cfg ChainValidationConfig, cs CreateStorage, httpDeadline time.Duration, maskInternalErrors bool) (http.Handler, error) {
+	log, err := newLog(ctx, origin, signer, cfg, cs)
+	if err != nil {
+		return nil, fmt.Errorf("newLog(): %v", err)
+	}
+
+	opts := &HandlerOptions{
+		Deadline:           httpDeadline,
+		RequestLog:         &DefaultRequestLog{},
+		MaskInternalErrors: maskInternalErrors,
+		TimeSource:         sysTimeSource,
+	}
+
+	handlers := NewPathHandlers(opts, log)
+	mux := http.NewServeMux()
+	// Register handlers for all the configured logs.
+	for path, handler := range handlers {
+		mux.Handle(path, handler)
+	}
+
+	return mux, nil
 }

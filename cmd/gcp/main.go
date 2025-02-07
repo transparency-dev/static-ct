@@ -29,9 +29,7 @@ import (
 	"time"
 
 	"github.com/google/trillian/monitoring/opencensus"
-	"github.com/google/trillian/monitoring/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/rs/cors"
 	sctfe "github.com/transparency-dev/static-ct"
 	gcpSCTFE "github.com/transparency-dev/static-ct/storage/gcp"
 	tessera "github.com/transparency-dev/trillian-tessera"
@@ -76,7 +74,6 @@ func main() {
 	flag.Parse()
 	ctx := context.Background()
 
-	timeSource := sctfe.SystemTimeSource{}
 	signer, err := NewSecretManagerSigner(ctx, *signerPublicKeySecretName, *signerPrivateKeySecretName)
 	if err != nil {
 		klog.Exitf("Can't create secret manager signer: %v", err)
@@ -92,57 +89,19 @@ func main() {
 		NotAfterLimit:    notAfterLimit.t,
 	}
 
-	log, err := sctfe.NewLog(ctx, *origin, signer, chainValidationConfig, timeSource, newGCPStorage)
+	logHandler, err := sctfe.NewLogHandler(ctx, *origin, signer, chainValidationConfig, newGCPStorage, *httpDeadline, *maskInternalErrors)
 	if err != nil {
-		klog.Exitf("Invalid log config: %v", err)
+		klog.Exitf("Can't initialize CT HTTP Server: %v", err)
 	}
-
-	opts := &sctfe.HandlerOptions{
-		Deadline:           *httpDeadline,
-		MetricFactory:      prometheus.MetricFactory{},
-		RequestLog:         &sctfe.DefaultRequestLog{},
-		MaskInternalErrors: *maskInternalErrors,
-		TimeSource:         timeSource,
-	}
-
-	handlers := sctfe.NewPathHandlers(opts, log)
 
 	klog.CopyStandardLogTo("WARNING")
 	klog.Info("**** CT HTTP Server Starting ****")
+	http.Handle("/", logHandler)
 
 	metricsAt := *metricsEndpoint
 	if metricsAt == "" {
 		metricsAt = *httpEndpoint
 	}
-
-	// Allow cross-origin requests to all handlers registered on corsMux.
-	// This is safe for CT log handlers because the log is public and
-	// unauthenticated so cross-site scripting attacks are not a concern.
-	corsMux := http.NewServeMux()
-	corsHandler := cors.AllowAll().Handler(corsMux)
-	http.Handle("/", corsHandler)
-
-	// Register handlers for all the configured logs.
-	for path, handler := range handlers {
-		corsMux.Handle(path, handler)
-	}
-
-	// Return a 200 on the root, for GCE default health checking :/
-	corsMux.HandleFunc("/", func(resp http.ResponseWriter, req *http.Request) {
-		if req.URL.Path == "/" {
-			resp.WriteHeader(http.StatusOK)
-		} else {
-			resp.WriteHeader(http.StatusNotFound)
-		}
-	})
-
-	// Export a healthz target.
-	corsMux.HandleFunc("/healthz", func(resp http.ResponseWriter, req *http.Request) {
-		// TODO(al): Wire this up to tell the truth.
-		if _, err := resp.Write([]byte("ok")); err != nil {
-			klog.Errorf("resp.Write(): %v", err)
-		}
-	})
 
 	if metricsAt != *httpEndpoint {
 		// Run a separate handler for metrics.

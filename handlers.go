@@ -172,6 +172,7 @@ func NewPathHandlers(opts *HandlerOptions, log *log) pathHandlers {
 	prefix := strings.TrimRight(log.origin, "/")
 
 	// Bind each endpoint to an appHandler instance.
+	// TODO(phboneff): try and get rid of PathHandlers and appHandler
 	ph := pathHandlers{
 		prefix + ct.AddChainPath:    appHandler{opts: opts, log: log, handler: addChain, name: addChainName, method: http.MethodPost},
 		prefix + ct.AddPreChainPath: appHandler{opts: opts, log: log, handler: addPreChain, name: addPreChainName, method: http.MethodPost},
