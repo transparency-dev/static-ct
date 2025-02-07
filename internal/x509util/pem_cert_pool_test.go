@@ -102,7 +102,7 @@ func parsePEM(t *testing.T, pemCert string) *x509.Certificate {
 	}
 
 	cert, err := x509.ParseCertificate(block.Bytes)
-	if x509.IsFatal(err) {
+	if err != nil {
 		t.Fatalf("Failed to parse PEM certificate: %v", err)
 	}
 	return cert

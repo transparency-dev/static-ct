@@ -15,6 +15,7 @@
 package scti
 
 import (
+	"crypto/md5"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/asn1"
@@ -691,7 +692,7 @@ func TestPreIssuedCert(t *testing.T) {
 				t.Fatalf("failed to ValidateChain: %v", err)
 			}
 			for i, c := range chain {
-				t.Logf("chain[%d] = \n%s", i, x509util.CertificateToString(c))
+				t.Logf("chain[%d] = \n%s", i, md5.Sum(c.Raw))
 			}
 		})
 	}
