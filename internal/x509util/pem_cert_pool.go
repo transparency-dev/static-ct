@@ -79,7 +79,7 @@ func (p *PEMCertPool) AppendCertsFromPEM(pemCerts []byte) (ok bool) {
 		}
 
 		cert, err := x509.ParseCertificate(block.Bytes)
-		if x509.IsFatal(err) {
+		if err != nil {
 			klog.Warningf("error parsing PEM certificate: %v", err)
 			return false
 		}
