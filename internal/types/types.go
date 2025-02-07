@@ -46,6 +46,7 @@ const (
 
 // OIDExtensionCTPoison is defined in RFC 6962 s3.1.
 var OIDExtensionCTPoison = asn1.ObjectIdentifier{1, 3, 6, 1, 4, 1, 11129, 2, 4, 3}
+var OIDExtKeyUsageCertificateTransparency = asn1.ObjectIdentifier{1, 3, 6, 1, 4, 1, 11129, 2, 4, 4}
 
 // MerkleLeafType represents the MerkleLeafType enum from section 3.4:
 //
