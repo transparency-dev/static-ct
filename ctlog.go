@@ -227,7 +227,6 @@ var stringToKeyUsage = map[string]x509.ExtKeyUsage{
 // NewLogHandler creates a Tessera based CT log pluged into HTTP handlers.
 // The HTTP server handlers implement https://c2sp.org/static-ct-api write
 // endpoints.
-// TODO(phboneff): see if we can return an HTTP handler
 func NewLogHandler(ctx context.Context, origin string, signer crypto.Signer, cfg ChainValidationConfig, cs CreateStorage, httpDeadline time.Duration, maskInternalErrors bool) (http.Handler, error) {
 	log, err := newLog(ctx, origin, signer, cfg, cs)
 	if err != nil {
