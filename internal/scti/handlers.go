@@ -509,10 +509,9 @@ func entryFromChain(chain []*x509.Certificate, isPrecert bool, timestamp uint64)
 
 // isPreIssuer indicates whether a certificate is a pre-cert issuer with the specific
 // certificate transparency extended key usage.
-// copied form certificate-transparency-go/serialization.go
-func isPreIssuer(issuer *x509.Certificate) bool {
-	for _, eku := range issuer.ExtKeyUsage {
-		if eku == x509.ExtKeyUsageCertificateTransparency {
+func isPreIssuer(cert *x509.Certificate) bool {
+	for _, ext := range cert.Extensions {
+		if types.OIDExtKeyUsageCertificateTransparency.Equal(ext.Id) {
 			return true
 		}
 	}
