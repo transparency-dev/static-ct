@@ -69,33 +69,6 @@ var (
 	rspLatency       monitoring.Histogram // origin, ep, rc => value
 )
 
-// Log provides objects and functions to implement static-ct-api write api.
-// TODO(phboneff): consider moving to methods.
-type Log struct {
-	// Origin identifies the log. It will be used in its checkpoint, and
-	// is also its submission prefix, as per https://c2sp.org/static-ct-api.
-	Origin string
-	// SignSCT Signs SCTs.
-	SignSCT SignSCT
-	// ChainValidationOpts contains various parameters for certificate chain
-	// validation.
-	ChainValidationOpts ChainValidationOpts
-	// Storage stores certificate data.
-	Storage Storage
-}
-
-// Storage provides functions to store certificates in a static-ct-api log.
-type Storage interface {
-	// Add assigns an index to the provided Entry, stages the entry for integration, and returns a future for the assigned index.
-	Add(context.Context, *ctonly.Entry) tessera.IndexFuture
-	// AddIssuerChain stores every the chain certificate in a content-addressable store under their sha256 hash.
-	AddIssuerChain(context.Context, []*x509.Certificate) error
-	// AddCertDedupInfo stores the SCTDedupInfo of certificate in a log under its hash.
-	AddCertDedupInfo(context.Context, *x509.Certificate, dedup.SCTDedupInfo) error
-	// GetCertDedupInfo gets the SCTDedupInfo of certificate in a log from its hash.
-	GetCertDedupInfo(context.Context, *x509.Certificate) (dedup.SCTDedupInfo, bool, error)
-}
-
 // setupMetrics initializes all the exported metrics.
 func setupMetrics(mf monitoring.MetricFactory) {
 	knownLogs = mf.NewGauge("known_logs", "Set to 1 for known logs", "logid")
@@ -108,15 +81,15 @@ func setupMetrics(mf monitoring.MetricFactory) {
 // entrypoints is a list of entrypoint names as exposed in statistics/logging.
 var entrypoints = []entrypointName{addChainName, addPreChainName, getRootsName}
 
-// PathHandlers maps from a path to the relevant AppHandler instance.
-type PathHandlers map[string]appHandler
+// pathHandlers maps from a path to the relevant AppHandler instance.
+type pathHandlers map[string]appHandler
 
 // appHandler connects an HTTP static-ct-api endpoint with log storage.
 // It is an implementation of the http.Handler interface.
 type appHandler struct {
-	log     *Log
+	log     *log
 	opts    *HandlerOptions
-	handler func(context.Context, *HandlerOptions, *Log, http.ResponseWriter, *http.Request) (int, error)
+	handler func(context.Context, *HandlerOptions, *log, http.ResponseWriter, *http.Request) (int, error)
 	name    entrypointName
 	method  string // http.MethodGet or http.MethodPost
 }
@@ -125,20 +98,20 @@ type appHandler struct {
 // does additional common error and stats processing.
 func (a appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var statusCode int
-	label0 := a.log.Origin
+	label0 := a.log.origin
 	label1 := string(a.name)
 	reqsCounter.Inc(label0, label1)
 	startTime := a.opts.TimeSource.Now()
 	logCtx := a.opts.RequestLog.start(r.Context())
-	a.opts.RequestLog.origin(logCtx, a.log.Origin)
+	a.opts.RequestLog.origin(logCtx, a.log.origin)
 	defer func() {
 		latency := a.opts.TimeSource.Now().Sub(startTime).Seconds()
 		rspLatency.Observe(latency, label0, label1, strconv.Itoa(statusCode))
 	}()
-	klog.V(2).Infof("%s: request %v %q => %s", a.log.Origin, r.Method, r.URL, a.name)
+	klog.V(2).Infof("%s: request %v %q => %s", a.log.origin, r.Method, r.URL, a.name)
 	// TODO(phboneff): add a.Method directly on the handler path and remove this test.
 	if r.Method != a.method {
-		klog.Warningf("%s: %s wrong HTTP method: %v", a.log.Origin, a.name, r.Method)
+		klog.Warningf("%s: %s wrong HTTP method: %v", a.log.origin, a.name, r.Method)
 		a.opts.sendHTTPError(w, http.StatusMethodNotAllowed, fmt.Errorf("method not allowed: %s", r.Method))
 		a.opts.RequestLog.status(logCtx, http.StatusMethodNotAllowed)
 		return
@@ -161,17 +134,17 @@ func (a appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var err error
 	statusCode, err = a.handler(ctx, a.opts, a.log, w, r)
 	a.opts.RequestLog.status(ctx, statusCode)
-	klog.V(2).Infof("%s: %s <= st=%d", a.log.Origin, a.name, statusCode)
+	klog.V(2).Infof("%s: %s <= st=%d", a.log.origin, a.name, statusCode)
 	rspsCounter.Inc(label0, label1, strconv.Itoa(statusCode))
 	if err != nil {
-		klog.Warningf("%s: %s handler error: %v", a.log.Origin, a.name, err)
+		klog.Warningf("%s: %s handler error: %v", a.log.origin, a.name, err)
 		a.opts.sendHTTPError(w, statusCode, err)
 		return
 	}
 
 	// Additional check, for consistency the handler must return an error for non-200 st
 	if statusCode != http.StatusOK {
-		klog.Warningf("%s: %s handler non 200 without error: %d %v", a.log.Origin, a.name, statusCode, err)
+		klog.Warningf("%s: %s handler non 200 without error: %d %v", a.log.origin, a.name, statusCode, err)
 		a.opts.sendHTTPError(w, http.StatusInternalServerError, fmt.Errorf("http handler misbehaved, st: %d", statusCode))
 		return
 	}
@@ -192,15 +165,15 @@ type HandlerOptions struct {
 	TimeSource TimeSource
 }
 
-func NewPathHandlers(opts *HandlerOptions, log *Log) PathHandlers {
+func NewPathHandlers(opts *HandlerOptions, log *log) pathHandlers {
 	once.Do(func() { setupMetrics(opts.MetricFactory) })
-	knownLogs.Set(1.0, log.Origin)
+	knownLogs.Set(1.0, log.origin)
 
-	prefix := strings.TrimRight(log.Origin, "/")
+	prefix := strings.TrimRight(log.origin, "/")
 
 	// Bind each endpoint to an appHandler instance.
 	// TODO(phboneff): try and get rid of PathHandlers and appHandler
-	ph := PathHandlers{
+	ph := pathHandlers{
 		prefix + ct.AddChainPath:    appHandler{opts: opts, log: log, handler: addChain, name: addChainName, method: http.MethodPost},
 		prefix + ct.AddPreChainPath: appHandler{opts: opts, log: log, handler: addPreChain, name: addPreChainName, method: http.MethodPost},
 		prefix + ct.GetRootsPath:    appHandler{opts: opts, log: log, handler: getRoots, name: getRootsName, method: http.MethodGet},
@@ -243,7 +216,7 @@ func parseBodyAsJSONChain(r *http.Request) (ct.AddChainRequest, error) {
 
 // addChainInternal is called by add-chain and add-pre-chain as the logic involved in
 // processing these requests is almost identical
-func addChainInternal(ctx context.Context, opts *HandlerOptions, log *Log, w http.ResponseWriter, r *http.Request, isPrecert bool) (int, error) {
+func addChainInternal(ctx context.Context, opts *HandlerOptions, log *log, w http.ResponseWriter, r *http.Request, isPrecert bool) (int, error) {
 	var method entrypointName
 	if isPrecert {
 		method = addPreChainName
@@ -254,7 +227,7 @@ func addChainInternal(ctx context.Context, opts *HandlerOptions, log *Log, w htt
 	// Check the contents of the request and convert to slice of certificates.
 	addChainReq, err := parseBodyAsJSONChain(r)
 	if err != nil {
-		return http.StatusBadRequest, fmt.Errorf("%s: failed to parse add-chain body: %s", log.Origin, err)
+		return http.StatusBadRequest, fmt.Errorf("%s: failed to parse add-chain body: %s", log.origin, err)
 	}
 	// Log the DERs now because they might not parse as valid X.509.
 	for _, der := range addChainReq.Chain {
@@ -277,23 +250,23 @@ func addChainInternal(ctx context.Context, opts *HandlerOptions, log *Log, w htt
 		return http.StatusBadRequest, fmt.Errorf("failed to build MerkleTreeLeaf: %s", err)
 	}
 
-	klog.V(2).Infof("%s: %s => storage.GetCertIndex", log.Origin, method)
-	sctDedupInfo, isDup, err := log.Storage.GetCertDedupInfo(ctx, chain[0])
+	klog.V(2).Infof("%s: %s => storage.GetCertIndex", log.origin, method)
+	sctDedupInfo, isDup, err := log.storage.GetCertDedupInfo(ctx, chain[0])
 	idx := sctDedupInfo.Idx
 	if err != nil {
 		return http.StatusInternalServerError, fmt.Errorf("couldn't deduplicate the request: %s", err)
 	}
 
 	if isDup {
-		klog.V(3).Infof("%s: %s - found duplicate entry at index %d", log.Origin, method, idx)
+		klog.V(3).Infof("%s: %s - found duplicate entry at index %d", log.origin, method, idx)
 		entry.Timestamp = sctDedupInfo.Timestamp
 	} else {
-		if err := log.Storage.AddIssuerChain(ctx, chain[1:]); err != nil {
+		if err := log.storage.AddIssuerChain(ctx, chain[1:]); err != nil {
 			return http.StatusInternalServerError, fmt.Errorf("failed to store issuer chain: %s", err)
 		}
 
-		klog.V(2).Infof("%s: %s => storage.Add", log.Origin, method)
-		idx, err = log.Storage.Add(ctx, entry)()
+		klog.V(2).Infof("%s: %s => storage.Add", log.origin, method)
+		idx, err = log.storage.Add(ctx, entry)()
 		if err != nil {
 			if errors.Is(err, tessera.ErrPushback) {
 				w.Header().Add("Retry-After", "1")
@@ -304,8 +277,8 @@ func addChainInternal(ctx context.Context, opts *HandlerOptions, log *Log, w htt
 		// We store the index for this certificate in the deduplication storage immediately.
 		// It might be stored again later, if a local deduplication storage is synced, potentially
 		// with a smaller value.
-		klog.V(2).Infof("%s: %s => storage.AddCertIndex", log.Origin, method)
-		err = log.Storage.AddCertDedupInfo(ctx, chain[0], dedup.SCTDedupInfo{Idx: idx, Timestamp: entry.Timestamp})
+		klog.V(2).Infof("%s: %s => storage.AddCertIndex", log.origin, method)
+		err = log.storage.AddCertDedupInfo(ctx, chain[0], dedup.SCTDedupInfo{Idx: idx, Timestamp: entry.Timestamp})
 		// TODO: block log writes if deduplication breaks
 		if err != nil {
 			klog.Warningf("AddCertIndex(): failed to store certificate index: %v", err)
@@ -324,7 +297,7 @@ func addChainInternal(ctx context.Context, opts *HandlerOptions, log *Log, w htt
 	// As the Log server has definitely got the Merkle tree leaf, we can
 	// generate an SCT and respond with it.
 	// TODO(phboneff): this should work, but double check
-	sct, err := log.SignSCT(&loggedLeaf)
+	sct, err := log.signSCT(&loggedLeaf)
 	if err != nil {
 		return http.StatusInternalServerError, fmt.Errorf("failed to generate SCT: %s", err)
 	}
@@ -339,26 +312,26 @@ func addChainInternal(ctx context.Context, opts *HandlerOptions, log *Log, w htt
 		// reason is logged and http status is already set
 		return http.StatusInternalServerError, fmt.Errorf("failed to write response: %s", err)
 	}
-	klog.V(3).Infof("%s: %s <= SCT", log.Origin, method)
+	klog.V(3).Infof("%s: %s <= SCT", log.origin, method)
 	if sct.Timestamp == timeMillis {
-		lastSCTTimestamp.Set(float64(sct.Timestamp), log.Origin)
+		lastSCTTimestamp.Set(float64(sct.Timestamp), log.origin)
 	}
 
 	return http.StatusOK, nil
 }
 
-func addChain(ctx context.Context, opts *HandlerOptions, log *Log, w http.ResponseWriter, r *http.Request) (int, error) {
+func addChain(ctx context.Context, opts *HandlerOptions, log *log, w http.ResponseWriter, r *http.Request) (int, error) {
 	return addChainInternal(ctx, opts, log, w, r, false)
 }
 
-func addPreChain(ctx context.Context, opts *HandlerOptions, log *Log, w http.ResponseWriter, r *http.Request) (int, error) {
+func addPreChain(ctx context.Context, opts *HandlerOptions, log *log, w http.ResponseWriter, r *http.Request) (int, error) {
 	return addChainInternal(ctx, opts, log, w, r, true)
 }
 
-func getRoots(_ context.Context, opts *HandlerOptions, log *Log, w http.ResponseWriter, _ *http.Request) (int, error) {
+func getRoots(_ context.Context, opts *HandlerOptions, log *log, w http.ResponseWriter, _ *http.Request) (int, error) {
 	// Pull out the raw certificates from the parsed versions
-	rawCerts := make([][]byte, 0, len(log.ChainValidationOpts.TrustedRoots.RawCertificates()))
-	for _, cert := range log.ChainValidationOpts.TrustedRoots.RawCertificates() {
+	rawCerts := make([][]byte, 0, len(log.chainValidationOpts.TrustedRoots.RawCertificates()))
+	for _, cert := range log.chainValidationOpts.TrustedRoots.RawCertificates() {
 		rawCerts = append(rawCerts, cert.Raw)
 	}
 
@@ -367,7 +340,7 @@ func getRoots(_ context.Context, opts *HandlerOptions, log *Log, w http.Response
 	enc := json.NewEncoder(w)
 	err := enc.Encode(jsonMap)
 	if err != nil {
-		klog.Warningf("%s: get_roots failed: %v", log.Origin, err)
+		klog.Warningf("%s: get_roots failed: %v", log.origin, err)
 		return http.StatusInternalServerError, fmt.Errorf("get-roots failed with: %s", err)
 	}
 
@@ -381,9 +354,9 @@ func deadlineTime(opts *HandlerOptions) time.Time {
 
 // verifyAddChain is used by add-chain and add-pre-chain. It does the checks that the supplied
 // cert is of the correct type and chains to a trusted root.
-func verifyAddChain(log *Log, req ct.AddChainRequest, expectingPrecert bool) ([]*x509.Certificate, error) {
+func verifyAddChain(log *log, req ct.AddChainRequest, expectingPrecert bool) ([]*x509.Certificate, error) {
 	// We already checked that the chain is not empty so can move on to verification
-	validPath, err := validateChain(req.Chain, log.ChainValidationOpts)
+	validPath, err := validateChain(req.Chain, log.chainValidationOpts)
 	if err != nil {
 		// We rejected it because the cert failed checks or we could not find a path to a root etc.
 		// Lots of possible causes for errors
@@ -398,9 +371,9 @@ func verifyAddChain(log *Log, req ct.AddChainRequest, expectingPrecert bool) ([]
 	// The type of the leaf must match the one the handler expects
 	if isPrecert != expectingPrecert {
 		if expectingPrecert {
-			klog.Warningf("%s: Cert (or precert with invalid CT ext) submitted as precert chain: %q", log.Origin, req.Chain)
+			klog.Warningf("%s: Cert (or precert with invalid CT ext) submitted as precert chain: %q", log.origin, req.Chain)
 		} else {
-			klog.Warningf("%s: Precert (or cert with invalid CT ext) submitted as cert chain: %q", log.Origin, req.Chain)
+			klog.Warningf("%s: Precert (or cert with invalid CT ext) submitted as cert chain: %q", log.origin, req.Chain)
 		}
 		return nil, fmt.Errorf("cert / precert mismatch: %T", expectingPrecert)
 	}

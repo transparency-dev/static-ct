@@ -15,15 +15,9 @@
 package sctfe
 
 import (
-	"context"
-	"crypto"
 	"strings"
 	"testing"
 	"time"
-
-	"github.com/google/trillian/crypto/keys/pem"
-	"github.com/transparency-dev/static-ct/storage"
-	"golang.org/x/mod/sumdb/note"
 )
 
 func TestNewCertValidationOpts(t *testing.T) {
@@ -147,52 +141,6 @@ func TestNewCertValidationOpts(t *testing.T) {
 			}
 			if err == nil && vc == nil {
 				t.Error("err and ValidatedLogConfig are both nil")
-			}
-		})
-	}
-}
-
-func TestNewLog(t *testing.T) {
-	ctx := context.Background()
-	signer, err := pem.ReadPrivateKeyFile("./internal/testdata/ct-http-server.privkey.pem", "dirk")
-	if err != nil {
-		t.Fatalf("Can't open key: %v", err)
-	}
-
-	for _, tc := range []struct {
-		desc    string
-		origin  string
-		wantErr string
-		cvcfg   ChainValidationConfig
-		signer  crypto.Signer
-	}{
-		{
-			desc:    "empty-origin",
-			wantErr: "empty origin",
-		},
-		// TODO(phboneff): add a test for a signer of the wrong type
-		{
-			desc:   "ok",
-			origin: "testlog",
-			cvcfg: ChainValidationConfig{
-				RootsPEMFile: "./internal/testdata/fake-ca.cert",
-			},
-			signer: signer,
-		},
-	} {
-		t.Run(tc.desc, func(t *testing.T) {
-			log, err := newLog(ctx, tc.origin, tc.signer, tc.cvcfg,
-				func(_ context.Context, _ note.Signer) (*storage.CTStorage, error) {
-					return &storage.CTStorage{}, nil
-				})
-			if len(tc.wantErr) == 0 && err != nil {
-				t.Errorf("NewLog()=%v, want nil", err)
-			}
-			if len(tc.wantErr) > 0 && (err == nil || !strings.Contains(err.Error(), tc.wantErr)) {
-				t.Errorf("NewLog()=%v, want err containing %q", err, tc.wantErr)
-			}
-			if err == nil && log == nil {
-				t.Error("err and log are both nil")
 			}
 		})
 	}

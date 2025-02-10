@@ -18,12 +18,72 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/google/certificate-transparency-go/asn1"
 	"github.com/google/certificate-transparency-go/x509"
 	"github.com/google/certificate-transparency-go/x509util"
+	"k8s.io/klog/v2"
 )
+
+var stringToKeyUsage = map[string]x509.ExtKeyUsage{
+	"Any":                        x509.ExtKeyUsageAny,
+	"ServerAuth":                 x509.ExtKeyUsageServerAuth,
+	"ClientAuth":                 x509.ExtKeyUsageClientAuth,
+	"CodeSigning":                x509.ExtKeyUsageCodeSigning,
+	"EmailProtection":            x509.ExtKeyUsageEmailProtection,
+	"IPSECEndSystem":             x509.ExtKeyUsageIPSECEndSystem,
+	"IPSECTunnel":                x509.ExtKeyUsageIPSECTunnel,
+	"IPSECUser":                  x509.ExtKeyUsageIPSECUser,
+	"TimeStamping":               x509.ExtKeyUsageTimeStamping,
+	"OCSPSigning":                x509.ExtKeyUsageOCSPSigning,
+	"MicrosoftServerGatedCrypto": x509.ExtKeyUsageMicrosoftServerGatedCrypto,
+	"NetscapeServerGatedCrypto":  x509.ExtKeyUsageNetscapeServerGatedCrypto,
+}
+
+// ParseExtKeyUsages parses strings into x509ExtKeyUsage.
+// Throws an error if the string does not match with a known key usage.
+// TODO(phboneff): add tests
+func ParseExtKeyUsages(kus []string) ([]x509.ExtKeyUsage, error) {
+	lExtKeyUsages := make([]x509.ExtKeyUsage, 0, len(kus))
+	// Validate the extended key usages list.
+	for _, kuStr := range kus {
+		if ku, ok := stringToKeyUsage[kuStr]; ok {
+			// If "Any" is specified, then we can ignore the entire list and
+			// just disable EKU checking.
+			if ku == x509.ExtKeyUsageAny {
+				klog.Info("Found ExtKeyUsageAny, allowing all EKUs")
+				lExtKeyUsages = nil
+				break
+			}
+			lExtKeyUsages = append(lExtKeyUsages, ku)
+		} else {
+			return nil, fmt.Errorf("unknown extended key usage: %s", kuStr)
+		}
+	}
+	return lExtKeyUsages, nil
+}
+
+// ParseOIDs parses strings of dot seaparated numbers into OIDs.
+// TODO(phboneff): add tests
+func ParseOIDs(oids []string) ([]asn1.ObjectIdentifier, error) {
+	ret := make([]asn1.ObjectIdentifier, 0, len(oids))
+	for _, s := range oids {
+		bits := strings.Split(s, ".")
+		var oid asn1.ObjectIdentifier
+		for _, n := range bits {
+			p, err := strconv.Atoi(n)
+			if err != nil {
+				return nil, err
+			}
+			oid = append(oid, p)
+		}
+		ret = append(ret, oid)
+	}
+	return ret, nil
+}
 
 // ChainValidationOpts contains various parameters for certificate chain validation
 type ChainValidationOpts struct {
@@ -71,6 +131,7 @@ func isPrecertificate(cert *x509.Certificate) (bool, error) {
 // end entity certificate in the chain to a trusted root cert, possibly using the intermediates
 // supplied in the chain. Then applies the RFC requirement that the path must involve all
 // the submitted chain in the order of submission.
+// TODO(phboneff): make this a method func([][]byte) ([]*x509.Certificate, error)
 func validateChain(rawChain [][]byte, validationOpts ChainValidationOpts) ([]*x509.Certificate, error) {
 	// First make sure the certs parse as X.509
 	chain := make([]*x509.Certificate, 0, len(rawChain))

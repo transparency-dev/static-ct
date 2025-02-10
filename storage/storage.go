@@ -25,8 +25,12 @@ import (
 	"github.com/transparency-dev/static-ct/modules/dedup"
 	tessera "github.com/transparency-dev/trillian-tessera"
 	"github.com/transparency-dev/trillian-tessera/ctonly"
+	"golang.org/x/mod/sumdb/note"
 	"k8s.io/klog/v2"
 )
+
+// CreateStorage instantiates a Tessera storage implementation with a signer option.
+type CreateStorage func(context.Context, note.Signer) (*CTStorage, error)
 
 const (
 	// Each key is 64 bytes long, so this will take up to 64MB.
