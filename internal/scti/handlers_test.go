@@ -102,7 +102,7 @@ func setupTest(t *testing.T, pemRoots []string, signer crypto.Signer) handlerTes
 		TimeSource:    fakeTimeSource,
 	}
 	signSCT := func(leaf *ct.MerkleTreeLeaf) (*ct.SignedCertificateTimestamp, error) {
-		return BuildV1SCT(signer, leaf)
+		return buildV1SCT(signer, leaf)
 	}
 	log := log{
 		storage:             info.storage,

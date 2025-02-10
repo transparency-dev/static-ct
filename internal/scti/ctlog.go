@@ -23,7 +23,7 @@ type log struct {
 	// is also its submission prefix, as per https://c2sp.org/static-ct-api.
 	origin string
 	// signSCT Signs SCTs.
-	signSCT SignSCT
+	signSCT signSCT
 	// chainValidationOpts contains various parameters for certificate chain
 	// validation.
 	chainValidationOpts ChainValidationOpts
@@ -65,7 +65,7 @@ func NewLog(ctx context.Context, origin string, signer crypto.Signer, cvOpts Cha
 	}
 
 	log.signSCT = func(leaf *ct.MerkleTreeLeaf) (*ct.SignedCertificateTimestamp, error) {
-		return BuildV1SCT(signer, leaf)
+		return buildV1SCT(signer, leaf)
 	}
 
 	log.chainValidationOpts = cvOpts

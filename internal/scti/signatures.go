@@ -32,11 +32,11 @@ import (
 
 const nanosPerMilli int64 = int64(time.Millisecond / time.Nanosecond)
 
-// SignSCT builds an SCT for a leaf.
-type SignSCT func(leaf *ct.MerkleTreeLeaf) (*ct.SignedCertificateTimestamp, error)
+// signSCT builds an SCT for a leaf.
+type signSCT func(leaf *ct.MerkleTreeLeaf) (*ct.SignedCertificateTimestamp, error)
 
 // TODO(phboneff): create an SCTSigner object
-func BuildV1SCT(signer crypto.Signer, leaf *ct.MerkleTreeLeaf) (*ct.SignedCertificateTimestamp, error) {
+func buildV1SCT(signer crypto.Signer, leaf *ct.MerkleTreeLeaf) (*ct.SignedCertificateTimestamp, error) {
 	// Serialize SCT signature input to get the bytes that need to be signed
 	sctInput := ct.SignedCertificateTimestamp{
 		SCTVersion: ct.V1,
