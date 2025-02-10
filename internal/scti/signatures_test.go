@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package sctfe
+package scti
 
 import (
 	"bytes"
@@ -26,7 +26,7 @@ import (
 	"github.com/google/certificate-transparency-go/x509"
 	"github.com/google/certificate-transparency-go/x509util"
 	"github.com/kylelemons/godebug/pretty"
-	"github.com/transparency-dev/static-ct/testdata"
+	"github.com/transparency-dev/static-ct/internal/testdata"
 
 	ct "github.com/google/certificate-transparency-go"
 )

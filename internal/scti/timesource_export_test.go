@@ -12,21 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package sctfe
+package scti
 
 import "time"
 
-// timeSource can provide the current time, or be replaced by a mock in tests to return
-// specific values.
-type timeSource interface {
-	// Now returns the current time in real implementations or a suitable value in others
-	Now() time.Time
+// FixedTimeSource provides a fixed time for use in tests.
+// It should not be used in production code.
+type FixedTimeSource struct {
+	fakeTime time.Time
 }
 
-// SystemTimeSource provides the current system local time
-type SystemTimeSource struct{}
+// NewFixedTimeSource creates a FixedTimeSource instance
+func NewFixedTimeSource(t time.Time) *FixedTimeSource {
+	return &FixedTimeSource{fakeTime: t}
+}
 
-// Now returns the true current local time.
-func (s SystemTimeSource) Now() time.Time {
-	return time.Now()
+// Now returns the time value this instance contains
+func (f *FixedTimeSource) Now() time.Time {
+	return f.fakeTime
 }

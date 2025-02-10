@@ -17,20 +17,17 @@ package sctfe
 import (
 	"context"
 	"crypto"
-	"crypto/ecdsa"
 	"errors"
 	"fmt"
 	"net/http"
-	"strconv"
 	"strings"
 	"time"
 
-	ct "github.com/google/certificate-transparency-go"
 	"github.com/google/certificate-transparency-go/asn1"
 	"github.com/google/certificate-transparency-go/x509"
 	"github.com/google/certificate-transparency-go/x509util"
-	"golang.org/x/mod/sumdb/note"
-	"k8s.io/klog/v2"
+	"github.com/transparency-dev/static-ct/internal/scti"
+	"github.com/transparency-dev/static-ct/storage"
 )
 
 // ChainValidationConfig contains parameters to configure chain validation.
@@ -65,74 +62,19 @@ type ChainValidationConfig struct {
 	NotAfterLimit *time.Time
 }
 
-// CreateStorage instantiates a Tessera storage implementation with a signer option.
-type CreateStorage func(context.Context, note.Signer) (*CTStorage, error)
+// systemTimeSource implments scti.TimeSource.
+type systemTimeSource struct{}
 
-// log offers all the primitives necessary to run a static-ct-api log.
-// TODO(phboneff): consider moving to methods when refactoring logInfo.
-type log struct {
-	// origin identifies the log. It will be used in its checkpoint, and
-	// is also its submission prefix, as per https://c2sp.org/static-ct-api.
-	origin string
-	// signSCT Signs SCTs.
-	signSCT signSCT
-	// chainValidationOpts contains various parameters for certificate chain
-	// validation.
-	chainValidationOpts chainValidationOpts
-	// storage stores certificate data.
-	storage Storage
+// Now returns the true current local time.
+func (s systemTimeSource) Now() time.Time {
+	return time.Now()
 }
 
-var sysTimeSource = SystemTimeSource{}
-
-// newLog instantiates a new log instance, with write endpoints.
-// It initiates chain validation to validate writes, and storage to persist
-// chains.
-func newLog(ctx context.Context, origin string, signer crypto.Signer, cfg ChainValidationConfig, cs CreateStorage) (*log, error) {
-	log := &log{}
-
-	if origin == "" {
-		return nil, errors.New("empty origin")
-	}
-	log.origin = origin
-
-	// Validate signer that only ECDSA is supported.
-	if signer == nil {
-		return nil, errors.New("empty signer")
-	}
-	switch keyType := signer.Public().(type) {
-	case *ecdsa.PublicKey:
-	default:
-		return nil, fmt.Errorf("unsupported key type: %v", keyType)
-	}
-
-	log.signSCT = func(leaf *ct.MerkleTreeLeaf) (*ct.SignedCertificateTimestamp, error) {
-		return buildV1SCT(signer, leaf)
-	}
-
-	vlc, err := newCertValidationOpts(cfg)
-	if err != nil {
-		return nil, fmt.Errorf("invalid cert validation config: %v", err)
-	}
-	log.chainValidationOpts = *vlc
-
-	cpSigner, err := newCpSigner(signer, origin, sysTimeSource)
-	if err != nil {
-		klog.Exitf("failed to create checkpoint Signer: %v", err)
-	}
-
-	storage, err := cs(ctx, cpSigner)
-	if err != nil {
-		klog.Exitf("failed to initiate storage backend: %v", err)
-	}
-	log.storage = storage
-
-	return log, nil
-}
+var sysTimeSource = systemTimeSource{}
 
 // newCertValidationOpts checks that a chain validation config is valid,
 // parses it, and loads resources to validate chains.
-func newCertValidationOpts(cfg ChainValidationConfig) (*chainValidationOpts, error) {
+func newCertValidationOpts(cfg ChainValidationConfig) (*scti.ChainValidationOpts, error) {
 	// Load the trusted roots.
 	if cfg.RootsPEMFile == "" {
 		return nil, errors.New("empty rootsPemFile")
@@ -151,96 +93,52 @@ func newCertValidationOpts(cfg ChainValidationConfig) (*chainValidationOpts, err
 		return nil, fmt.Errorf("'Not After' limit %q before start %q", cfg.NotAfterLimit.Format(time.RFC3339), cfg.NotAfterStart.Format(time.RFC3339))
 	}
 
-	validationOpts := chainValidationOpts{
-		trustedRoots:    roots,
-		rejectExpired:   cfg.RejectExpired,
-		rejectUnexpired: cfg.RejectUnexpired,
-		notAfterStart:   cfg.NotAfterStart,
-		notAfterLimit:   cfg.NotAfterLimit,
-	}
-
+	var err error
+	var extKeyUsages []x509.ExtKeyUsage
 	// Filter which extended key usages are allowed.
-	lExtKeyUsages := []string{}
 	if cfg.ExtKeyUsages != "" {
-		lExtKeyUsages = strings.Split(cfg.ExtKeyUsages, ",")
-	}
-	// Validate the extended key usages list.
-	for _, kuStr := range lExtKeyUsages {
-		if ku, ok := stringToKeyUsage[kuStr]; ok {
-			// If "Any" is specified, then we can ignore the entire list and
-			// just disable EKU checking.
-			if ku == x509.ExtKeyUsageAny {
-				klog.Info("Found ExtKeyUsageAny, allowing all EKUs")
-				validationOpts.extKeyUsages = nil
-				break
-			}
-			validationOpts.extKeyUsages = append(validationOpts.extKeyUsages, ku)
-		} else {
-			return nil, fmt.Errorf("unknown extended key usage: %s", kuStr)
+		lExtKeyUsages := strings.Split(cfg.ExtKeyUsages, ",")
+		extKeyUsages, err = scti.ParseExtKeyUsages(lExtKeyUsages)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse ExtKeyUsages: %v", err)
 		}
 	}
+
+	var rejectExtIds []asn1.ObjectIdentifier
 	// Filter which extensions are rejected.
-	var err error
 	if cfg.RejectExtensions != "" {
 		lRejectExtensions := strings.Split(cfg.RejectExtensions, ",")
-		validationOpts.rejectExtIds, err = parseOIDs(lRejectExtensions)
+		rejectExtIds, err = scti.ParseOIDs(lRejectExtensions)
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse RejectExtensions: %v", err)
 		}
 	}
 
-	return &validationOpts, nil
-}
-
-func parseOIDs(oids []string) ([]asn1.ObjectIdentifier, error) {
-	ret := make([]asn1.ObjectIdentifier, 0, len(oids))
-	for _, s := range oids {
-		bits := strings.Split(s, ".")
-		var oid asn1.ObjectIdentifier
-		for _, n := range bits {
-			p, err := strconv.Atoi(n)
-			if err != nil {
-				return nil, err
-			}
-			oid = append(oid, p)
-		}
-		ret = append(ret, oid)
-	}
-	return ret, nil
-}
-
-var stringToKeyUsage = map[string]x509.ExtKeyUsage{
-	"Any":                        x509.ExtKeyUsageAny,
-	"ServerAuth":                 x509.ExtKeyUsageServerAuth,
-	"ClientAuth":                 x509.ExtKeyUsageClientAuth,
-	"CodeSigning":                x509.ExtKeyUsageCodeSigning,
-	"EmailProtection":            x509.ExtKeyUsageEmailProtection,
-	"IPSECEndSystem":             x509.ExtKeyUsageIPSECEndSystem,
-	"IPSECTunnel":                x509.ExtKeyUsageIPSECTunnel,
-	"IPSECUser":                  x509.ExtKeyUsageIPSECUser,
-	"TimeStamping":               x509.ExtKeyUsageTimeStamping,
-	"OCSPSigning":                x509.ExtKeyUsageOCSPSigning,
-	"MicrosoftServerGatedCrypto": x509.ExtKeyUsageMicrosoftServerGatedCrypto,
-	"NetscapeServerGatedCrypto":  x509.ExtKeyUsageNetscapeServerGatedCrypto,
+	vOpts := scti.NewChainValidationOpts(roots, cfg.RejectExpired, cfg.RejectUnexpired, cfg.NotAfterStart, cfg.NotAfterLimit, extKeyUsages, rejectExtIds)
+	return &vOpts, nil
 }
 
 // NewLogHandler creates a Tessera based CT log pluged into HTTP handlers.
 // The HTTP server handlers implement https://c2sp.org/static-ct-api write
 // endpoints.
-func NewLogHandler(ctx context.Context, origin string, signer crypto.Signer, cfg ChainValidationConfig, cs CreateStorage, httpDeadline time.Duration, maskInternalErrors bool) (http.Handler, error) {
-	log, err := newLog(ctx, origin, signer, cfg, cs)
+func NewLogHandler(ctx context.Context, origin string, signer crypto.Signer, cfg ChainValidationConfig, cs storage.CreateStorage, httpDeadline time.Duration, maskInternalErrors bool) (http.Handler, error) {
+	cvOpts, err := newCertValidationOpts(cfg)
+	if err != nil {
+		return nil, fmt.Errorf("newCertValidationOpts(): %v", err)
+	}
+	log, err := scti.NewLog(ctx, origin, signer, *cvOpts, cs, sysTimeSource)
 	if err != nil {
 		return nil, fmt.Errorf("newLog(): %v", err)
 	}
 
-	opts := &HandlerOptions{
+	opts := &scti.HandlerOptions{
 		Deadline:           httpDeadline,
-		RequestLog:         &DefaultRequestLog{},
+		RequestLog:         &scti.DefaultRequestLog{},
 		MaskInternalErrors: maskInternalErrors,
 		TimeSource:         sysTimeSource,
 	}
 
-	handlers := NewPathHandlers(opts, log)
+	handlers := scti.NewPathHandlers(opts, log)
 	mux := http.NewServeMux()
 	// Register handlers for all the configured logs.
 	for path, handler := range handlers {

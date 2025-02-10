@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package sctfe
+package scti
 
 import (
 	"crypto"
@@ -126,7 +126,7 @@ type cpSigner struct {
 	sthSigner  crypto.Signer
 	origin     string
 	keyHash    uint32
-	timeSource timeSource
+	timeSource TimeSource
 }
 
 // Sign takes an unsigned checkpoint, and signs it with a https://c2sp.org/static-ct-api signature.
@@ -162,9 +162,9 @@ func (cts *cpSigner) KeyHash() uint32 {
 	return cts.keyHash
 }
 
-// newCpSigner returns a new note signer that can sign https://c2sp.org/static-ct-api checkpoints.
+// NewCpSigner returns a new note signer that can sign https://c2sp.org/static-ct-api checkpoints.
 // TODO(phboneff): add tests
-func newCpSigner(cs crypto.Signer, origin string, timeSource timeSource) (note.Signer, error) {
+func NewCpSigner(cs crypto.Signer, origin string, timeSource TimeSource) (note.Signer, error) {
 	logID, err := getCTLogID(cs.Public())
 	if err != nil {
 		return nil, fmt.Errorf("failed to get logID for signing: %v", err)

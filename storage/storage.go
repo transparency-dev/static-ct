@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package sctfe
+package storage
 
 import (
 	"context"
@@ -25,8 +25,12 @@ import (
 	"github.com/transparency-dev/static-ct/modules/dedup"
 	tessera "github.com/transparency-dev/trillian-tessera"
 	"github.com/transparency-dev/trillian-tessera/ctonly"
+	"golang.org/x/mod/sumdb/note"
 	"k8s.io/klog/v2"
 )
+
+// CreateStorage instantiates a Tessera storage implementation with a signer option.
+type CreateStorage func(context.Context, note.Signer) (*CTStorage, error)
 
 const (
 	// Each key is 64 bytes long, so this will take up to 64MB.
@@ -34,18 +38,6 @@ const (
 	// if we ever run into this limit, we should re-think how it works.
 	maxCachedIssuerKeys = 1 << 20
 )
-
-// Storage provides all the storage primitives necessary to write to a ct-static-api log.
-type Storage interface {
-	// Add assigns an index to the provided Entry, stages the entry for integration, and returns a future for the assigned index.
-	Add(context.Context, *ctonly.Entry) tessera.IndexFuture
-	// AddIssuerChain stores every the chain certificate in a content-addressable store under their sha256 hash.
-	AddIssuerChain(context.Context, []*x509.Certificate) error
-	// AddCertDedupInfo stores the SCTDedupInfo of certificate in a log under its hash.
-	AddCertDedupInfo(context.Context, *x509.Certificate, dedup.SCTDedupInfo) error
-	// GetCertDedupInfo gets the SCTDedupInfo of certificate in a log from its hash.
-	GetCertDedupInfo(context.Context, *x509.Certificate) (dedup.SCTDedupInfo, bool, error)
-}
 
 type KV struct {
 	K []byte
@@ -57,7 +49,7 @@ type IssuerStorage interface {
 	AddIssuersIfNotExist(ctx context.Context, kv []KV) error
 }
 
-// CTStorage implements Storage.
+// CTStorage implements scti.Storage.
 type CTStorage struct {
 	storeData    func(context.Context, *ctonly.Entry) tessera.IndexFuture
 	storeIssuers func(context.Context, []KV) error
@@ -65,7 +57,7 @@ type CTStorage struct {
 }
 
 // NewCTStorage instantiates a CTStorage object.
-func NewCTSTorage(logStorage tessera.Storage, issuerStorage IssuerStorage, dedupStorage dedup.BEDedupStorage) (*CTStorage, error) {
+func NewCTStorage(logStorage tessera.Storage, issuerStorage IssuerStorage, dedupStorage dedup.BEDedupStorage) (*CTStorage, error) {
 	ctStorage := &CTStorage{
 		storeData:    tessera.NewCertificateTransparencySequencedWriter(logStorage),
 		storeIssuers: cachedStoreIssuers(issuerStorage),
