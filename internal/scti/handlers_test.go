@@ -34,7 +34,6 @@ import (
 	"github.com/google/certificate-transparency-go/x509util"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
-	"github.com/google/trillian/monitoring"
 	"github.com/transparency-dev/static-ct/internal/testdata"
 	"github.com/transparency-dev/static-ct/mockstorage"
 	"github.com/transparency-dev/static-ct/modules/dedup"
@@ -96,10 +95,9 @@ func setupTest(t *testing.T, pemRoots []string, signer crypto.Signer) handlerTes
 	}
 
 	hOpts := HandlerOptions{
-		Deadline:      time.Millisecond * 500,
-		MetricFactory: monitoring.InertMetricFactory{},
-		RequestLog:    new(DefaultRequestLog),
-		TimeSource:    fakeTimeSource,
+		Deadline:   time.Millisecond * 500,
+		RequestLog: new(DefaultRequestLog),
+		TimeSource: fakeTimeSource,
 	}
 	signSCT := func(leaf *ct.MerkleTreeLeaf) (*ct.SignedCertificateTimestamp, error) {
 		return buildV1SCT(signer, leaf)
