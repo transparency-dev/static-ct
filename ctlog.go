@@ -23,6 +23,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/certificate-transparency-go/asn1"
+	"github.com/google/certificate-transparency-go/x509"
 	"github.com/google/certificate-transparency-go/x509util"
 	"github.com/transparency-dev/static-ct/internal/scti"
 	"github.com/transparency-dev/static-ct/storage"
@@ -91,34 +93,29 @@ func newCertValidationOpts(cfg ChainValidationConfig) (*scti.ChainValidationOpts
 		return nil, fmt.Errorf("'Not After' limit %q before start %q", cfg.NotAfterLimit.Format(time.RFC3339), cfg.NotAfterStart.Format(time.RFC3339))
 	}
 
-	validationOpts := scti.ChainValidationOpts{
-		TrustedRoots:    roots,
-		RejectExpired:   cfg.RejectExpired,
-		RejectUnexpired: cfg.RejectUnexpired,
-		NotAfterStart:   cfg.NotAfterStart,
-		NotAfterLimit:   cfg.NotAfterLimit,
-	}
-
 	var err error
+	var extKeyUsages []x509.ExtKeyUsage
 	// Filter which extended key usages are allowed.
 	if cfg.ExtKeyUsages != "" {
 		lExtKeyUsages := strings.Split(cfg.ExtKeyUsages, ",")
-		validationOpts.ExtKeyUsages, err = scti.ParseExtKeyUsages(lExtKeyUsages)
+		extKeyUsages, err = scti.ParseExtKeyUsages(lExtKeyUsages)
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse ExtKeyUsages: %v", err)
 		}
 	}
 
+	var rejectExtIds []asn1.ObjectIdentifier
 	// Filter which extensions are rejected.
 	if cfg.RejectExtensions != "" {
 		lRejectExtensions := strings.Split(cfg.RejectExtensions, ",")
-		validationOpts.RejectExtIds, err = scti.ParseOIDs(lRejectExtensions)
+		rejectExtIds, err = scti.ParseOIDs(lRejectExtensions)
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse RejectExtensions: %v", err)
 		}
 	}
 
-	return &validationOpts, nil
+	vOpts := scti.NewChainValidationOpts(roots, cfg.RejectExpired, cfg.RejectUnexpired, cfg.NotAfterStart, cfg.NotAfterLimit, extKeyUsages, rejectExtIds)
+	return &vOpts, nil
 }
 
 // NewLogHandler creates a Tessera based CT log pluged into HTTP handlers.

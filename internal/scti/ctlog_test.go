@@ -39,7 +39,7 @@ func TestNewLog(t *testing.T) {
 			desc:   "ok",
 			origin: "testlog",
 			cvOpts: ChainValidationOpts{
-				TrustedRoots: roots,
+				trustedRoots: roots,
 			},
 			signer: signer,
 		},

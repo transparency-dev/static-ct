@@ -330,8 +330,8 @@ func addPreChain(ctx context.Context, opts *HandlerOptions, log *log, w http.Res
 
 func getRoots(_ context.Context, opts *HandlerOptions, log *log, w http.ResponseWriter, _ *http.Request) (int, error) {
 	// Pull out the raw certificates from the parsed versions
-	rawCerts := make([][]byte, 0, len(log.chainValidationOpts.TrustedRoots.RawCertificates()))
-	for _, cert := range log.chainValidationOpts.TrustedRoots.RawCertificates() {
+	rawCerts := make([][]byte, 0, len(log.chainValidationOpts.trustedRoots.RawCertificates()))
+	for _, cert := range log.chainValidationOpts.trustedRoots.RawCertificates() {
 		rawCerts = append(rawCerts, cert.Raw)
 	}
 
