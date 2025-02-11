@@ -42,10 +42,10 @@ resource "google_storage_bucket" "log_bucket" {
 # Spanner
 
 resource "google_spanner_instance" "log_spanner" {
-  name             = var.base_name
-  config           = "regional-${var.location}"
-  display_name     = var.base_name
-  processing_units = 100
+  name                         = var.base_name
+  config                       = "regional-${var.location}"
+  display_name                 = var.base_name
+  processing_units             = 100
   default_backup_schedule_type = "NONE"
 
   force_destroy = var.ephemeral
@@ -55,9 +55,10 @@ resource "google_spanner_database" "log_db" {
   instance = google_spanner_instance.log_spanner.name
   name     = "${var.base_name}-db"
   ddl = [
-    "CREATE TABLE SeqCoord (id INT64 NOT NULL, next INT64 NOT NULL,) PRIMARY KEY (id)",
-    "CREATE TABLE Seq (id INT64 NOT NULL, seq INT64 NOT NULL, v BYTES(MAX),) PRIMARY KEY (id, seq)",
-    "CREATE TABLE IntCoord (id INT64 NOT NULL, seq INT64 NOT NULL,) PRIMARY KEY (id)",
+    "CREATE TABLE IF NOT EXISTS Tessera (id INT64 NOT NULL, compatibilityVersion INT64 NOT NULL) PRIMARY KEY (id)",
+    "CREATE TABLE IF NOT EXISTS SeqCoord (id INT64 NOT NULL, next INT64 NOT NULL,) PRIMARY KEY (id)",
+    "CREATE TABLE IF NOT EXISTS Seq (id INT64 NOT NULL, seq INT64 NOT NULL, v BYTES(MAX),) PRIMARY KEY (id, seq)",
+    "CREATE TABLE IF NOT EXISTS IntCoord (id INT64 NOT NULL, seq INT64 NOT NULL, rootHash BYTES(32)) PRIMARY KEY (id)",
   ]
 
   deletion_protection = !var.ephemeral
