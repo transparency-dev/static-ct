@@ -64,6 +64,7 @@ func serializeSCTSignatureInput(sct types.SignedCertificateTimestamp, entry type
 }
 
 // TODO(phboneff): create an SCTSigner object
+// TODO(phboneff): see if we can change leaf to idx and entry
 func buildV1SCT(signer crypto.Signer, leaf *types.MerkleTreeLeaf) (*types.SignedCertificateTimestamp, error) {
 	// Serialize SCT signature input to get the bytes that need to be signed
 	sctInput := types.SignedCertificateTimestamp{
@@ -129,61 +130,6 @@ func serializeSTHSignatureInput(sth types.SignedTreeHead) ([]byte, error) {
 	default:
 		return nil, fmt.Errorf("unsupported STH version %d", sth.Version)
 	}
-}
-
-// MerkleTreeLeafFromChain generates a MerkleTreeLeaf from a chain and timestamp.
-// TODO(phboneff): delete this function and use entryFromChain instead.
-func MerkleTreeLeafFromChain(chain []*x509.Certificate, etype types.LogEntryType, timestamp uint64) (*types.MerkleTreeLeaf, error) {
-	leaf := types.MerkleTreeLeaf{
-		Version:  types.V1,
-		LeafType: types.TimestampedEntryLeafType,
-		TimestampedEntry: &types.TimestampedEntry{
-			EntryType: etype,
-			Timestamp: timestamp,
-		},
-	}
-	if etype == types.X509LogEntryType {
-		leaf.TimestampedEntry.X509Entry = &types.ASN1Cert{Data: chain[0].Raw}
-		return &leaf, nil
-	}
-	if etype != types.PrecertLogEntryType {
-		return nil, fmt.Errorf("unknown LogEntryType %d", etype)
-	}
-
-	// Pre-certs are more complicated. First, parse the leaf pre-cert and its
-	// putative issuer.
-	if len(chain) < 2 {
-		return nil, fmt.Errorf("no issuer cert available for precert leaf building")
-	}
-	issuer := chain[1]
-	cert := chain[0]
-
-	var preIssuer *x509.Certificate
-	if isPreIssuer(issuer) {
-		// Replace the cert's issuance information with details from the pre-issuer.
-		preIssuer = issuer
-
-		// The issuer of the pre-cert is not going to be the issuer of the final
-		// cert.  Change to use the final issuer's key hash.
-		if len(chain) < 3 {
-			return nil, fmt.Errorf("no issuer cert available for pre-issuer")
-		}
-		issuer = chain[2]
-	}
-
-	// Next, post-process the DER-encoded TBSCertificate, to remove the CT poison
-	// extension and possibly update the issuer field.
-	defangedTBS, err := x509.BuildPrecertTBS(cert.RawTBSCertificate, preIssuer)
-	if err != nil {
-		return nil, fmt.Errorf("failed to remove poison extension: %v", err)
-	}
-
-	leaf.TimestampedEntry.EntryType = types.PrecertLogEntryType
-	leaf.TimestampedEntry.PrecertEntry = &types.PreCert{
-		IssuerKeyHash:  sha256.Sum256(issuer.RawSubjectPublicKeyInfo),
-		TBSCertificate: defangedTBS,
-	}
-	return &leaf, nil
 }
 
 // buildCp builds a https://c2sp.org/static-ct-api checkpoint.
