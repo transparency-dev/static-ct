@@ -367,7 +367,7 @@ func TestSignV1SCTForPrecertificate(t *testing.T) {
 	if got, want := keyHash[:], leaf.TimestampedEntry.PrecertEntry.IssuerKeyHash[:]; !bytes.Equal(got, want) {
 		t.Fatalf("Issuer key hash bytes mismatch, got %v, expected %v", got, want)
 	}
-	defangedTBS, _ := x509.RemoveCTPoison(cert.RawTBSCertificate)
+	defangedTBS, _ := x509util.RemoveCTPoison(cert.RawTBSCertificate)
 	if got, want := leaf.TimestampedEntry.PrecertEntry.TBSCertificate, defangedTBS; !bytes.Equal(got, want) {
 		t.Fatalf("TBS cert mismatch, got %v, expected %v", got, want)
 	}
