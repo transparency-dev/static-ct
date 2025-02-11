@@ -157,9 +157,9 @@ resource "google_cloudbuild_trigger" "build_trigger" {
         apt update && apt install jq -y
         mkdir -p /tmp/httpschain
         openssl genrsa -out /tmp/httpschain/cert.key 2048
-        openssl req -new -key /tmp/httpschain/cert.key -out /tmp/httpschain/cert.csr -config=testdata/fake-ca.cfg
-        openssl x509 -req -days 3650 -in /tmp/httpschain/cert.csr -CAkey testdata/fake-ca.privkey.pem -CA testdata/fake-ca.cert -passin pass:"gently" -outform pem -out /tmp/httpschain/chain.pem -provider legacy -provider default
-        cat testdata/fake-ca.cert >> /tmp/httpschain/chain.pem
+        openssl req -new -key /tmp/httpschain/cert.key -out /tmp/httpschain/cert.csr -config=internal/testdata/fake-ca.cfg
+        openssl x509 -req -days 3650 -in /tmp/httpschain/cert.csr -CAkey internal/testdata/fake-ca.privkey.pem -CA internal/testdata/fake-ca.cert -passin pass:"gently" -outform pem -out /tmp/httpschain/chain.pem -provider legacy -provider default
+        cat internal/testdata/fake-ca.cert >> /tmp/httpschain/chain.pem
         cat /tmp/httpschain/chain.pem | jq --raw-input --slurp --compact-output 'split("\n-----END CERTIFICATE-----\n") | map(select(length > 0) | sub("^-----BEGIN CERTIFICATE-----\n"; "") | sub("\n-----END CERTIFICATE-----$"; "")) | { "chain": . }' > /tmp/httpschain/chain.json
         curl -s -o /tmp/add_chain_response_body -w "%%{http_code}" -X POST --data @/tmp/httpschain/chain.json -H "Content-Type: application/json" -H "Authorization: Bearer $(cat /workspace/cb_identity)" $(cat /workspace/conformance_url)/ci-${var.project_id}/ct/v1/add-chain > /tmp/add_chain_response_code
 
