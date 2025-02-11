@@ -18,9 +18,6 @@ package x509util
 
 import (
 	"bytes"
-	"crypto/dsa"
-	"crypto/ecdsa"
-	"crypto/elliptic"
 	"crypto/rsa"
 	"encoding/base64"
 	"encoding/hex"
@@ -99,8 +96,6 @@ func publicKeyAlgorithmToString(algo x509.PublicKeyAlgorithm) string {
 	switch algo {
 	case x509.RSA:
 		return "rsaEncryption"
-	case x509.DSA:
-		return "dsaEncryption"
 	case x509.ECDSA:
 		return "id-ecPublicKey"
 	default:
@@ -123,22 +118,6 @@ func appendHexData(buf *bytes.Buffer, data []byte, count int, prefix string) {
 	}
 }
 
-func curveOIDToString(oid asn1.ObjectIdentifier) (t string, bitlen int) {
-	switch {
-	case oid.Equal(x509.OIDNamedCurveP224):
-		return "secp224r1", 224
-	case oid.Equal(x509.OIDNamedCurveP256):
-		return "prime256v1", 256
-	case oid.Equal(x509.OIDNamedCurveP384):
-		return "secp384r1", 384
-	case oid.Equal(x509.OIDNamedCurveP521):
-		return "secp521r1", 521
-	case oid.Equal(x509.OIDNamedCurveP192):
-		return "secp192r1", 192
-	}
-	return fmt.Sprintf("%v", oid), -1
-}
-
 func publicKeyToString(_ x509.PublicKeyAlgorithm, pub interface{}) string {
 	var buf bytes.Buffer
 	switch pub := pub.(type) {
@@ -150,30 +129,6 @@ func publicKeyToString(_ x509.PublicKeyAlgorithm, pub interface{}) string {
 		appendHexData(&buf, data, 15, "                    ")
 		buf.WriteString("\n")
 		buf.WriteString(fmt.Sprintf("                Exponent: %d (0x%x)", pub.E, pub.E))
-	case *dsa.PublicKey:
-		buf.WriteString("                pub:\n")
-		appendHexData(&buf, pub.Y.Bytes(), 15, "                    ")
-		buf.WriteString("\n")
-		buf.WriteString("                P:\n")
-		appendHexData(&buf, pub.P.Bytes(), 15, "                    ")
-		buf.WriteString("\n")
-		buf.WriteString("                Q:\n")
-		appendHexData(&buf, pub.Q.Bytes(), 15, "                    ")
-		buf.WriteString("\n")
-		buf.WriteString("                G:\n")
-		appendHexData(&buf, pub.G.Bytes(), 15, "                    ")
-	case *ecdsa.PublicKey:
-		data := elliptic.Marshal(pub.Curve, pub.X, pub.Y)
-		oid, ok := x509.OIDFromNamedCurve(pub.Curve)
-		if !ok {
-			return "                <unsupported elliptic curve>"
-		}
-		oidname, bitlen := curveOIDToString(oid)
-		buf.WriteString(fmt.Sprintf("                Public Key: (%d bit)\n", bitlen))
-		buf.WriteString("                pub:\n")
-		appendHexData(&buf, data, 15, "                    ")
-		buf.WriteString("\n")
-		buf.WriteString(fmt.Sprintf("                ASN1 OID: %s", oidname))
 	default:
 		buf.WriteString(fmt.Sprintf("%v", pub))
 	}
