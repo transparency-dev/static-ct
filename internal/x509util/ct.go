@@ -14,14 +14,20 @@
 package x509util
 
 import (
+	"crypto/x509"
+	"crypto/x509/pkix"
+	"encoding/asn1"
 	"errors"
 	"fmt"
 	"math/big"
 	"time"
+)
 
-	"github.com/google/certificate-transparency-go/asn1"
-	"github.com/google/certificate-transparency-go/x509"
-	"github.com/google/certificate-transparency-go/x509/pkix"
+var (
+	oidExtensionAuthorityKeyId = asn1.ObjectIdentifier{2, 5, 29, 35}
+	// OIDExtensionCTPoison is defined in RFC 6962 s3.1.
+	oidExtensionCTPoison                        = asn1.ObjectIdentifier{1, 3, 6, 1, 4, 1, 11129, 2, 4, 3}
+	oidExtensionKeyUsageCertificateTransparency = asn1.ObjectIdentifier{1, 3, 6, 1, 4, 1, 11129, 2, 4, 4}
 )
 
 type tbsCertificate struct {
@@ -100,7 +106,7 @@ func removeExtension(tbsData []byte, oid asn1.ObjectIdentifier) ([]byte, error) 
 //   - The precert's AuthorityKeyId is changed to the AuthorityKeyId of the
 //     intermediate.
 func BuildPrecertTBS(tbsData []byte, preIssuer *x509.Certificate) ([]byte, error) {
-	data, err := removeExtension(tbsData, x509.OIDExtensionCTPoison)
+	data, err := removeExtension(tbsData, oidExtensionCTPoison)
 	if err != nil {
 		return nil, err
 	}
@@ -123,16 +129,17 @@ func BuildPrecertTBS(tbsData []byte, preIssuer *x509.Certificate) ([]byte, error
 		// to that of the preIssuer.
 		var issuerKeyID []byte
 		for _, ext := range preIssuer.Extensions {
-			if ext.Id.Equal(x509.OIDExtensionAuthorityKeyId) {
+			if ext.Id.Equal(oidExtensionAuthorityKeyId) {
 				issuerKeyID = ext.Value
 				break
 			}
 		}
 
-		// Check the preIssuer has the CT EKU.
+		// The x509 package does not parse CT EKU, so look for it in
+		// extensions directly.
 		seenCTEKU := false
-		for _, eku := range preIssuer.ExtKeyUsage {
-			if eku == x509.ExtKeyUsageCertificateTransparency {
+		for _, ext := range preIssuer.Extensions {
+			if ext.Id.Equal(oidExtensionKeyUsageCertificateTransparency) {
 				seenCTEKU = true
 				break
 			}
@@ -143,7 +150,7 @@ func BuildPrecertTBS(tbsData []byte, preIssuer *x509.Certificate) ([]byte, error
 
 		keyAt := -1
 		for i, ext := range tbs.Extensions {
-			if ext.Id.Equal(x509.OIDExtensionAuthorityKeyId) {
+			if ext.Id.Equal(oidExtensionAuthorityKeyId) {
 				keyAt = i
 				break
 			}
@@ -158,7 +165,7 @@ func BuildPrecertTBS(tbsData []byte, preIssuer *x509.Certificate) ([]byte, error
 		} else if issuerKeyID != nil {
 			// PreCert did not have an auth-key-id, but the preIssuer does, so add it at the end.
 			authKeyIDExt := pkix.Extension{
-				Id:       x509.OIDExtensionAuthorityKeyId,
+				Id:       oidExtensionAuthorityKeyId,
 				Critical: false,
 				Value:    issuerKeyID,
 			}

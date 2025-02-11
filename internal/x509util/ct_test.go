@@ -17,6 +17,9 @@ import (
 	"bytes"
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/x509"
+	"crypto/x509/pkix"
+	"encoding/asn1"
 	"encoding/hex"
 	"encoding/pem"
 	"math/big"
@@ -24,10 +27,6 @@ import (
 	"strings"
 	"testing"
 	"time"
-
-	"github.com/google/certificate-transparency-go/asn1"
-	"github.com/google/certificate-transparency-go/x509"
-	"github.com/google/certificate-transparency-go/x509/pkix"
 )
 
 var pemPrivateKey = testingKey(`
@@ -75,7 +74,9 @@ func makeCert(t *testing.T, template, issuer *x509.Certificate) *x509.Certificat
 }
 
 func TestBuildPrecertTBS(t *testing.T) {
-	poisonExt := pkix.Extension{Id: x509.OIDExtensionCTPoison, Critical: true, Value: asn1.NullBytes}
+	poisonExt := pkix.Extension{Id: oidExtensionCTPoison, Critical: true, Value: asn1.NullBytes}
+	// TODO(phboneff): check Critical and value are ok.
+	ctExt := pkix.Extension{Id: oidExtensionKeyUsageCertificateTransparency}
 	preIssuerKeyID := []byte{0x19, 0x09, 0x19, 0x70}
 	issuerKeyID := []byte{0x07, 0x07, 0x20, 0x07}
 	preCertTemplate := x509.Certificate{
@@ -89,15 +90,15 @@ func TestBuildPrecertTBS(t *testing.T) {
 		AuthorityKeyId:  preIssuerKeyID,
 	}
 	preIssuerTemplate := x509.Certificate{
-		Version:        3,
-		SerialNumber:   big.NewInt(1234),
-		Issuer:         pkix.Name{CommonName: "real Issuer"},
-		Subject:        pkix.Name{CommonName: "precert Issuer"},
-		NotBefore:      time.Now(),
-		NotAfter:       time.Now().Add(3 * time.Hour),
-		AuthorityKeyId: issuerKeyID,
-		SubjectKeyId:   preIssuerKeyID,
-		ExtKeyUsage:    []x509.ExtKeyUsage{x509.ExtKeyUsageCertificateTransparency},
+		Version:         3,
+		SerialNumber:    big.NewInt(1234),
+		Issuer:          pkix.Name{CommonName: "real Issuer"},
+		Subject:         pkix.Name{CommonName: "precert Issuer"},
+		NotBefore:       time.Now(),
+		NotAfter:        time.Now().Add(3 * time.Hour),
+		ExtraExtensions: []pkix.Extension{ctExt},
+		AuthorityKeyId:  issuerKeyID,
+		SubjectKeyId:    preIssuerKeyID,
 	}
 	actualIssuerTemplate := x509.Certificate{
 		Version:      3,
@@ -119,7 +120,7 @@ func TestBuildPrecertTBS(t *testing.T) {
 	preIssuerTemplate.SubjectKeyId = nil
 	preCertWithoutAKI := makeCert(t, &preCertTemplate, &preIssuerTemplate)
 
-	preIssuerTemplate.ExtKeyUsage = nil
+	preIssuerTemplate.ExtraExtensions = nil
 	invalidPreIssuer := makeCert(t, &preIssuerTemplate, &actualIssuerTemplate)
 
 	akiPrefix := []byte{0x30, 0x06, 0x80, 0x04} // SEQUENCE { [0] { ... } }
@@ -190,7 +191,7 @@ func TestBuildPrecertTBS(t *testing.T) {
 		}
 		var gotAKI []byte
 		for _, ext := range tbs.Extensions {
-			if ext.Id.Equal(x509.OIDExtensionAuthorityKeyId) {
+			if ext.Id.Equal(oidExtensionAuthorityKeyId) {
 				gotAKI = ext.Value
 				break
 			}
