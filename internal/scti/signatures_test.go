@@ -251,7 +251,7 @@ func TestBuildV1MerkleTreeLeafForCert(t *testing.T) {
 		t.Fatalf("could not create signer: %v", err)
 	}
 
-	leaf, err := types.MerkleTreeLeafFromChain([]*x509.Certificate{cert}, types.X509LogEntryType, fixedTimeMillis)
+	leaf, err := MerkleTreeLeafFromChain([]*x509.Certificate{cert}, types.X509LogEntryType, fixedTimeMillis)
 	if err != nil {
 		t.Fatalf("buildV1MerkleTreeLeafForCert()=nil,%v; want _,nil", err)
 	}
@@ -307,7 +307,7 @@ func TestSignV1SCTForPrecertificate(t *testing.T) {
 	}
 
 	// Use the same cert as the issuer for convenience.
-	leaf, err := types.MerkleTreeLeafFromChain([]*x509.Certificate{cert, cert}, types.PrecertLogEntryType, fixedTimeMillis)
+	leaf, err := MerkleTreeLeafFromChain([]*x509.Certificate{cert, cert}, types.PrecertLogEntryType, fixedTimeMillis)
 	if err != nil {
 		t.Fatalf("buildV1MerkleTreeLeafForCert()=nil,%v; want _,nil", err)
 	}
