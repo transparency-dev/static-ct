@@ -41,7 +41,6 @@ resource "google_cloud_run_v2_service" "default" {
         "--logtostderr",
         "--v=1",
         "--http_endpoint=:6962",
-        "--project_id=${var.project_id}",
         "--bucket=${var.bucket}",
         "--spanner_db_path=${local.spanner_log_db_path}",
         "--spanner_dedup_db_path=${local.spanner_dedup_db_path}",
