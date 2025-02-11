@@ -46,6 +46,7 @@ const (
 	defaultPrecertIssuerHashString string = "iamapublickeyshatwofivesixdigest"
 	defaultPrecertTBSString        string = "tbs"
 
+	// TODO(phboneff): add extension and regenerate data
 	defaultCertificateSCTSignatureInputHexString string =
 	// version, 1 byte
 	"00" +
@@ -80,6 +81,7 @@ const (
 		// tbs certificate, 3 bytes
 		"746273" +
 		// extensions length, 2 bytes
+		// TODO(phboneff)
 		"0000" +
 		// extensions, 0 bytes
 		""
@@ -251,11 +253,19 @@ func TestBuildV1MerkleTreeLeafForCert(t *testing.T) {
 		t.Fatalf("could not create signer: %v", err)
 	}
 
-	leaf, err := MerkleTreeLeafFromChain([]*x509.Certificate{cert}, types.X509LogEntryType, fixedTimeMillis)
+	// Use the same cert as the issuer for convenience.
+	entry, err := entryFromChain([]*x509.Certificate{cert, cert}, false, fixedTimeMillis)
 	if err != nil {
 		t.Fatalf("buildV1MerkleTreeLeafForCert()=nil,%v; want _,nil", err)
 	}
-	got, err := buildV1SCT(signer, leaf)
+	var leaf types.MerkleTreeLeaf
+	leafValue := entry.MerkleTreeLeaf(0)
+	if rest, err := tls.Unmarshal(leafValue, &leaf); err != nil {
+		t.Fatalf("failed to reconstruct MerkleTreeLeaf: %s", err)
+	} else if len(rest) > 0 {
+		t.Fatalf("extra data (%d bytes) on reconstructing MerkleTreeLeaf", len(rest))
+	}
+	got, err := buildV1SCT(signer, &leaf)
 	if err != nil {
 		t.Fatalf("buildV1SCT()=nil,%v; want _,nil", err)
 	}
@@ -264,6 +274,7 @@ func TestBuildV1MerkleTreeLeafForCert(t *testing.T) {
 		SCTVersion: 0,
 		LogID:      types.LogID{KeyID: demoLogID},
 		Timestamp:  fixedTimeMillis,
+		// TODO(phboneff): add extension
 		Extensions: types.CTExtensions{},
 		Signature: types.DigitallySigned{
 			Algorithm: tls.SignatureAndHashAlgorithm{
@@ -307,11 +318,19 @@ func TestSignV1SCTForPrecertificate(t *testing.T) {
 	}
 
 	// Use the same cert as the issuer for convenience.
-	leaf, err := MerkleTreeLeafFromChain([]*x509.Certificate{cert, cert}, types.PrecertLogEntryType, fixedTimeMillis)
+	entry, err := entryFromChain([]*x509.Certificate{cert, cert}, true, fixedTimeMillis)
 	if err != nil {
 		t.Fatalf("buildV1MerkleTreeLeafForCert()=nil,%v; want _,nil", err)
 	}
-	got, err := buildV1SCT(signer, leaf)
+	var leaf types.MerkleTreeLeaf
+	leafValue := entry.MerkleTreeLeaf(0)
+	if rest, err := tls.Unmarshal(leafValue, &leaf); err != nil {
+		t.Fatalf("failed to reconstruct MerkleTreeLeaf: %s", err)
+	} else if len(rest) > 0 {
+		t.Fatalf("extra data (%d bytes) on reconstructing MerkleTreeLeaf", len(rest))
+	}
+
+	got, err := buildV1SCT(signer, &leaf)
 	if err != nil {
 		t.Fatalf("buildV1SCT()=nil,%v; want _,nil", err)
 	}
@@ -320,6 +339,7 @@ func TestSignV1SCTForPrecertificate(t *testing.T) {
 		SCTVersion: 0,
 		LogID:      types.LogID{KeyID: demoLogID},
 		Timestamp:  fixedTimeMillis,
+		// TODO(phboneff): add extension
 		Extensions: types.CTExtensions{},
 		Signature: types.DigitallySigned{
 			Algorithm: tls.SignatureAndHashAlgorithm{
