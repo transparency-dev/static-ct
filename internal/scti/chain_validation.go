@@ -140,6 +140,52 @@ func isPrecertificate(cert *x509.Certificate) (bool, error) {
 	return false, nil
 }
 
+// getLaxVerifiedChain returns a verified certificate chain, allowing for specific
+// errors that are commonly raised with certificates submitted to CT logs.
+//
+// Allowed x509 errors:
+//   - UnhandledCriticalExtension: Precertificates have the poison extension
+//     which the Go library code does not recognize; also the Go library code
+//     does not support the standard PolicyConstraints extension (which is
+//     required to be marked critical, RFC 5280 s4.2.1.11)
+//   - Expired: CT logs should be able to log expired certificates.
+//   - IncompatibleUsage: Pre-issued precertificates have the Certificate
+//     Transparency EKU, which intermediates don't have. Also some leaves have
+//     unknown EKUs that should not be bounced just because the intermediate
+//     does not also have them (cf.  https://github.com/golang/go/issues/24590)
+//     so disable EKU checks inside the x509 library, but we've already done our
+//     own check on the leaf above.
+//   - NoValidChains: Do no enforce policy validation.
+//   - TooManyIntermediates: path length checks get confused by the presence of
+//     an additional pre-issuer intermediate.
+//   - CANotAuthorizedForThisName: allow to log all certificates, even if they
+//     have been isued by a CA trhat is not auhotized to issue certs for a
+//     given domain.
+func getLaxVerifiedChain(cert *x509.Certificate, opts x509.VerifyOptions) ([][]*x509.Certificate, error) {
+	chains, err := cert.Verify(opts)
+	switch err.(type) {
+	case x509.UnhandledCriticalExtension:
+		return chains, nil
+	case x509.CertificateInvalidError:
+		if e, ok := err.(x509.CertificateInvalidError); ok {
+			switch e.Reason {
+			case x509.Expired, x509.TooManyIntermediates, x509.CANotAuthorizedForThisName:
+				return chains, nil
+			// TODO(phboneff): check if we can remove these two exceptions.
+			// NoValidChains was not a thing back when x509 was forked in ctgo.
+			// New CT logs should all filter incoming certs with EKU, and
+			// https://github.com/golang/go/issues/24590 has been updated,
+			// so we should be able to remove IncompatibleUsage as well.
+			case x509.IncompatibleUsage, x509.NoValidChains:
+				return chains, nil
+			default:
+				return chains, err
+			}
+		}
+	}
+	return chains, err
+}
+
 // validateChain takes the certificate chain as it was parsed from a JSON request. Ensures all
 // elements in the chain decode as X.509 certificates. Ensures that there is a valid path from the
 // end entity certificate in the chain to a trusted root cert, possibly using the intermediates
@@ -154,7 +200,7 @@ func validateChain(rawChain [][]byte, validationOpts ChainValidationOpts) ([]*x5
 	for i, certBytes := range rawChain {
 		cert, err := x509.ParseCertificate(certBytes)
 		if err != nil {
-			return nil, fmt.Errorf("x509.ParseCertificate(): %v")
+			return nil, fmt.Errorf("x509.ParseCertificate(): %v", err)
 		}
 
 		chain = append(chain, cert)
@@ -224,32 +270,16 @@ func validateChain(rawChain [][]byte, validationOpts ChainValidationOpts) ([]*x5
 		}
 	}
 
-	// We can now do the verification.  Use fairly lax options for verification, as
+	// We can now do the verification. Use fairly lax options for verification, as
 	// CT is intended to observe certificates rather than police them.
 	verifyOpts := x509.VerifyOptions{
-		Roots:             validationOpts.trustedRoots.CertPool(),
-		CurrentTime:       now,
-		Intermediates:     intermediatePool.CertPool(),
-		DisableTimeChecks: true,
-		// Precertificates have the poison extension; also the Go library code does not
-		// support the standard PolicyConstraints extension (which is required to be marked
-		// critical, RFC 5280 s4.2.1.11), so never check unhandled critical extensions.
-		DisableCriticalExtensionChecks: true,
-		// Pre-issued precertificates have the Certificate Transparency EKU; also some
-		// leaves have unknown EKUs that should not be bounced just because the intermediate
-		// does not also have them (cf. https://github.com/golang/go/issues/24590) so
-		// disable EKU checks inside the x509 library, but we've already done our own check
-		// on the leaf above.
-		DisableEKUChecks: true,
-		// Path length checks get confused by the presence of an additional
-		// pre-issuer intermediate, so disable them.
-		DisablePathLenChecks:        true,
-		DisableNameConstraintChecks: true,
-		DisableNameChecks:           false,
-		KeyUsages:                   validationOpts.extKeyUsages,
+		Roots:         validationOpts.trustedRoots.CertPool(),
+		CurrentTime:   now,
+		Intermediates: intermediatePool.CertPool(),
+		KeyUsages:     validationOpts.extKeyUsages,
 	}
 
-	verifiedChains, err := cert.Verify(verifyOpts)
+	verifiedChains, err := getLaxVerifiedChain(cert, verifyOpts)
 	if err != nil {
 		return nil, err
 	}
