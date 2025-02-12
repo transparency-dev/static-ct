@@ -155,6 +155,12 @@ resource "google_cloudbuild_trigger" "build_trigger" {
       name     = "gcr.io/cloud-builders/gcloud"
       script   = <<EOT
         apt update && apt install jq -y
+
+        pwd
+        ls -la ./testdata
+        ls -la ./internal
+        ls -la ./internal/testdata
+
         mkdir -p /tmp/httpschain
         openssl genrsa -out /tmp/httpschain/cert.key 2048
         openssl req -new -key /tmp/httpschain/cert.key -out /tmp/httpschain/cert.csr -config=internal/testdata/fake-ca.cfg
