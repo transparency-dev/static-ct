@@ -201,6 +201,9 @@ func NewPathHandlers(opts *HandlerOptions, log *log) pathHandlers {
 	knownLogs.WithLabelValues(log.origin).Set(1.0)
 
 	prefix := strings.TrimRight(log.origin, "/")
+	if !strings.HasPrefix(prefix, "/") {
+		prefix = "/" + prefix
+	}
 
 	// Bind each endpoint to an appHandler instance.
 	// TODO(phboneff): try and get rid of PathHandlers and appHandler
