@@ -144,6 +144,7 @@ func isPrecertificate(cert *x509.Certificate) (bool, error) {
 // errors that are commonly raised with certificates submitted to CT logs.
 //
 // Allowed x509 errors:
+//
 //   - UnhandledCriticalExtension: Precertificates have the poison extension
 //     which the Go library code does not recognize; also the Go library code
 //     does not support the standard PolicyConstraints extension (which is
@@ -161,14 +162,27 @@ func isPrecertificate(cert *x509.Certificate) (bool, error) {
 //   - CANotAuthorizedForThisName: allow to log all certificates, even if they
 //     have been isued by a CA trhat is not auhotized to issue certs for a
 //     given domain.
+//
+// TODO(phboneff): this doesn't work because, as it should, cert.Verify()
+// does not return a chain when it raises an error.
 func getLaxVerifiedChain(cert *x509.Certificate, opts x509.VerifyOptions) ([][]*x509.Certificate, error) {
 	chains, err := cert.Verify(opts)
 	switch err.(type) {
+	// TODO(phboneff): check if we could make the x509 library aware of the CT
+	// poison.
+	// TODO(phboneff): re-evaluate whether PolicyConstraints is still an issue.
 	case x509.UnhandledCriticalExtension:
 		return chains, nil
 	case x509.CertificateInvalidError:
 		if e, ok := err.(x509.CertificateInvalidError); ok {
 			switch e.Reason {
+			// TODO(phboneff): if need be, change time to make sure that the cert is
+			// never considered as expired.
+			// TODO(phboneff): see if TooManyIntermediates handling could be improved
+			// upstream.
+			// TODO(phboneff): see if it's necessary to log certs for which
+			// CANotAuthorizedForThisName is raised. If browsers all check this
+			// as well, then there is no need to log these certs.
 			case x509.Expired, x509.TooManyIntermediates, x509.CANotAuthorizedForThisName:
 				return chains, nil
 			// TODO(phboneff): check if we can remove these two exceptions.
