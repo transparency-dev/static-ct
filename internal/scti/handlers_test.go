@@ -51,12 +51,13 @@ var fakeTimeMillis = uint64(fakeTime.UnixNano() / nanosPerMilli)
 
 // Arbitrary origin for tests
 var origin = "example.com"
+var prefix = "/" + origin
 
 // The deadline should be the above bumped by 500ms
 var fakeDeadlineTime = time.Date(2016, 7, 22, 11, 01, 13, 500*1000*1000, time.UTC)
 var fakeTimeSource = newFixedTimeSource(fakeTime)
 
-var entrypaths = []string{origin + types.AddChainPath, origin + types.AddPreChainPath, origin + types.GetRootsPath}
+var entrypaths = []string{prefix + types.AddChainPath, prefix + types.AddPreChainPath, prefix + types.GetRootsPath}
 
 type handlerTestInfo struct {
 	mockCtrl *gomock.Controller
@@ -120,27 +121,27 @@ func setupTest(t *testing.T, pemRoots []string, signer crypto.Signer) handlerTes
 
 func (info handlerTestInfo) getHandlers(t *testing.T) pathHandlers {
 	t.Helper()
-	handler, ok := info.handlers[origin+types.GetRootsPath]
+	handler, ok := info.handlers[prefix+types.GetRootsPath]
 	if !ok {
 		t.Fatalf("%q path not registered", types.GetRootsPath)
 	}
-	return pathHandlers{origin + types.GetRootsPath: handler}
+	return pathHandlers{prefix + types.GetRootsPath: handler}
 }
 
 func (info handlerTestInfo) postHandlers(t *testing.T) pathHandlers {
 	t.Helper()
-	addChainHandler, ok := info.handlers[origin+types.AddChainPath]
+	addChainHandler, ok := info.handlers[prefix+types.AddChainPath]
 	if !ok {
 		t.Fatalf("%q path not registered", types.AddPreChainStr)
 	}
-	addPreChainHandler, ok := info.handlers[origin+types.AddPreChainPath]
+	addPreChainHandler, ok := info.handlers[prefix+types.AddPreChainPath]
 	if !ok {
 		t.Fatalf("%q path not registered", types.AddPreChainStr)
 	}
 
 	return map[string]appHandler{
-		origin + types.AddChainPath:    addChainHandler,
-		origin + types.AddPreChainPath: addPreChainHandler,
+		prefix + types.AddChainPath:    addChainHandler,
+		prefix + types.AddPreChainPath: addPreChainHandler,
 	}
 }
 
@@ -336,7 +337,7 @@ func TestAddChainWhitespace(t *testing.T) {
 			}
 
 			recorder := httptest.NewRecorder()
-			handler, ok := info.handlers["example.com/ct/v1/add-chain"]
+			handler, ok := info.handlers["/example.com/ct/v1/add-chain"]
 			if !ok {
 				t.Fatalf("%q path not registered", types.AddChainStr)
 			}
@@ -589,7 +590,7 @@ func (d dlMatcher) String() string {
 
 func makeAddPrechainRequest(t *testing.T, handlers pathHandlers, body io.Reader) *httptest.ResponseRecorder {
 	t.Helper()
-	handler, ok := handlers[origin+types.AddPreChainPath]
+	handler, ok := handlers[prefix+types.AddPreChainPath]
 	if !ok {
 		t.Fatalf("%q path not registered", types.AddPreChainStr)
 	}
@@ -598,7 +599,7 @@ func makeAddPrechainRequest(t *testing.T, handlers pathHandlers, body io.Reader)
 
 func makeAddChainRequest(t *testing.T, handlers pathHandlers, body io.Reader) *httptest.ResponseRecorder {
 	t.Helper()
-	handler, ok := handlers[origin+types.AddChainPath]
+	handler, ok := handlers[prefix+types.AddChainPath]
 	if !ok {
 		t.Fatalf("%q path not registered", types.AddChainStr)
 	}
