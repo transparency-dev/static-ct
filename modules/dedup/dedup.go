@@ -26,6 +26,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/transparency-dev/trillian-tessera/api/layout"
 	"github.com/transparency-dev/trillian-tessera/client"
 	"golang.org/x/crypto/cryptobyte"
 	"k8s.io/klog/v2"
@@ -99,7 +100,7 @@ func sync(ctx context.Context, lds LocalBEDedupStorage, pb ParseBundleFunc, fcp 
 	if ckptSize > oldSize {
 		klog.V(2).Infof("LocalBEDEdup.sync(): log at size %d, dedup database at size %d, startig to sync", ckptSize, oldSize)
 		for i := oldSize / 256; i <= ckptSize/256; i++ {
-			eRaw, err := fb(ctx, i, ckptSize)
+			eRaw, err := fb(ctx, i, layout.PartialTileSize(0, i, ckptSize))
 			if err != nil {
 				if errors.Is(err, os.ErrNotExist) {
 					return fmt.Errorf("leaf bundle at index %d not found: %v", i, err)

@@ -497,7 +497,8 @@ func entryFromChain(chain []*x509.Certificate, isPrecert bool, timestamp uint64)
 	}
 
 	leaf.Precertificate = cert.Raw
-	leaf.PrecertSigningCert = issuer.Raw
+	// TODO(phboneff): do we need this?
+	// leaf.PrecertSigningCert = issuer.Raw
 	leaf.Certificate = defangedTBS
 
 	issuerKeyHash := sha256.Sum256(issuer.RawSubjectPublicKeyInfo)

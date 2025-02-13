@@ -57,9 +57,9 @@ type CTStorage struct {
 }
 
 // NewCTStorage instantiates a CTStorage object.
-func NewCTStorage(logStorage tessera.Storage, issuerStorage IssuerStorage, dedupStorage dedup.BEDedupStorage) (*CTStorage, error) {
+func NewCTStorage(logStorage *tessera.Appender, issuerStorage IssuerStorage, dedupStorage dedup.BEDedupStorage) (*CTStorage, error) {
 	ctStorage := &CTStorage{
-		storeData:    tessera.NewCertificateTransparencySequencedWriter(logStorage),
+		storeData:    tessera.NewCertificateTransparencyAppender(logStorage),
 		storeIssuers: cachedStoreIssuers(issuerStorage),
 		dedupStorage: dedupStorage,
 	}
