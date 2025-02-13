@@ -31,11 +31,11 @@ import (
 
 	"github.com/golang/mock/gomock"
 	"github.com/google/certificate-transparency-go/x509"
-	"github.com/google/certificate-transparency-go/x509util"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/transparency-dev/static-ct/internal/testdata"
 	"github.com/transparency-dev/static-ct/internal/types"
+	"github.com/transparency-dev/static-ct/internal/x509util"
 	"github.com/transparency-dev/static-ct/mockstorage"
 	"github.com/transparency-dev/static-ct/modules/dedup"
 	"github.com/transparency-dev/trillian-tessera/ctonly"

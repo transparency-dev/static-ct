@@ -25,10 +25,10 @@ import (
 
 	"github.com/google/certificate-transparency-go/tls"
 	"github.com/google/certificate-transparency-go/x509"
-	"github.com/google/certificate-transparency-go/x509util"
 	"github.com/kylelemons/godebug/pretty"
 	"github.com/transparency-dev/static-ct/internal/testdata"
 	"github.com/transparency-dev/static-ct/internal/types"
+	"github.com/transparency-dev/static-ct/internal/x509util"
 )
 
 var (
