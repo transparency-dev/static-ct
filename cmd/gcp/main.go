@@ -182,9 +182,14 @@ func newGCPStorage(ctx context.Context, signer note.Signer) (*storage.CTStorage,
 		Spanner: *spannerDB,
 	}
 
-	tesseraStorage, err := gcpTessera.New(ctx, gcpCfg, tessera.WithCheckpointSigner(signer), tessera.WithCTLayout())
+	driver, err := gcpTessera.New(ctx, gcpCfg)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to initialize GCP Tessera storage: %v", err)
+		return nil, fmt.Errorf("Failed to initialize GCP Tessera storage driver: %v", err)
+	}
+
+	appender, _, err := tessera.NewAppender(ctx, driver, tessera.WithCheckpointSigner(signer), tessera.WithCTLayout())
+	if err != nil {
+		return nil, fmt.Errorf("Failed to initialize GCP Tessera appender: %v", err)
 	}
 
 	issuerStorage, err := gcpSCTFE.NewIssuerStorage(ctx, *bucket, "fingerprints/", "application/pkix-cert")
@@ -197,7 +202,7 @@ func newGCPStorage(ctx context.Context, signer note.Signer) (*storage.CTStorage,
 		return nil, fmt.Errorf("failed to initialize GCP Spanner deduplication database: %v", err)
 	}
 
-	return storage.NewCTStorage(tesseraStorage, issuerStorage, beDedupStorage)
+	return storage.NewCTStorage(appender, issuerStorage, beDedupStorage)
 }
 
 type timestampFlag struct {
