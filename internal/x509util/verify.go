@@ -593,7 +593,7 @@ func checkNameConstraints(c *x509.Certificate,
 
 // isValid performs validity checks on c given that it is a candidate to append
 // to the chain in currentChain.
-func (c *Certificate) isValid(certType int, currentChain []*x509.Certificate, opts *VerifyOptions) error {
+func isValid(c *x509.Certificate, certType int, currentChain []*x509.Certificate, opts *VerifyOptions) error {
 	if len(c.UnhandledCriticalExtensions) > 0 {
 		return x509.UnhandledCriticalExtension{}
 	}
@@ -818,7 +818,7 @@ func (c *Certificate) Verify(opts VerifyOptions) (chains [][]*x509.Certificate, 
 		}
 	}
 
-	err = c.isValid(leafCertificate, nil, &opts)
+	err = isValid(c, leafCertificate, nil, &opts)
 	if err != nil {
 		return
 	}
@@ -968,7 +968,7 @@ func (c *Certificate) buildChains(currentChain []*x509.Certificate, sigChecks *i
 			return
 		}
 
-		err = candidate.cert.isValid(certType, currentChain, opts)
+		err = isValid(candidate.cert, certType, currentChain, opts)
 		if err != nil {
 			if hintErr == nil {
 				hintErr = err
