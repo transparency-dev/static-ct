@@ -834,7 +834,7 @@ func Verify(c *x509.Certificate, opts VerifyOptions) (chains [][]*x509.Certifica
 	if opts.Roots.contains(c) {
 		candidateChains = [][]*x509.Certificate{{c}}
 	} else {
-		candidateChains, err = c.buildChains([]*x509.Certificate{c}, nil, &opts)
+		candidateChains, err = buildChains(c, []*x509.Certificate{c}, nil, &opts)
 		if err != nil {
 			return nil, err
 		}
@@ -940,7 +940,7 @@ func alreadyInChain(candidate *x509.Certificate, chain []*x509.Certificate) bool
 // for failed checks due to different intermediates having the same Subject.
 const maxChainSignatureChecks = 100
 
-func (c *Certificate) buildChains(currentChain []*x509.Certificate, sigChecks *int, opts *VerifyOptions) (chains [][]*x509.Certificate, err error) {
+func buildChains(c *x509.Certificate, currentChain []*x509.Certificate, sigChecks *int, opts *VerifyOptions) (chains [][]*x509.Certificate, err error) {
 	var (
 		hintErr  error
 		hintCert *x509.Certificate
@@ -992,7 +992,7 @@ func (c *Certificate) buildChains(currentChain []*x509.Certificate, sigChecks *i
 			chains = append(chains, appendToFreshChain(currentChain, candidate.cert))
 		case intermediateCertificate:
 			var childChains [][]*x509.Certificate
-			childChains, err = candidate.cert.buildChains(appendToFreshChain(currentChain, candidate.cert), sigChecks, opts)
+			childChains, err = buildChains(candidate.cert, appendToFreshChain(currentChain, candidate.cert), sigChecks, opts)
 			chains = append(chains, childChains...)
 		}
 	}
