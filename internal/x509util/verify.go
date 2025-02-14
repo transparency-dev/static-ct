@@ -737,12 +737,9 @@ func isValid(c *x509.Certificate, certType int, currentChain []*x509.Certificate
 		return CertificateInvalidError{c, NotAuthorizedToSign, ""}
 	}
 
-	if c.BasicConstraintsValid && c.MaxPathLen >= 0 {
-		numIntermediates := len(currentChain) - 1
-		if numIntermediates > c.MaxPathLen {
-			return CertificateInvalidError{c, TooManyIntermediates, ""}
-		}
-	}
+	// TooManyIntermediates check deleted.
+	// Path length checks get confused by the presence of an additional
+	// pre-issuer intermediate.
 
 	return nil
 }
