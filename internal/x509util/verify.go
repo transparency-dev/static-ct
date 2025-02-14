@@ -109,7 +109,7 @@ type HostnameError struct {
 func (h HostnameError) Error() string {
 	c := h.Certificate
 
-	if !c.hasSANExtension() && matchHostnames(c.Subject.CommonName, h.Host) {
+	if !hasSANExtension(c) && matchHostnames(c.Subject.CommonName, h.Host) {
 		return "x509: certificate relies on legacy Common Name field, use SANs instead"
 	}
 
