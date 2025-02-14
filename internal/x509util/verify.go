@@ -535,7 +535,8 @@ func matchDomainConstraint(domain, constraint string) (bool, error) {
 // form of name, suitable for passing to the match function. The total number
 // of comparisons is tracked in the given count and should not exceed the given
 // limit.
-func (c *Certificate) checkNameConstraints(count *int,
+func checkNameConstraints(c *x509.Certificate,
+	count *int,
 	maxConstraintComparisons int,
 	nameType string,
 	name string,
@@ -652,7 +653,7 @@ func (c *Certificate) isValid(certType int, currentChain []*x509.Certificate, op
 						return fmt.Errorf("x509: cannot parse rfc822Name %q", mailbox)
 					}
 
-					if err := c.checkNameConstraints(&comparisonCount, maxConstraintComparisons, "email address", name, mailbox,
+					if err := checkNameConstraints(c, &comparisonCount, maxConstraintComparisons, "email address", name, mailbox,
 						func(parsedName, constraint any) (bool, error) {
 							return matchEmailConstraint(parsedName.(rfc2821Mailbox), constraint.(string))
 						}, c.PermittedEmailAddresses, c.ExcludedEmailAddresses); err != nil {
@@ -665,7 +666,7 @@ func (c *Certificate) isValid(certType int, currentChain []*x509.Certificate, op
 						return fmt.Errorf("x509: cannot parse dnsName %q", name)
 					}
 
-					if err := c.checkNameConstraints(&comparisonCount, maxConstraintComparisons, "DNS name", name, name,
+					if err := checkNameConstraints(c, &comparisonCount, maxConstraintComparisons, "DNS name", name, name,
 						func(parsedName, constraint any) (bool, error) {
 							return matchDomainConstraint(parsedName.(string), constraint.(string))
 						}, c.PermittedDNSDomains, c.ExcludedDNSDomains); err != nil {
@@ -679,7 +680,7 @@ func (c *Certificate) isValid(certType int, currentChain []*x509.Certificate, op
 						return fmt.Errorf("x509: internal error: URI SAN %q failed to parse", name)
 					}
 
-					if err := c.checkNameConstraints(&comparisonCount, maxConstraintComparisons, "URI", name, uri,
+					if err := checkNameConstraints(c, &comparisonCount, maxConstraintComparisons, "URI", name, uri,
 						func(parsedName, constraint any) (bool, error) {
 							return matchURIConstraint(parsedName.(*url.URL), constraint.(string))
 						}, c.PermittedURIDomains, c.ExcludedURIDomains); err != nil {
@@ -692,7 +693,7 @@ func (c *Certificate) isValid(certType int, currentChain []*x509.Certificate, op
 						return fmt.Errorf("x509: internal error: IP SAN %x failed to parse", data)
 					}
 
-					if err := c.checkNameConstraints(&comparisonCount, maxConstraintComparisons, "IP address", ip.String(), ip,
+					if err := checkNameConstraints(c, &comparisonCount, maxConstraintComparisons, "IP address", ip.String(), ip,
 						func(parsedName, constraint any) (bool, error) {
 							return matchIPConstraint(parsedName.(net.IP), constraint.(*net.IPNet))
 						}, c.PermittedIPRanges, c.ExcludedIPRanges); err != nil {
