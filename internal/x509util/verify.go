@@ -174,10 +174,10 @@ type VerifyOptions struct {
 	// Intermediates is an optional pool of certificates that are not trust
 	// anchors, but can be used to form a chain from the leaf certificate to a
 	// root certificate.
-	Intermediates *x509.CertPool
+	Intermediates *CertPool
 	// Roots is the set of trusted root certificates the leaf certificate needs
 	// to chain up to. If nil, the system roots or the platform verifier are used.
-	Roots *x509.CertPool
+	Roots *CertPool
 
 	// CurrentTime is used to check the validity of all certificates in the
 	// chain. If zero, the current time is used.
