@@ -65,6 +65,7 @@ const (
 
 // CertificateInvalidError results when an odd error occurs. Users of this
 // library probably want to handle all these errors uniformly.
+// TODO(phboneff): consider using the x509 one.
 type CertificateInvalidError struct {
 	Cert   *x509.Certificate
 	Reason InvalidReason
