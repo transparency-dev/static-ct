@@ -712,35 +712,13 @@ func Verify(c *x509.Certificate, opts VerifyOptions) (chains [][]*x509.Certifica
 		}
 	}
 
-	chains = make([][]*x509.Certificate, 0, len(candidateChains))
-	var incompatibleKeyUsageChains, invalidPoliciesChains int
-	for _, candidate := range candidateChains {
-		if !checkChainForKeyUsage(candidate, opts.KeyUsages) {
-			incompatibleKeyUsageChains++
-			continue
-		}
-		if !policiesValid(candidate, opts) {
-			invalidPoliciesChains++
-			continue
-		}
-		chains = append(chains, candidate)
-	}
-	if len(chains) == 0 {
+	if len(candidateChains) == 0 {
 		var details []string
-		if incompatibleKeyUsageChains > 0 {
-			if invalidPoliciesChains == 0 {
-				return nil, CertificateInvalidError{c, IncompatibleUsage, ""}
-			}
-			details = append(details, fmt.Sprintf("%d chains with incompatible key usage", incompatibleKeyUsageChains))
-		}
-		if invalidPoliciesChains > 0 {
-			details = append(details, fmt.Sprintf("%d chains with invalid policies", invalidPoliciesChains))
-		}
 		err = CertificateInvalidError{c, NoValidChains, strings.Join(details, ", ")}
 		return nil, err
 	}
 
-	return chains, nil
+	return candidateChains, nil
 }
 
 func appendToFreshChain(chain []*x509.Certificate, cert *x509.Certificate) []*x509.Certificate {
