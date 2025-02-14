@@ -21,6 +21,7 @@ import (
 
 type InvalidReason int
 
+// TODO(phboneff): delete options that are not enabled anymore.
 const (
 	// NotAuthorizedToSign results when a certificate is signed by another
 	// which isn't marked as a CA certificate.
@@ -544,23 +545,9 @@ func isValid(c *x509.Certificate, certType int, currentChain []*x509.Certificate
 		}
 	}
 
-	now := opts.CurrentTime
-	if now.IsZero() {
-		now = time.Now()
-	}
-	if now.Before(c.NotBefore) {
-		return CertificateInvalidError{
-			Cert:   c,
-			Reason: Expired,
-			Detail: fmt.Sprintf("current time %s is before %s", now.Format(time.RFC3339), c.NotBefore.Format(time.RFC3339)),
-		}
-	} else if now.After(c.NotAfter) {
-		return CertificateInvalidError{
-			Cert:   c,
-			Reason: Expired,
-			Detail: fmt.Sprintf("current time %s is after %s", now.Format(time.RFC3339), c.NotAfter.Format(time.RFC3339)),
-		}
-	}
+	// Expired checks disabled.
+	// CT servers handle this at submission time, and accept certificates even
+	// if they are expired.
 
 	if certType == intermediateCertificate || certType == rootCertificate {
 		if len(currentChain) == 0 {
