@@ -12,49 +12,6 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"time"
-)
-
-type InvalidReason int
-
-// TODO(phboneff): delete options that are not enabled anymore.
-const (
-	// NotAuthorizedToSign results when a certificate is signed by another
-	// which isn't marked as a CA certificate.
-	NotAuthorizedToSign InvalidReason = iota
-	// Expired results when a certificate has expired, based on the time
-	// given in the VerifyOptions.
-	Expired
-	// CANotAuthorizedForThisName results when an intermediate or root
-	// certificate has a name constraint which doesn't permit a DNS or
-	// other name (including IP address) in the leaf certificate.
-	CANotAuthorizedForThisName
-	// TooManyIntermediates results when a path length constraint is
-	// violated.
-	TooManyIntermediates
-	// IncompatibleUsage results when the certificate's key usage indicates
-	// that it may only be used for a different purpose.
-	IncompatibleUsage
-	// NameMismatch results when the subject name of a parent certificate
-	// does not match the issuer name in the child.
-	NameMismatch
-	// NameConstraintsWithoutSANs is a legacy error and is no longer returned.
-	NameConstraintsWithoutSANs
-	// UnconstrainedName results when a CA certificate contains permitted
-	// name constraints, but leaf certificate contains a name of an
-	// unsupported or unconstrained type.
-	UnconstrainedName
-	// TooManyConstraints results when the number of comparison operations
-	// needed to check a certificate exceeds the limit set by
-	// VerifyOptions.MaxConstraintComparisions. This limit exists to
-	// prevent pathological certificates can consuming excessive amounts of
-	// CPU time to verify.
-	TooManyConstraints
-	// CANotAuthorizedForExtKeyUsage results when an intermediate or root
-	// certificate does not permit a requested extended key usage.
-	CANotAuthorizedForExtKeyUsage
-	// NoValidChains results when there are no valid chains to return.
-	NoValidChains
 )
 
 // UnknownAuthorityError results when the certificate issuer is unknown
@@ -90,10 +47,6 @@ var errNotParsed = errors.New("x509: missing ASN.1 contents; use ParseCertificat
 
 // VerifyOptions contains parameters for Certificate.Verify.
 type VerifyOptions struct {
-	// DNSName, if set, is checked against the leaf certificate with
-	// Certificate.VerifyHostname or the platform verifier.
-	DNSName string
-
 	// Intermediates is an optional pool of certificates that are not trust
 	// anchors, but can be used to form a chain from the leaf certificate to a
 	// root certificate.
@@ -101,27 +54,10 @@ type VerifyOptions struct {
 	// Roots is the set of trusted root certificates the leaf certificate needs
 	// to chain up to. If nil, the system roots or the platform verifier are used.
 	Roots *CertPool
-
-	// CurrentTime is used to check the validity of all certificates in the
-	// chain. If zero, the current time is used.
-	CurrentTime time.Time
-
 	// KeyUsages specifies which Extended Key Usage values are acceptable. A
 	// chain is accepted if it allows any of the listed values. An empty list
 	// means ExtKeyUsageServerAuth. To accept any key usage, include ExtKeyUsageAny.
 	KeyUsages []x509.ExtKeyUsage
-
-	// MaxConstraintComparisions is the maximum number of comparisons to
-	// perform when checking a given certificate's name constraints. If
-	// zero, a sensible default is used. This limit prevents pathological
-	// certificates from consuming excessive amounts of CPU time when
-	// validating. It does not apply to the platform verifier.
-	MaxConstraintComparisions int
-
-	// CertificatePolicies specifies which certificate policy OIDs are
-	// acceptable during policy validation. An empty CertificatePolices
-	// field implies any valid policy is acceptable.
-	CertificatePolicies []x509.OID
 }
 
 const (
