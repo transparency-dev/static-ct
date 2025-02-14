@@ -50,10 +50,10 @@ type VerifyOptions struct {
 	// Intermediates is an optional pool of certificates that are not trust
 	// anchors, but can be used to form a chain from the leaf certificate to a
 	// root certificate.
-	Intermediates *x509.CertPool
+	Intermediates *CertPool
 	// Roots is the set of trusted root certificates the leaf certificate needs
 	// to chain up to. If nil, the system roots or the platform verifier are used.
-	Roots *x509.CertPool
+	Roots *CertPool
 	// KeyUsages specifies which Extended Key Usage values are acceptable. A
 	// chain is accepted if it allows any of the listed values. An empty list
 	// means ExtKeyUsageServerAuth. To accept any key usage, include ExtKeyUsageAny.
