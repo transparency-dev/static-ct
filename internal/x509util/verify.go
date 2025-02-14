@@ -13,7 +13,6 @@ import (
 	"fmt"
 	"net"
 	"net/url"
-	"runtime"
 	"strings"
 )
 
@@ -43,21 +42,6 @@ func (e UnknownAuthorityError) Error() string {
 	}
 	return s
 }
-
-// SystemRootsError results when we fail to load the system root certificates.
-type SystemRootsError struct {
-	Err error
-}
-
-func (se SystemRootsError) Error() string {
-	msg := "x509: failed to load system roots and no roots provided"
-	if se.Err != nil {
-		return msg + "; " + se.Err.Error()
-	}
-	return msg
-}
-
-func (se SystemRootsError) Unwrap() error { return se.Err }
 
 // errNotParsed is returned when a certificate without ASN.1 contents is
 // verified. Platform-specific verification needs the ASN.1 contents.
@@ -481,30 +465,9 @@ func Verify(c *x509.Certificate, opts VerifyOptions) (chains [][]*x509.Certifica
 		}
 	}
 
-	// Use platform verifiers, where available, if Roots is from SystemCertPool.
-	if runtime.GOOS == "windows" || runtime.GOOS == "darwin" || runtime.GOOS == "ios" {
-		// Don't use the system verifier if the system pool was replaced with a non-system pool,
-		// i.e. if SetFallbackRoots was called with x509usefallbackroots=1.
-		systemPool := systemRootsPool()
-		if opts.Roots == nil && (systemPool == nil || systemPool.systemPool) {
-			return c.systemVerify(&opts)
-		}
-		if opts.Roots != nil && opts.Roots.systemPool {
-			platformChains, err := c.systemVerify(&opts)
-			// If the platform verifier succeeded, or there are no additional
-			// roots, return the platform verifier result. Otherwise, continue
-			// with the Go verifier.
-			if err == nil || opts.Roots.len() == 0 {
-				return platformChains, err
-			}
-		}
-	}
-
+	// CT server roots MUST not be empty.
 	if opts.Roots == nil {
-		opts.Roots = systemRootsPool()
-		if opts.Roots == nil {
-			return nil, SystemRootsError{systemRootsErr}
-		}
+		return nil, fmt.Errorf("opts.Roots == nil, roots MUST be provided")
 	}
 
 	err = isValid(c, leafCertificate, nil, &opts)
