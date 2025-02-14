@@ -594,10 +594,12 @@ func checkNameConstraints(c *x509.Certificate,
 // isValid performs validity checks on c given that it is a candidate to append
 // to the chain in currentChain.
 func isValid(c *x509.Certificate, certType int, currentChain []*x509.Certificate, opts *VerifyOptions) error {
-	if len(c.UnhandledCriticalExtensions) > 0 {
-		return x509.UnhandledCriticalExtension{}
-	}
-
+	// UnhandledCriticalExtension check deleted.
+	// Precertificates have the poison extension which the Go library code does
+	// not recognize; also the Go library code does not support the standard
+	// PolicyConstraints extension (which is required to be marked critical, RFC
+	// 5280 s4.2.1.11)
+	// TODO(phboneff): re-evaluate whether PolicyConstraints is still an issue.
 	if len(currentChain) > 0 {
 		child := currentChain[len(currentChain)-1]
 		if !bytes.Equal(child.RawIssuer, c.RawSubject) {
