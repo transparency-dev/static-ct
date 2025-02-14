@@ -776,7 +776,7 @@ func isValid(c *x509.Certificate, certType int, currentChain []*x509.Certificate
 // Certificates other than c in the returned chains should not be modified.
 //
 // WARNING: this function doesn't do any revocation checking.
-func (c *Certificate) Verify(opts VerifyOptions) (chains [][]*x509.Certificate, err error) {
+func Verify(c *x509.Certificate, opts VerifyOptions) (chains [][]*x509.Certificate, err error) {
 	// Platform-specific verification needs the ASN.1 contents so
 	// this makes the behavior consistent across platforms.
 	if len(c.Raw) == 0 {
