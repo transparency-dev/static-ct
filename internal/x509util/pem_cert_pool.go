@@ -36,12 +36,12 @@ type PEMCertPool struct {
 	// maps from sha-256 to certificate, used for dup detection
 	fingerprintToCertMap map[[sha256.Size]byte]x509.Certificate
 	rawCerts             []*x509.Certificate
-	certPool             *x509.CertPool
+	certPool             *CertPool
 }
 
 // NewPEMCertPool creates a new, empty, instance of PEMCertPool.
 func NewPEMCertPool() *PEMCertPool {
-	return &PEMCertPool{fingerprintToCertMap: make(map[[sha256.Size]byte]x509.Certificate), certPool: x509.NewCertPool()}
+	return &PEMCertPool{fingerprintToCertMap: make(map[[sha256.Size]byte]x509.Certificate), certPool: NewCertPool()}
 }
 
 // AddCert adds a certificate to a pool. Uses fingerprint to weed out duplicates.
@@ -110,7 +110,7 @@ func (p *PEMCertPool) Subjects() (res [][]byte) {
 }
 
 // CertPool returns the underlying CertPool.
-func (p *PEMCertPool) CertPool() *x509.CertPool {
+func (p *PEMCertPool) CertPool() *CertPool {
 	return p.certPool
 }
 
