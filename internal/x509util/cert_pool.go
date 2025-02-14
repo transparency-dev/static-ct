@@ -104,25 +104,6 @@ func (s *CertPool) Clone() *CertPool {
 	return p
 }
 
-// SystemCertPool returns a copy of the system cert pool.
-//
-// On Unix systems other than macOS the environment variables SSL_CERT_FILE and
-// SSL_CERT_DIR can be used to override the system default locations for the SSL
-// certificate file and SSL certificate files directory, respectively. The
-// latter can be a colon-separated list.
-//
-// Any mutations to the returned pool are not written to disk and do not affect
-// any other pool returned by SystemCertPool.
-//
-// New changes in the system cert pool might not be reflected in subsequent calls.
-func SystemCertPool() (*CertPool, error) {
-	if sysRoots := systemRootsPool(); sysRoots != nil {
-		return sysRoots.Clone(), nil
-	}
-
-	return loadSystemRoots()
-}
-
 type potentialParent struct {
 	cert       *x509.Certificate
 	constraint func([]*x509.Certificate) error
