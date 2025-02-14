@@ -248,13 +248,6 @@ func Verify(c *x509.Certificate, opts VerifyOptions) (chains [][]*x509.Certifica
 		return
 	}
 
-	if len(opts.DNSName) > 0 {
-		err = c.VerifyHostname(opts.DNSName)
-		if err != nil {
-			return
-		}
-	}
-
 	var candidateChains [][]*x509.Certificate
 	if opts.Roots.contains(c) {
 		candidateChains = [][]*x509.Certificate{{c}}
