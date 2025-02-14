@@ -229,7 +229,6 @@ func validateChain(rawChain [][]byte, validationOpts ChainValidationOpts) ([]*x5
 	// CT is intended to observe certificates rather than police them.
 	verifyOpts := x509fork.VerifyOptions{
 		Roots:         validationOpts.trustedRoots.CertPool(),
-		CurrentTime:   now,
 		Intermediates: intermediatePool.CertPool(),
 		KeyUsages:     validationOpts.extKeyUsages,
 	}
