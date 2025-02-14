@@ -824,7 +824,7 @@ func Verify(c *x509.Certificate, opts VerifyOptions) (chains [][]*x509.Certifica
 	}
 
 	if len(opts.DNSName) > 0 {
-		err = c.VerifyHostname(opts.DNSName)
+		err = VerifyHostname(c, opts.DNSName)
 		if err != nil {
 			return
 		}
@@ -1144,7 +1144,9 @@ func toLowerCaseASCII(in string) string {
 // fields can have a wildcard as the complete left-most label (e.g. *.example.com).
 //
 // Note that the legacy Common Name field is ignored.
-func (c *Certificate) VerifyHostname(h string) error {
+// TODO(phboneff): can we simply use the exported x509 one? Otherwise make this
+// one private.
+func VerifyHostname(c *x509.Certificate, h string) error {
 	// IP addresses may be written in [ ].
 	candidateIP := h
 	if len(h) >= 3 && h[0] == '[' && h[len(h)-1] == ']' {
