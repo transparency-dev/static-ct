@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"github.com/transparency-dev/static-ct/internal/types"
+	"github.com/transparency-dev/static-ct/internal/x509fork"
 	"github.com/transparency-dev/static-ct/internal/x509util"
 	"k8s.io/klog/v2"
 )
@@ -140,66 +141,6 @@ func isPrecertificate(cert *x509.Certificate) (bool, error) {
 	return false, nil
 }
 
-// getLaxVerifiedChain returns a verified certificate chain, allowing for specific
-// errors that are commonly raised with certificates submitted to CT logs.
-//
-// Allowed x509 errors:
-//
-//   - UnhandledCriticalExtension: Precertificates have the poison extension
-//     which the Go library code does not recognize; also the Go library code
-//     does not support the standard PolicyConstraints extension (which is
-//     required to be marked critical, RFC 5280 s4.2.1.11)
-//   - Expired: CT logs should be able to log expired certificates.
-//   - IncompatibleUsage: Pre-issued precertificates have the Certificate
-//     Transparency EKU, which intermediates don't have. Also some leaves have
-//     unknown EKUs that should not be bounced just because the intermediate
-//     does not also have them (cf.  https://github.com/golang/go/issues/24590)
-//     so disable EKU checks inside the x509 library, but we've already done our
-//     own check on the leaf above.
-//   - NoValidChains: Do no enforce policy validation.
-//   - TooManyIntermediates: path length checks get confused by the presence of
-//     an additional pre-issuer intermediate.
-//   - CANotAuthorizedForThisName: allow to log all certificates, even if they
-//     have been isued by a CA trhat is not auhotized to issue certs for a
-//     given domain.
-//
-// TODO(phboneff): this doesn't work because, as it should, cert.Verify()
-// does not return a chain when it raises an error.
-func getLaxVerifiedChain(cert *x509.Certificate, opts x509.VerifyOptions) ([][]*x509.Certificate, error) {
-	chains, err := cert.Verify(opts)
-	switch err.(type) {
-	// TODO(phboneff): check if we could make the x509 library aware of the CT
-	// poison.
-	// TODO(phboneff): re-evaluate whether PolicyConstraints is still an issue.
-	case x509.UnhandledCriticalExtension:
-		return chains, nil
-	case x509.CertificateInvalidError:
-		if e, ok := err.(x509.CertificateInvalidError); ok {
-			switch e.Reason {
-			// TODO(phboneff): if need be, change time to make sure that the cert is
-			// never considered as expired.
-			// TODO(phboneff): see if TooManyIntermediates handling could be improved
-			// upstream.
-			// TODO(phboneff): see if it's necessary to log certs for which
-			// CANotAuthorizedForThisName is raised. If browsers all check this
-			// as well, then there is no need to log these certs.
-			case x509.Expired, x509.TooManyIntermediates, x509.CANotAuthorizedForThisName:
-				return chains, nil
-			// TODO(phboneff): check if we can remove these two exceptions.
-			// NoValidChains was not a thing back when x509 was forked in ctgo.
-			// New CT logs should all filter incoming certs with EKU, and
-			// https://github.com/golang/go/issues/24590 has been updated,
-			// so we should be able to remove IncompatibleUsage as well.
-			case x509.IncompatibleUsage, x509.NoValidChains:
-				return chains, nil
-			default:
-				return chains, err
-			}
-		}
-	}
-	return chains, err
-}
-
 // validateChain takes the certificate chain as it was parsed from a JSON request. Ensures all
 // elements in the chain decode as X.509 certificates. Ensures that there is a valid path from the
 // end entity certificate in the chain to a trusted root cert, possibly using the intermediates
@@ -286,14 +227,14 @@ func validateChain(rawChain [][]byte, validationOpts ChainValidationOpts) ([]*x5
 
 	// We can now do the verification. Use fairly lax options for verification, as
 	// CT is intended to observe certificates rather than police them.
-	verifyOpts := x509.VerifyOptions{
+	verifyOpts := x509fork.VerifyOptions{
 		Roots:         validationOpts.trustedRoots.CertPool(),
 		CurrentTime:   now,
 		Intermediates: intermediatePool.CertPool(),
 		KeyUsages:     validationOpts.extKeyUsages,
 	}
 
-	verifiedChains, err := getLaxVerifiedChain(cert, verifyOpts)
+	verifiedChains, err := x509fork.Verify(cert, verifyOpts)
 	if err != nil {
 		return nil, err
 	}
