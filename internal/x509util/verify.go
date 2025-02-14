@@ -11,7 +11,6 @@ import (
 	"crypto/x509/pkix"
 	"errors"
 	"fmt"
-	"net"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -58,81 +57,6 @@ const (
 	// NoValidChains results when there are no valid chains to return.
 	NoValidChains
 )
-
-// CertificateInvalidError results when an odd error occurs. Users of this
-// library probably want to handle all these errors uniformly.
-// TODO(phboneff): consider using the x509 one.
-type CertificateInvalidError struct {
-	Cert   *x509.Certificate
-	Reason InvalidReason
-	Detail string
-}
-
-func (e CertificateInvalidError) Error() string {
-	switch e.Reason {
-	case NotAuthorizedToSign:
-		return "x509: certificate is not authorized to sign other certificates"
-	case Expired:
-		return "x509: certificate has expired or is not yet valid: " + e.Detail
-	case CANotAuthorizedForThisName:
-		return "x509: a root or intermediate certificate is not authorized to sign for this name: " + e.Detail
-	case CANotAuthorizedForExtKeyUsage:
-		return "x509: a root or intermediate certificate is not authorized for an extended key usage: " + e.Detail
-	case TooManyIntermediates:
-		return "x509: too many intermediates for path length constraint"
-	case IncompatibleUsage:
-		return "x509: certificate specifies an incompatible key usage"
-	case NameMismatch:
-		return "x509: issuer name does not match subject from issuing certificate"
-	case NameConstraintsWithoutSANs:
-		return "x509: issuer has name constraints but leaf doesn't have a SAN extension"
-	case UnconstrainedName:
-		return "x509: issuer has name constraints but leaf contains unknown or unconstrained name: " + e.Detail
-	case NoValidChains:
-		s := "x509: no valid chains built"
-		if e.Detail != "" {
-			s = fmt.Sprintf("%s: %s", s, e.Detail)
-		}
-		return s
-	}
-	return "x509: unknown error"
-}
-
-// HostnameError results when the set of authorized names doesn't match the
-// requested name.
-type HostnameError struct {
-	Certificate *x509.Certificate
-	Host        string
-}
-
-func (h HostnameError) Error() string {
-	c := h.Certificate
-
-	if !hasSANExtension(c) && matchHostnames(c.Subject.CommonName, h.Host) {
-		return "x509: certificate relies on legacy Common Name field, use SANs instead"
-	}
-
-	var valid string
-	if ip := net.ParseIP(h.Host); ip != nil {
-		// Trying to validate an IP
-		if len(c.IPAddresses) == 0 {
-			return "x509: cannot validate certificate for " + h.Host + " because it doesn't contain any IP SANs"
-		}
-		for _, san := range c.IPAddresses {
-			if len(valid) > 0 {
-				valid += ", "
-			}
-			valid += san.String()
-		}
-	} else {
-		valid = strings.Join(c.DNSNames, ", ")
-	}
-
-	if len(valid) == 0 {
-		return "x509: certificate is not valid for any names, but wanted to match " + h.Host
-	}
-	return "x509: certificate is valid for " + valid + ", not " + h.Host
-}
 
 // UnknownAuthorityError results when the certificate issuer is unknown
 type UnknownAuthorityError struct {
@@ -219,7 +143,7 @@ func isValid(c *x509.Certificate, certType int, currentChain []*x509.Certificate
 	if len(currentChain) > 0 {
 		child := currentChain[len(currentChain)-1]
 		if !bytes.Equal(child.RawIssuer, c.RawSubject) {
-			return CertificateInvalidError{c, NameMismatch, ""}
+			return x509.CertificateInvalidError{c, x509.NameMismatch, ""}
 		}
 	}
 
@@ -257,7 +181,7 @@ func isValid(c *x509.Certificate, certType int, currentChain []*x509.Certificate
 	// encryption key could only be used for Diffie-Hellman key agreement.
 
 	if certType == intermediateCertificate && (!c.BasicConstraintsValid || !c.IsCA) {
-		return CertificateInvalidError{c, NotAuthorizedToSign, ""}
+		return x509.CertificateInvalidError{c, x509.NotAuthorizedToSign, ""}
 	}
 
 	// TooManyIntermediates check deleted.
@@ -326,7 +250,7 @@ func Verify(c *x509.Certificate, opts VerifyOptions) (chains [][]*x509.Certifica
 	}
 
 	if len(opts.DNSName) > 0 {
-		err = VerifyHostname(c, opts.DNSName)
+		err = c.VerifyHostname(opts.DNSName)
 		if err != nil {
 			return
 		}
@@ -356,7 +280,7 @@ func Verify(c *x509.Certificate, opts VerifyOptions) (chains [][]*x509.Certifica
 
 	if len(candidateChains) == 0 {
 		var details []string
-		err = CertificateInvalidError{c, NoValidChains, strings.Join(details, ", ")}
+		err = x509.CertificateInvalidError{c, x509.NoValidChains, strings.Join(details, ", ")}
 		return nil, err
 	}
 
@@ -494,68 +418,6 @@ func buildChains(c *x509.Certificate, currentChain []*x509.Certificate, sigCheck
 	return
 }
 
-func validHostnamePattern(host string) bool { return validHostname(host, true) }
-func validHostnameInput(host string) bool   { return validHostname(host, false) }
-
-// validHostname reports whether host is a valid hostname that can be matched or
-// matched against according to RFC 6125 2.2, with some leniency to accommodate
-// legacy values.
-func validHostname(host string, isPattern bool) bool {
-	if !isPattern {
-		host = strings.TrimSuffix(host, ".")
-	}
-	if len(host) == 0 {
-		return false
-	}
-	if host == "*" {
-		// Bare wildcards are not allowed, they are not valid DNS names,
-		// nor are they allowed per RFC 6125.
-		return false
-	}
-
-	for i, part := range strings.Split(host, ".") {
-		if part == "" {
-			// Empty label.
-			return false
-		}
-		if isPattern && i == 0 && part == "*" {
-			// Only allow full left-most wildcards, as those are the only ones
-			// we match, and matching literal '*' characters is probably never
-			// the expected behavior.
-			continue
-		}
-		for j, c := range part {
-			if 'a' <= c && c <= 'z' {
-				continue
-			}
-			if '0' <= c && c <= '9' {
-				continue
-			}
-			if 'A' <= c && c <= 'Z' {
-				continue
-			}
-			if c == '-' && j != 0 {
-				continue
-			}
-			if c == '_' {
-				// Not a valid character in hostnames, but commonly
-				// found in deployments outside the WebPKI.
-				continue
-			}
-			return false
-		}
-	}
-
-	return true
-}
-
-func matchExactly(hostA, hostB string) bool {
-	if hostA == "" || hostA == "." || hostB == "" || hostB == "." {
-		return false
-	}
-	return toLowerCaseASCII(hostA) == toLowerCaseASCII(hostB)
-}
-
 func matchHostnames(pattern, host string) bool {
 	pattern = toLowerCaseASCII(pattern)
 	host = toLowerCaseASCII(strings.TrimSuffix(host, "."))
@@ -613,55 +475,4 @@ func toLowerCaseASCII(in string) string {
 		}
 	}
 	return string(out)
-}
-
-// VerifyHostname returns nil if c is a valid certificate for the named host.
-// Otherwise it returns an error describing the mismatch.
-//
-// IP addresses can be optionally enclosed in square brackets and are checked
-// against the IPAddresses field. Other names are checked case insensitively
-// against the DNSNames field. If the names are valid hostnames, the certificate
-// fields can have a wildcard as the complete left-most label (e.g. *.example.com).
-//
-// Note that the legacy Common Name field is ignored.
-// TODO(phboneff): can we simply use the exported x509 one? Otherwise make this
-// one private.
-func VerifyHostname(c *x509.Certificate, h string) error {
-	// IP addresses may be written in [ ].
-	candidateIP := h
-	if len(h) >= 3 && h[0] == '[' && h[len(h)-1] == ']' {
-		candidateIP = h[1 : len(h)-1]
-	}
-	if ip := net.ParseIP(candidateIP); ip != nil {
-		// We only match IP addresses against IP SANs.
-		// See RFC 6125, Appendix B.2.
-		for _, candidate := range c.IPAddresses {
-			if ip.Equal(candidate) {
-				return nil
-			}
-		}
-		return HostnameError{c, candidateIP}
-	}
-
-	candidateName := toLowerCaseASCII(h) // Save allocations inside the loop.
-	validCandidateName := validHostnameInput(candidateName)
-
-	for _, match := range c.DNSNames {
-		// Ideally, we'd only match valid hostnames according to RFC 6125 like
-		// browsers (more or less) do, but in practice Go is used in a wider
-		// array of contexts and can't even assume DNS resolution. Instead,
-		// always allow perfect matches, and only apply wildcard and trailing
-		// dot processing to valid hostnames.
-		if validCandidateName && validHostnamePattern(match) {
-			if matchHostnames(match, candidateName) {
-				return nil
-			}
-		} else {
-			if matchExactly(match, candidateName) {
-				return nil
-			}
-		}
-	}
-
-	return HostnameError{c, h}
 }
