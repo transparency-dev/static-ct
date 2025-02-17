@@ -72,7 +72,7 @@ func mustLoadTestCheckpoints() ([][]byte, []log.Checkpoint) {
 // testLogFetcher is a fetcher which reads from the checked-in golden test log
 // data stored in ../testdata/log
 func testLogFetcher(_ context.Context, p string) ([]byte, error) {
-	path := filepath.Join("../testdata/log", p)
+	path := filepath.Join("./testdata/log", p)
 	return os.ReadFile(path)
 }
 
