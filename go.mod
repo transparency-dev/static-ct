@@ -3,7 +3,7 @@ module github.com/transparency-dev/static-ct
 go 1.23.1
 
 require (
-	cloud.google.com/go/secretmanager v1.14.4
+	cloud.google.com/go/secretmanager v1.14.5
 	cloud.google.com/go/spanner v1.75.0
 	cloud.google.com/go/storage v1.50.0
 	github.com/golang/mock v1.7.0-rc.1
@@ -17,7 +17,7 @@ require (
 	go.etcd.io/bbolt v1.4.0
 	golang.org/x/crypto v0.33.0
 	golang.org/x/mod v0.23.0
-	google.golang.org/api v0.220.0
+	google.golang.org/api v0.221.0
 	google.golang.org/grpc v1.70.0
 	google.golang.org/protobuf v1.36.5
 	k8s.io/klog/v2 v2.130.1
@@ -77,12 +77,12 @@ require (
 	go.opentelemetry.io/otel/trace v1.34.0 // indirect
 	golang.org/x/exp v0.0.0-20240325151524-a685a6edb6d8 // indirect
 	golang.org/x/net v0.35.0 // indirect
-	golang.org/x/oauth2 v0.25.0 // indirect
+	golang.org/x/oauth2 v0.26.0 // indirect
 	golang.org/x/sync v0.11.0 // indirect
 	golang.org/x/sys v0.30.0 // indirect
 	golang.org/x/text v0.22.0 // indirect
-	golang.org/x/time v0.9.0 // indirect
+	golang.org/x/time v0.10.0 // indirect
 	google.golang.org/genproto v0.0.0-20250122153221-138b5a5a4fd4 // indirect
-	google.golang.org/genproto/googleapis/api v0.0.0-20250124145028-65684f501c47 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20250127172529-29210b9bc287 // indirect
+	google.golang.org/genproto/googleapis/api v0.0.0-20250207221924-e9438ea467c6 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20250207221924-e9438ea467c6 // indirect
 )
