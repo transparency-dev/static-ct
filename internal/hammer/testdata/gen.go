@@ -32,12 +32,9 @@ import (
 )
 
 const (
-	commonName         = "transparency.dev"
-	organization       = "Transparency.dev"
-	organizationalUnit = "TrustFabric"
-	locality           = "London"
-	state              = "London"
-	country            = "GB"
+	commonName   = "test.transparency.dev"
+	organization = "TrustFabric Transparency.dev Test"
+	country      = "GB"
 )
 
 var (
@@ -79,15 +76,6 @@ func main() {
 	}
 	if err := saveCertificatePEM(intermediateCert, path.Join(*outputPath, "test_intermediate_ca_cert.pem")); err != nil {
 		klog.Fatalf("Failed to save intermediate CA certificate: %v", err)
-	}
-
-	// Generate a new RSA leaf certificate signing private key.
-	leafCertPrivateKey, err := rsa.GenerateKey(rand.Reader, 2048)
-	if err != nil {
-		klog.Fatalf("Failed to generate leaf certificate signing private key: %v", err)
-	}
-	if err := saveRSAPrivateKeyPEM(leafCertPrivateKey, path.Join(*outputPath, "test_leaf_cert_signing_private_key.pem")); err != nil {
-		klog.Fatalf("Failed to save leaf certificate signing private key: %v", err)
 	}
 }
 
