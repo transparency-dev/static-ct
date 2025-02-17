@@ -95,9 +95,9 @@ func rootCACert(privKey *rsa.PrivateKey) (*x509.Certificate, error) {
 	template := x509.Certificate{
 		SerialNumber: big.NewInt(1),
 		Subject: pkix.Name{
-			Organization: []string{fmt.Sprintf("%s Root CA", organization)},
+			Organization: []string{fmt.Sprintf("%s Root Test CA", organization)},
 			Country:      []string{country},
-			CommonName:   fmt.Sprintf("%s Root CA", organization),
+			CommonName:   fmt.Sprintf("%s Root Test CA", organization),
 		},
 		NotBefore:             time.Now(),
 		NotAfter:              time.Now().AddDate(10, 0, 0),
@@ -125,9 +125,9 @@ func intermediateCACert(rootCACert *x509.Certificate, rootPrivKey, privKey *rsa.
 	template := x509.Certificate{
 		SerialNumber: big.NewInt(2),
 		Subject: pkix.Name{
-			Organization: []string{fmt.Sprintf("%s Intermediate CA", organization)},
+			Organization: []string{fmt.Sprintf("%s Intermediate Test CA", organization)},
 			Country:      []string{country},
-			CommonName:   fmt.Sprintf("%s Intermediate CA", organization),
+			CommonName:   fmt.Sprintf("%s Intermediate Test CA", organization),
 		},
 		NotBefore:             time.Now(),
 		NotAfter:              time.Now().AddDate(5, 0, 0),
@@ -156,7 +156,7 @@ func saveRSAPrivateKeyPEM(key *rsa.PrivateKey, filename string) error {
 
 	// No encryption.
 	block := &pem.Block{
-		Type:  "RSA PRIVATE KEY",
+		Type:  "RSA TEST PRIVATE KEY",
 		Bytes: derBytes,
 	}
 
