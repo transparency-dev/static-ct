@@ -16,6 +16,8 @@
 package main
 
 import (
+	"crypto/ecdsa"
+	"crypto/ed25519"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
@@ -27,6 +29,7 @@ import (
 	"math/big"
 	"os"
 	"path"
+	"strings"
 	"time"
 
 	"k8s.io/klog/v2"
@@ -45,6 +48,7 @@ var (
 func main() {
 	klog.InitFlags(nil)
 	flag.Parse()
+	// Generate root.
 	// Generate a new RSA root CA private key.
 	rootPrivKey, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
@@ -63,6 +67,14 @@ func main() {
 		klog.Fatalf("Failed to save root CA certificate: %v", err)
 	}
 
+	genLeaves(rootCert, rootPrivKey)
+	genPreIssuerAndLeaves(rootCert, rootPrivKey)
+
+}
+
+// genPreIssuerAndLeaves generates a cert and a pre-cert.
+func genLeaves(rootCert *x509.Certificate, rootPrivKey *rsa.PrivateKey) {
+	// Generate leaf certs chaining to root.
 	// Generate a new RSA leaf certificate signing private key.
 	leafCertPrivateKey, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
@@ -85,6 +97,54 @@ func main() {
 		klog.Fatalf("Failed to generate leaf certificate: %v", err)
 	}
 	if err := saveCertificatePEM(leafPreCert, path.Join(*outputPath, "test_leaf_pre_cert_signed_by_root.pem")); err != nil {
+		klog.Fatalf("Failed to save leaf cert: %v", err)
+	}
+
+}
+
+// genPreIssuerAndLeaves generates a pre-issuer intermediate cert, a cert,
+// a pre-cert.
+func genPreIssuerAndLeaves(rootCert *x509.Certificate, rootPrivKey *rsa.PrivateKey) {
+	// Generate a new RSA intermediate CA private key.
+	preIntermediatePrivKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		klog.Fatalf("Failed to generate intermediate CA private key: %v", err)
+	}
+	if err := saveRSAPrivateKeyPEM(preIntermediatePrivKey, path.Join(*outputPath, "test_pre_intermediate_ca_private_key.pem")); err != nil {
+		klog.Fatalf("Failed to save intermediate CA private key: %v", err)
+	}
+
+	// Generate a new intermediate CA certificate with CT extension.
+	preIntermediateCert, err := intermediateCACert(rootCert, rootPrivKey, preIntermediatePrivKey, true)
+	if err != nil {
+		klog.Fatalf("Failed to generate intermediate CA certificate: %v", err)
+	}
+	if err := saveCertificatePEM(preIntermediateCert, path.Join(*outputPath, "test_pre_intermediate_ca_cert.pem")); err != nil {
+		klog.Fatalf("Failed to save intermediate CA certificate: %v", err)
+	}
+
+	// Generate a new RSA leaf certificate signing private key.
+	leafCertPrivateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		klog.Fatalf("Failed to generate leaf certificate signing private key: %v", err)
+	}
+	if err := saveRSAPrivateKeyPEM(leafCertPrivateKey, path.Join(*outputPath, "test_leaf_signed_by_pre_intermediate_signing_private_key.pem")); err != nil {
+		klog.Fatalf("Failed to save leaf certificate signing private key: %v", err)
+	}
+
+	chainGenerator := newChainGenerator(preIntermediateCert, preIntermediatePrivKey, leafCertPrivateKey.Public())
+	leafCert, err := chainGenerator.certificate(100, false)
+	if err != nil {
+		klog.Fatalf("Failed to generate leaf certificate: %v", err)
+	}
+	if err := saveCertificatePEM(leafCert, path.Join(*outputPath, "test_leaf_cert_signed_by_pre_intermediate.pem")); err != nil {
+		klog.Fatalf("Failed to save leaf cert: %v", err)
+	}
+	leafPreCert, err := chainGenerator.certificate(200, true)
+	if err != nil {
+		klog.Fatalf("Failed to generate leaf certificate: %v", err)
+	}
+	if err := saveCertificatePEM(leafPreCert, path.Join(*outputPath, "test_leaf_pre_cert_signed_by_pre_intermediate.pem")); err != nil {
 		klog.Fatalf("Failed to save leaf cert: %v", err)
 	}
 }
@@ -119,7 +179,7 @@ func rootCACert(privKey *rsa.PrivateKey) (*x509.Certificate, error) {
 	return cert, nil
 }
 
-func intermediateCACert(rootCACert *x509.Certificate, rootPrivKey, privKey *rsa.PrivateKey) (*x509.Certificate, error) {
+func intermediateCACert(rootCACert *x509.Certificate, rootPrivKey, privKey *rsa.PrivateKey, preIntermediate bool) (*x509.Certificate, error) {
 	template := x509.Certificate{
 		SerialNumber: big.NewInt(2),
 		Subject: pkix.Name{
@@ -133,6 +193,13 @@ func intermediateCACert(rootCACert *x509.Certificate, rootPrivKey, privKey *rsa.
 		BasicConstraintsValid: true,
 		IsCA:                  true,
 		MaxPathLen:            0,
+	}
+
+	if preIntermediate {
+		preIssuerExtension := pkix.Extension{
+			Id: asn1.ObjectIdentifier{1, 3, 6, 1, 4, 1, 11129, 2, 4, 4},
+		}
+		template.ExtraExtensions = append(template.ExtraExtensions, preIssuerExtension)
 	}
 
 	derBytes, err := x509.CreateCertificate(rand.Reader, &template, rootCACert, privKey.Public(), rootPrivKey)
@@ -197,7 +264,6 @@ func (g *chainGenerator) certificate(serialNumber int64, preCert bool) (*x509.Ce
 		Id:       asn1.ObjectIdentifier{1, 3, 6, 1, 4, 1, 11129, 2, 4, 3},
 		Critical: true,
 		Value:    []byte{0x05, 0x00}, // ASN.1 NULL
-
 	}
 
 	if preCert {
@@ -249,4 +315,74 @@ func saveCertificatePEM(cert *x509.Certificate, filename string) error {
 		return fmt.Errorf("failed to write PEM file: %w", err)
 	}
 	return nil
+}
+
+func loadPrivateKey(path string) (*rsa.PrivateKey, error) {
+	keyBytes, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read key file: %w", err)
+	}
+
+	block, _ := pem.Decode(keyBytes)
+	if block == nil {
+		rsaKey, err := x509.ParsePKCS1PrivateKey(keyBytes)
+		if err == nil {
+			return rsaKey, nil
+		}
+		return nil, fmt.Errorf("failed to decode PEM block and failed to parse as DER: %w", err)
+	}
+
+	// Fix block type for testing keys.
+	block.Type = testingKey(block.Type)
+
+	switch block.Type {
+	case "RSA PRIVATE KEY":
+		return x509.ParsePKCS1PrivateKey(block.Bytes)
+	default:
+		return nil, fmt.Errorf("unsupported PEM block type: %s", block.Type)
+	}
+}
+
+func loadCert(path string) (*x509.Certificate, error) {
+	certBytes, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read certificate file: %w", err)
+	}
+
+	block, rest := pem.Decode(certBytes)
+	if block == nil {
+		return nil, fmt.Errorf("failed to decode PEM block")
+	}
+	if block.Type != "CERTIFICATE" {
+		return nil, fmt.Errorf("expected PEM block type 'CERTIFICATE', got '%s'", block.Type)
+	}
+	if len(rest) > 0 {
+		klog.Info("Warning: More than one PEM block found. Parsing only the first.")
+	}
+
+	cert, err := x509.ParseCertificate(block.Bytes)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse X.509 certificate: %w", err)
+	}
+
+	return cert, nil
+}
+
+// publicKey returns the public key associated with the private key.
+func publicKey(privKey any) any {
+	switch k := privKey.(type) {
+	case *rsa.PrivateKey:
+		return k.Public()
+	case *ecdsa.PrivateKey:
+		return k.Public()
+	case *ed25519.PrivateKey:
+		return k.Public()
+	default:
+		klog.Fatalf("Unknown private key type: %T", privKey)
+		return nil // Or panic, or return an error
+	}
+}
+
+func testingKey(s string) string {
+	return strings.ReplaceAll(s, "TESTING KEY", "PRIVATE KEY")
 }
