@@ -15,7 +15,8 @@ require (
 	github.com/kylelemons/godebug v1.1.0
 	github.com/prometheus/client_golang v1.20.5
 	github.com/rivo/tview v0.0.0-20240625185742-b0a7293b8130
-	github.com/transparency-dev/formats v0.0.0-20240909113624-7ce4ea605e8b
+	github.com/transparency-dev/formats v0.0.0-20250127084410-134797944be6
+	github.com/transparency-dev/merkle v0.0.2
 	github.com/transparency-dev/trillian-tessera v0.1.1-0.20250213171719-5f7ca097f44a
 	go.etcd.io/bbolt v1.4.0
 	golang.org/x/crypto v0.33.0
@@ -72,7 +73,6 @@ require (
 	github.com/prometheus/procfs v0.15.1 // indirect
 	github.com/prometheus/prometheus v0.51.0 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
-	github.com/transparency-dev/merkle v0.0.2 // indirect
 	go.opencensus.io v0.24.0 // indirect
 	go.opentelemetry.io/auto/sdk v1.1.0 // indirect
 	go.opentelemetry.io/contrib/detectors/gcp v1.33.0 // indirect

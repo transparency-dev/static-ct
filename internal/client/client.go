@@ -30,6 +30,7 @@ import (
 	"github.com/transparency-dev/merkle/compact"
 	"github.com/transparency-dev/merkle/proof"
 	"github.com/transparency-dev/merkle/rfc6962"
+	"github.com/transparency-dev/static-ct/internal/types"
 	"github.com/transparency-dev/trillian-tessera/api"
 	"github.com/transparency-dev/trillian-tessera/api/layout"
 	"golang.org/x/mod/sumdb/note"
@@ -277,15 +278,15 @@ func (n *nodeCache) GetNode(ctx context.Context, id compact.NodeID) ([]byte, err
 	r := rf.NewEmptyRange(0)
 	for _, l := range t.Nodes[firstLeaf:lastLeaf] {
 		if err := r.Append(l, nil); err != nil {
-			return nil, fmt.Errorf("Append: %v", err)
+			return nil, fmt.Errorf("failed to append to compact range: %v", err)
 		}
 	}
 	return r.GetRootHash(nil)
 }
 
 // GetEntryBundle fetches the entry bundle at the given _tile index_.
-func GetEntryBundle(ctx context.Context, f EntryBundleFetcherFunc, i, logSize uint64) (api.EntryBundle, error) {
-	bundle := api.EntryBundle{}
+func GetEntryBundle(ctx context.Context, f EntryBundleFetcherFunc, i, logSize uint64) (types.EntryBundle, error) {
+	bundle := types.EntryBundle{}
 	sRaw, err := f(ctx, i, layout.PartialTileSize(0, i, logSize))
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
