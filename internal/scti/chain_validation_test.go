@@ -203,8 +203,8 @@ func TestValidateChain(t *testing.T) {
 			chain:   pemsToDERChain(t, []string{testdata.LeafSignedByFakeIntermediateCertPEM, testdata.FakeIntermediateCertPEM}),
 			wantErr: true,
 			modifyOpts: func(v *ChainValidationOpts) {
-				// reject SubjectKeyIdentifier extension
-				v.rejectExtIds = []asn1.ObjectIdentifier{[]int{2, 5, 29, 14}}
+				// reject ExtendedKeyUsage extension
+				v.rejectExtIds = []asn1.ObjectIdentifier{[]int{2, 5, 29, 37}}
 			},
 		},
 		{
@@ -212,8 +212,8 @@ func TestValidateChain(t *testing.T) {
 			chain:   pemsToDERChain(t, []string{testdata.PrecertPEMValid}),
 			wantErr: true,
 			modifyOpts: func(v *ChainValidationOpts) {
-				// reject SubjectKeyIdentifier extension
-				v.rejectExtIds = []asn1.ObjectIdentifier{[]int{2, 5, 29, 14}}
+				// reject ExtendedKeyUsage extension
+				v.rejectExtIds = []asn1.ObjectIdentifier{[]int{2, 5, 29, 37}}
 			},
 		},
 		{
