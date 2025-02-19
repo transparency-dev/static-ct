@@ -17,12 +17,14 @@ package main
 
 import (
 	"context"
+	"crypto/ecdh"
 	"crypto/ecdsa"
 	"crypto/ed25519"
 	"crypto/rsa"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/pem"
+	"errors"
 	"flag"
 	"fmt"
 	"math/rand/v2"
@@ -51,8 +53,8 @@ var (
 
 	logPubKey                 = flag.String("log_public_key", os.Getenv("TILES_LOG_PUBLIC_KEY"), "Public key for the log. This is defaulted to the environment variable TILES_LOG_PUBLIC_KEY")
 	intermediateCACertPath    = flag.String("intermediate_ca_cert_path", "./internal/hammer/testdata/test_intermediate_ca_cert.pem", "Intermediate CA certificate path for certificate generator")
-	intermediateCAKeyPath     = flag.String("intermediate_ca_key_path", "./internal/hammer/testdata/test_intermediate_ca_private_key.pem", "Intermediate CA key path for certificate generator (Only RSA/Ed25519 are accepted)")
-	certSigningPrivateKeyPath = flag.String("cert_sign_private_key_path", "./internal/hammer/testdata/test_leaf_cert_signing_private_key.pem", "Certificate signing private key path for certificate generator (Only RSA/Ed25519 are accepted)")
+	intermediateCAKeyPath     = flag.String("intermediate_ca_key_path", "./internal/hammer/testdata/test_intermediate_ca_private_key.pem", "Intermediate CA key path for certificate generator (Only RSA is accepted)")
+	certSigningPrivateKeyPath = flag.String("cert_sign_private_key_path", "./internal/hammer/testdata/test_leaf_cert_signing_private_key.pem", "Certificate signing private key path for certificate generator (Only RSA is accepted)")
 
 	maxReadOpsPerSecond = flag.Int("max_read_ops", 20, "The maximum number of read operations per second")
 	numReadersRandom    = flag.Int("num_readers_random", 4, "The number of readers looking for random leaves")
@@ -137,9 +139,15 @@ func main() {
 	if err != nil {
 		klog.Exitf("Failed to load intermediate CA private key from %s: %v", *intermediateCAKeyPath, err)
 	}
+	if err := verifySupportedKeyAlgorithm(intermediateCAKey); err != nil {
+		klog.Exitf("Failed to support intermediate CA key algorithm for generating deterministic certificate: %v", err)
+	}
 	privateKey, err := loadPrivateKey(*certSigningPrivateKeyPath)
 	if err != nil {
 		klog.Exitf("Failed to load certificate signing private key from %s: %v", *certSigningPrivateKeyPath, err)
+	}
+	if err := verifySupportedKeyAlgorithm(privateKey); err != nil {
+		klog.Exitf("Failed to support certificate signing private key algorithm for generating deterministic certificate: %v", err)
 	}
 
 	gen := newLeafGenerator(tracker.LatestConsistent.Size, *dupChance, intermediateCACert, intermediateCAKey, privateKey)
@@ -324,4 +332,25 @@ func publicKey(privKey any) any {
 
 func testingKey(s string) string {
 	return strings.ReplaceAll(s, "TEST PRIVATE KEY", "PRIVATE KEY")
+}
+
+// verifySupportedKeyAlgorithm returns an error if the key algorithm is not
+// supported for generating deterministic certificates.
+func verifySupportedKeyAlgorithm(key any) error {
+	switch key.(type) {
+	case *rsa.PrivateKey:
+		return nil
+
+	case *ecdsa.PrivateKey:
+		return errors.New("ecdsa is not supported")
+
+	case ed25519.PrivateKey:
+		return errors.New("ed25519 is not supported")
+
+	case *ecdh.PrivateKey:
+		return errors.New("ecdh is not supported")
+
+	default:
+		return fmt.Errorf("unknown key type: %T", key)
+	}
 }
