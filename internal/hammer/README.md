@@ -1,10 +1,7 @@
-# Hammer: A load testing tool for Tessera logs
+# Hammer: A load testing tool for Static CT API logs
 
-This hammer sets up read and (optionally) write traffic to a log to test correctness and performance under load.
-The read traffic is sent according to the [tlog-tiles](https://github.com/C2SP/C2SP/blob/main/tlog-tiles.md) spec, and thus could be used to load test any tiles-based log, not just Tessera logs.
-
-If write traffic is enabled, then the target log must support `POST` requests to a `/add` path.
-A successful request MUST return an ASCII decimal number representing the index that has been assigned to the new value.
+This hammer sets up read and write traffic to a Static CT API log to test correctness and performance under load.
+The traffic is sent according to the [The Static Certificate Transparency API](https://c2sp.org/static-ct-api) spec.
 
 ## UI
 
@@ -16,17 +13,19 @@ For real load-testing applications, especially headless runs as part of a CI pip
 
 ## Usage
 
-Example usage to test a deployment of `cmd/conformance/mysql`:
+Example usage to test a deployment of `cmd/gcp`:
 
 ```shell
 go run ./internal/hammer \
-  --log_public_key=transparency.dev/tessera/example+ae330e15+ASf4/L1zE859VqlfQgGzKy34l91Gl8W6wfwp+vKP62DW \
-  --log_url=http://localhost:2024 \
+  --log_public_key=test-static-ct+59739ea1+BTBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABGbaLj7T8pSEfEYL6nbF8U1xLjoy+dBkL5pINuSaTZ6DTW2WQ1bdZ4lO8ZuAcGLtSRESI01di5ZskWwgRwphuiY= \
+  --log_url=https://storage.googleapis.com/transparency-dev-playground-test-static-ct-bucket \
+  --write_log_url=http://localhost:6962
   --max_read_ops=1024 \
   --num_readers_random=128 \
   --num_readers_full=128 \
   --num_writers=256 \
-  --max_write_ops=42
+  --max_write_ops=42 \
+  --bearer_token=$(gcloud auth print-access-token)
 ```
 
 For a headless write-only example that could be used for integration tests, this command attempts to write 2500 leaves within 1 minute.
@@ -35,13 +34,15 @@ If the timeout of 1 minute is reached first, then it exits with an exit code of 
 
 ```shell
 go run ./internal/hammer \
-  --log_public_key=transparency.dev/tessera/example+ae330e15+ASf4/L1zE859VqlfQgGzKy34l91Gl8W6wfwp+vKP62DW \
-  --log_url=http://localhost:2024 \
+  --log_public_key=test-static-ct+59739ea1+BTBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABGbaLj7T8pSEfEYL6nbF8U1xLjoy+dBkL5pINuSaTZ6DTW2WQ1bdZ4lO8ZuAcGLtSRESI01di5ZskWwgRwphuiY= \
+  --log_url=https://storage.googleapis.com/transparency-dev-playground-test-static-ct-bucket \
+  --write_log_url=http://localhost:6962
   --max_read_ops=0 \
   --num_writers=512 \
   --max_write_ops=512 \
   --max_runtime=1m \
   --leaf_write_goal=2500 \
+  --bearer_token=$(gcloud auth print-access-token) \
   --show_ui=false
 ```
 
@@ -49,22 +50,18 @@ go run ./internal/hammer \
 
 ## Objective
 
-Write a tool that can send write and read requests to a Tessera log in order to check the performance of writes and reads, and ensure that these logs are behaving correctly.
+Write a tool that can send write and read requests to a Static CT API log in order to check the performance of writes and reads, and ensure that these logs are behaving correctly.
 
 ## Architecture
 
 ### Components
 
 Interactions with the log are performed by different implementations of worker, that are managed by separate pools:
- - writer: adds new leaves to the tree using a `POST` request to an `/add` endpoint
- - full reader: reads all leaves from the tree, starting at 0 and fetching them all
- - random reader: reads leaves randomly within the size of the tree
+  - writer: adds new leaves to the tree using a `POST` request to an `/add-chain` endpoint
+  - full reader: reads all leaves from the tree, starting at 0 and fetching them all
+  - random reader: reads leaves randomly within the size of the tree
 
 All readers verify inclusion proofs against a common checkpoint, so it is cryptographically assured that they all see consistent views of the data.
-
-An important point here is that readers exercise the Tessera log via standard tlog-tiles endpoints so will work for any deployment of that spec.
-However, the writers exercise a `/add` endpoint that is not defined in any spec, and is simply a convenient endpoint added to the example applications to allow for this kind of testing.
-A production log would be very unlikely to have such an endpoint.
 
 The number of each of these workers, and the rate at which they work is configurable (both via flags and through the UI).
 The number of workers is configured by increasing the size of the pool, which increases concurrency.
