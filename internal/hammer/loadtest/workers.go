@@ -22,8 +22,8 @@ import (
 	"math/rand/v2"
 	"time"
 
+	"github.com/transparency-dev/static-ct/internal/client"
 	"github.com/transparency-dev/trillian-tessera/api/layout"
-	"github.com/transparency-dev/trillian-tessera/client"
 	"k8s.io/klog/v2"
 )
 

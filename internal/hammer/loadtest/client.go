@@ -17,6 +17,8 @@ package loadtest
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -27,7 +29,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/transparency-dev/trillian-tessera/client"
+	"github.com/transparency-dev/static-ct/internal/client"
+	"github.com/transparency-dev/static-ct/internal/types"
+	"golang.org/x/crypto/cryptobyte"
 	"k8s.io/klog/v2"
 )
 
@@ -76,7 +80,7 @@ func NewLogClients(readLogURLs, writeLogURLs []string, opts ClientOpts) (LogRead
 	}
 	writers := []httpLeafWriter{}
 	for _, s := range writeLogURLs {
-		addURL, err := rootUrlOrDie(s).Parse("add")
+		addURL, err := rootUrlOrDie(s).Parse("add-chain")
 		if err != nil {
 			return nil, nil, fmt.Errorf("failed to create add URL: %v", err)
 		}
@@ -182,8 +186,7 @@ func (w httpLeafWriter) Write(ctx context.Context, newLeaf []byte) (uint64, erro
 	default:
 		return 0, fmt.Errorf("write leaf was not OK. Status code: %d. Body: %q", resp.StatusCode, body)
 	}
-	parts := bytes.Split(body, []byte("\n"))
-	index, err := strconv.ParseUint(string(parts[0]), 10, 64)
+	index, err := parseAddChainResponse(body)
 	if err != nil {
 		return 0, fmt.Errorf("write leaf failed to parse response: %v", body)
 	}
@@ -226,4 +229,52 @@ func (rr *roundRobinLeafWriter) next() LeafWriter {
 	rr.idx = (rr.idx + 1) % len(rr.ws)
 
 	return f.Write
+}
+
+// parseAddChainResponse parses the add-chain response and returns the leaf
+// index from the extensions.
+// Code is inspired by https://github.com/FiloSottile/sunlight/blob/main/tile.go.
+func parseAddChainResponse(body []byte) (uint64, error) {
+	var resp types.AddChainResponse
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return 0, fmt.Errorf("can't parse add-chain response: %v", err)
+	}
+
+	extensionBytes, err := base64.StdEncoding.DecodeString(resp.Extensions)
+	if err != nil {
+		return 0, fmt.Errorf("can't decode extensions: %v", err)
+	}
+	extensions := cryptobyte.String(extensionBytes)
+	var extensionType uint8
+	var extensionData cryptobyte.String
+	var leafIdx int64
+	if !extensions.ReadUint8(&extensionType) {
+		return 0, fmt.Errorf("can't read extension type")
+	}
+	if extensionType != 0 {
+		return 0, fmt.Errorf("wrong extension type %d, want 0", extensionType)
+	}
+	if !extensions.ReadUint16LengthPrefixed(&extensionData) {
+		return 0, fmt.Errorf("can't read extension data")
+	}
+	if !readUint40(&extensionData, &leafIdx) {
+		return 0, fmt.Errorf("can't read leaf index from extension")
+	}
+	if !extensionData.Empty() ||
+		!extensions.Empty() {
+		return 0, fmt.Errorf("invalid data tile extensions: %v", resp.Extensions)
+	}
+	return uint64(leafIdx), nil
+}
+
+// readUint40 decodes a big-endian, 40-bit value into out and advances over it.
+// It reports whether the read was successful.
+// Code is copied from https://github.com/FiloSottile/sunlight/blob/main/extensions.go.
+func readUint40(s *cryptobyte.String, out *int64) bool {
+	var v []byte
+	if !s.ReadBytes(&v, 5) {
+		return false
+	}
+	*out = int64(v[0])<<32 | int64(v[1])<<24 | int64(v[2])<<16 | int64(v[3])<<8 | int64(v[4])
+	return true
 }

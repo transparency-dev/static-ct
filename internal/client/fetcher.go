@@ -103,7 +103,7 @@ func (h HTTPFetcher) ReadTile(ctx context.Context, l, i uint64, p uint8) ([]byte
 }
 
 func (h HTTPFetcher) ReadEntryBundle(ctx context.Context, i uint64, p uint8) ([]byte, error) {
-	return h.fetch(ctx, layout.EntriesPath(i, p))
+	return h.fetch(ctx, ctEntriesPath(i, p))
 }
 
 // FileFetcher knows how to fetch log artifacts from a filesystem rooted at Root.
@@ -120,5 +120,9 @@ func (f FileFetcher) ReadTile(_ context.Context, l, i uint64, p uint8) ([]byte, 
 }
 
 func (f FileFetcher) ReadEntryBundle(_ context.Context, i uint64, p uint8) ([]byte, error) {
-	return os.ReadFile(path.Join(f.Root, layout.EntriesPath(i, p)))
+	return os.ReadFile(path.Join(f.Root, ctEntriesPath(i, p)))
+}
+
+func ctEntriesPath(n uint64, p uint8) string {
+	return fmt.Sprintf("tile/data/%s", layout.NWithSuffix(0, n, p))
 }

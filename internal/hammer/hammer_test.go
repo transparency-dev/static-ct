@@ -15,23 +15,75 @@
 package main
 
 import (
+	"bytes"
 	"testing"
 )
 
 func TestLeafGenerator(t *testing.T) {
-	// Always generate new values
-	gN := newLeafGenerator(0, 100, 0)
+	// Load intermediate CA certificate from test data.
+	intermediateCACert, err := loadIntermediateCACert("./testdata/test_intermediate_ca_cert.pem")
+	if err != nil {
+		t.Fatalf("Failed to load intermediate CA certificate: %v", err)
+	}
+
+	// Load intermediate CA private key from test data.
+	caKey, err := loadPrivateKey("./testdata/test_intermediate_ca_private_key.pem")
+	if err != nil {
+		t.Fatalf("Failed to load intermediate CA private key: %v", err)
+	}
+
+	// Load leaf certificate signing private key.
+	leafCertPrivateKey, err := loadPrivateKey("./testdata/test_leaf_cert_signing_private_key.pem")
+	if err != nil {
+		t.Fatalf("Failed to load private key: %v", err)
+	}
+
+	// Always generate new values.
+	gN := newLeafGenerator(0, 0, intermediateCACert, caKey, leafCertPrivateKey)
 	vs := make(map[string]bool)
 	for range 256 {
 		v := string(gN())
 		vs[v] = true
 	}
 
-	// Always generate duplicate
-	gD := newLeafGenerator(256, 100, 1.0)
+	// Always generate duplicate.
+	gD := newLeafGenerator(256, 1.0, intermediateCACert, caKey, leafCertPrivateKey)
 	for range 256 {
 		if !vs[string(gD())] {
 			t.Error("Expected duplicate")
 		}
+	}
+}
+
+func TestCertificateGeneratorDeterministic(t *testing.T) {
+	// Load intermediate CA certificate from test data.
+	intermediateCACert, err := loadIntermediateCACert("./testdata/test_intermediate_ca_cert.pem")
+	if err != nil {
+		t.Fatalf("Failed to load intermediate CA certificate: %v", err)
+	}
+
+	// Load intermediate CA private key from test data.
+	caKey, err := loadPrivateKey("./testdata/test_intermediate_ca_private_key.pem")
+	if err != nil {
+		t.Fatalf("Failed to load intermediate CA private key: %v", err)
+	}
+
+	// Load leaf certificate signing private key.
+	leafCertPrivateKey, err := loadPrivateKey("./testdata/test_leaf_cert_signing_private_key.pem")
+	if err != nil {
+		t.Fatalf("Failed to load private key: %v", err)
+	}
+
+	certGen := newChainGenerator(intermediateCACert, caKey, publicKey(leafCertPrivateKey))
+
+	cert0 := certGen.certificate(0)
+	cert1 := certGen.certificate(0)
+
+	if len(cert0) == 0 || len(cert1) == 0 {
+		t.Error("Certificate is empty")
+	}
+
+	if !bytes.Equal(cert0, cert1) {
+		t.Errorf("Certificates generator did not generate deterministic certificates")
 	}
 }
