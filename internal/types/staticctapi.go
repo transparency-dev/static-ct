@@ -34,7 +34,7 @@ type EntryBundle struct {
 }
 
 // UnmarshalText implements encoding/TextUnmarshaler and reads EntryBundles
-// which are encoded using the tlog-tiles spec.
+// which are encoded using the Static CT API spec.
 func (t *EntryBundle) UnmarshalText(raw []byte) error {
 	entries := make([][]byte, 0, layout.EntryBundleWidth)
 	s := cryptobyte.String(raw)
