@@ -19,7 +19,7 @@ Example usage to test a deployment of `cmd/gcp`:
 go run ./internal/hammer \
   --log_public_key=test-static-ct+59739ea1+BTBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABGbaLj7T8pSEfEYL6nbF8U1xLjoy+dBkL5pINuSaTZ6DTW2WQ1bdZ4lO8ZuAcGLtSRESI01di5ZskWwgRwphuiY= \
   --log_url=https://storage.googleapis.com/transparency-dev-playground-test-static-ct-bucket \
-  --write_log_url=http://localhost:6962
+  --write_log_url=http://localhost:6962/test-static-ct
   --max_read_ops=1024 \
   --num_readers_random=128 \
   --num_readers_full=128 \
@@ -36,7 +36,7 @@ If the timeout of 1 minute is reached first, then it exits with an exit code of 
 go run ./internal/hammer \
   --log_public_key=test-static-ct+59739ea1+BTBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABGbaLj7T8pSEfEYL6nbF8U1xLjoy+dBkL5pINuSaTZ6DTW2WQ1bdZ4lO8ZuAcGLtSRESI01di5ZskWwgRwphuiY= \
   --log_url=https://storage.googleapis.com/transparency-dev-playground-test-static-ct-bucket \
-  --write_log_url=http://localhost:6962
+  --write_log_url=http://localhost:6962/test-static-ct
   --max_read_ops=0 \
   --num_writers=512 \
   --max_write_ops=512 \
