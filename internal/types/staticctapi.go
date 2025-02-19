@@ -56,7 +56,6 @@ func (t *EntryBundle) UnmarshalText(raw []byte) error {
 		switch entryType {
 		case 0: // x509_entry
 			if !s.ReadUint24LengthPrefixed((*cryptobyte.String)(&entry)) ||
-				// TODO(phboneff): remove below?
 				!s.ReadUint16LengthPrefixed(&extensions) ||
 				!s.ReadUint16LengthPrefixed(&fingerprints) {
 				return fmt.Errorf("invalid data tile x509_entry")
@@ -78,7 +77,6 @@ func (t *EntryBundle) UnmarshalText(raw []byte) error {
 				!s.ReadUint24LengthPrefixed(&defangedCrt) ||
 				!s.ReadUint16LengthPrefixed(&extensions) ||
 				!s.ReadUint24LengthPrefixed((*cryptobyte.String)(&entry)) ||
-				// TODO(phboneff): remove below?
 				!s.ReadUint16LengthPrefixed(&fingerprints) {
 				return fmt.Errorf("invalid data tile precert_entry")
 			}
