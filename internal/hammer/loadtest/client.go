@@ -80,7 +80,7 @@ func NewLogClients(readLogURLs, writeLogURLs []string, opts ClientOpts) (LogRead
 	}
 	writers := []httpLeafWriter{}
 	for _, s := range writeLogURLs {
-		addURL, err := rootUrlOrDie(s).Parse("add-chain")
+		addURL, err := rootUrlOrDie(s).Parse("ct/v1/add-chain")
 		if err != nil {
 			return nil, nil, fmt.Errorf("failed to create add URL: %v", err)
 		}
