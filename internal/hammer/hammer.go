@@ -23,6 +23,7 @@ import (
 	"crypto/rsa"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/base64"
 	"encoding/pem"
 	"errors"
 	"flag"
@@ -34,9 +35,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/transparency-dev/formats/note"
+	tdnote "github.com/transparency-dev/formats/note"
 	"github.com/transparency-dev/static-ct/internal/client"
 	"github.com/transparency-dev/static-ct/internal/hammer/loadtest"
+	"golang.org/x/mod/sumdb/note"
 	"golang.org/x/net/http2"
 
 	"k8s.io/klog/v2"
@@ -51,7 +53,8 @@ var (
 	logURL      multiStringFlag
 	writeLogURL multiStringFlag
 
-	logPubKey                 = flag.String("log_public_key", os.Getenv("TILES_LOG_PUBLIC_KEY"), "Public key for the log. This is defaulted to the environment variable TILES_LOG_PUBLIC_KEY")
+	origin                    = flag.String("origin", os.Getenv("CT_LOG_ORIGIN"), "Origin of the log, for checkpoints and the monitoring prefix. This is defaulted to the environment variable CT_LOG_ORIGIN")
+	logPubKey                 = flag.String("log_public_key", os.Getenv("CT_LOG_PUBLIC_KEY"), "Public key for the log. This is defaulted to the environment variable CT_LOG_PUBLIC_KEY")
 	intermediateCACertPath    = flag.String("intermediate_ca_cert_path", "./internal/hammer/testdata/test_intermediate_ca_cert.pem", "Intermediate CA certificate path for certificate generator")
 	intermediateCAKeyPath     = flag.String("intermediate_ca_key_path", "./internal/hammer/testdata/test_intermediate_ca_private_key.pem", "Intermediate CA key path for certificate generator (Only RSA is accepted)")
 	certSigningPrivateKeyPath = flag.String("cert_sign_private_key_path", "./internal/hammer/testdata/test_leaf_cert_signing_private_key.pem", "Certificate signing private key path for certificate generator (Only RSA is accepted)")
@@ -102,9 +105,9 @@ func main() {
 
 	ctx, cancel := context.WithCancel(context.Background())
 
-	logSigV, err := note.NewVerifier(*logPubKey)
+	logSigV, err := logSigVerifier(*origin, *logPubKey)
 	if err != nil {
-		klog.Exitf("failed to create verifier: %v", err)
+		klog.Exitf("Failed to create verifier: %v", err)
 	}
 
 	f, w, err := loadtest.NewLogClients(logURL, writeLogURL, loadtest.ClientOpts{
@@ -353,4 +356,35 @@ func verifySupportedKeyAlgorithm(key any) error {
 	default:
 		return fmt.Errorf("unknown key type: %T", key)
 	}
+}
+
+// logSigVerifier creates a note.Verifier for the Trillian Log by taking an
+// origin string and a base64-encoded public key.
+func logSigVerifier(origin, b64PubKey string) (note.Verifier, error) {
+	if origin == "" {
+		return nil, errors.New("origin cannot be empty")
+	}
+	if b64PubKey == "" {
+		return nil, errors.New("log public key cannot be empty")
+	}
+
+	derBytes, err := base64.StdEncoding.DecodeString(b64PubKey)
+	if err != nil {
+		return nil, fmt.Errorf("error decoding public key: %s", err)
+	}
+	pub, err := x509.ParsePKIXPublicKey(derBytes)
+	if err != nil {
+		return nil, fmt.Errorf("error parsing public key: %v", err)
+	}
+
+	verifierKey, err := tdnote.RFC6962VerifierString(origin, pub)
+	if err != nil {
+		return nil, fmt.Errorf("error creating RFC6962 verifier string: %v", err)
+	}
+	logSigV, err := tdnote.NewVerifier(verifierKey)
+	if err != nil {
+		return nil, fmt.Errorf("error creating verifier: %v", err)
+	}
+
+	return logSigV, nil
 }
