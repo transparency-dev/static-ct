@@ -17,10 +17,8 @@ package main
 
 import (
 	"crypto/ecdsa"
-	"crypto/ed25519"
 	"crypto/elliptic"
 	"crypto/rand"
-	"crypto/rsa"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/asn1"
@@ -43,12 +41,29 @@ const (
 )
 
 var (
-	outputPath = flag.String("output_path", "./internal/testdata/", "Output path for private keys and certificates")
+	outputPath      = flag.String("output_path", "./internal/testdata/", "Output path for private keys and certificates")
+	notBeforeString = flag.String("not_before", "2024-12-05T18:05:50.000Z", "Start of the range of certs to be generated. RFC3339 UTC format, e.g: 2024-01-02T15:04:05Z.")
+)
+
+var (
+	// From RFC6962 Section 3.1. To identify pre-certs.
+	cTPrecertPoisonOID = asn1.ObjectIdentifier{1, 3, 6, 1, 4, 1, 11129, 2, 4, 3}
+	ctPoison           = pkix.Extension{
+		Id:       cTPrecertPoisonOID,
+		Critical: true,
+		Value:    []byte{0x05, 0x00}, // ASN.1 NULL
+	}
+	// From RFC6962 Section 3.1. For intermediates to issue pre-certs.
+	preIssuerEKUOID = asn1.ObjectIdentifier{1, 3, 6, 1, 4, 1, 11129, 2, 4, 4}
 )
 
 func main() {
 	klog.InitFlags(nil)
 	flag.Parse()
+	notBefore, err := parseTime(*notBeforeString)
+	if err != nil {
+		klog.Fatalf("Failed to parse start time: %v", err)
+	}
 	// Generate root.
 	// Generate a new EC root CA private key.
 	rootPrivKey, err := ecdsa.GenerateKey(elliptic.P384(), rand.Reader)
@@ -60,7 +75,7 @@ func main() {
 	}
 
 	// Generate a new root CA certificate.
-	rootCert, err := rootCACert(rootPrivKey)
+	rootCert, err := rootCACert(rootPrivKey, *notBefore)
 	if err != nil {
 		klog.Fatalf("Failed to generate root CA certificate: %v", err)
 	}
@@ -68,13 +83,13 @@ func main() {
 		klog.Fatalf("Failed to save root CA certificate: %v", err)
 	}
 
-	genLeaves(rootCert, rootPrivKey)
-	genPreIssuerAndLeaves(rootCert, rootPrivKey)
+	genLeaves(rootCert, rootPrivKey, *notBefore)
+	genPreIssuerAndLeaves(rootCert, rootPrivKey, *notBefore)
 
 }
 
-// genPreIssuerAndLeaves generates a cert and a pre-cert.
-func genLeaves(rootCert *x509.Certificate, rootPrivKey *ecdsa.PrivateKey) {
+// genLeaves generates a cert and a pre-cert.
+func genLeaves(rootCert *x509.Certificate, rootPrivKey *ecdsa.PrivateKey, notBefore time.Time) {
 	// Generate leaf certs chaining to root.
 	// Generate a new ECDSA leaf certificate signing private key.
 	leafCertPrivateKey, err := ecdsa.GenerateKey(elliptic.P384(), rand.Reader)
@@ -86,14 +101,14 @@ func genLeaves(rootCert *x509.Certificate, rootPrivKey *ecdsa.PrivateKey) {
 	}
 
 	chainGenerator := newChainGenerator(rootCert, rootPrivKey, leafCertPrivateKey.Public())
-	leafCert, err := chainGenerator.certificate(100, false)
+	leafCert, err := chainGenerator.certificate(100, false, notBefore)
 	if err != nil {
 		klog.Fatalf("Failed to generate leaf certificate: %v", err)
 	}
 	if err := saveCertificatePEM(leafCert, path.Join(*outputPath, "test_leaf_cert_signed_by_root.pem")); err != nil {
 		klog.Fatalf("Failed to save leaf cert: %v", err)
 	}
-	leafPreCert, err := chainGenerator.certificate(200, true)
+	leafPreCert, err := chainGenerator.certificate(200, true, notBefore)
 	if err != nil {
 		klog.Fatalf("Failed to generate leaf certificate: %v", err)
 	}
@@ -105,7 +120,7 @@ func genLeaves(rootCert *x509.Certificate, rootPrivKey *ecdsa.PrivateKey) {
 
 // genPreIssuerAndLeaves generates a pre-issuer intermediate cert, a cert,
 // a pre-cert.
-func genPreIssuerAndLeaves(rootCert *x509.Certificate, rootPrivKey *ecdsa.PrivateKey) {
+func genPreIssuerAndLeaves(rootCert *x509.Certificate, rootPrivKey *ecdsa.PrivateKey, notBefore time.Time) {
 	// Generate a new ECDSA intermediate CA private key.
 	preIntermediatePrivKey, err := ecdsa.GenerateKey(elliptic.P384(), rand.Reader)
 	if err != nil {
@@ -116,7 +131,7 @@ func genPreIssuerAndLeaves(rootCert *x509.Certificate, rootPrivKey *ecdsa.Privat
 	}
 
 	// Generate a new intermediate CA certificate with CT extension.
-	preIntermediateCert, err := intermediateCACert(rootCert, rootPrivKey, preIntermediatePrivKey, true)
+	preIntermediateCert, err := intermediateCACert(rootCert, rootPrivKey, preIntermediatePrivKey, true, notBefore)
 	if err != nil {
 		klog.Fatalf("Failed to generate intermediate CA certificate: %v", err)
 	}
@@ -134,14 +149,14 @@ func genPreIssuerAndLeaves(rootCert *x509.Certificate, rootPrivKey *ecdsa.Privat
 	}
 
 	chainGenerator := newChainGenerator(preIntermediateCert, preIntermediatePrivKey, leafCertPrivateKey.Public())
-	leafCert, err := chainGenerator.certificate(100, false)
+	leafCert, err := chainGenerator.certificate(100, false, notBefore)
 	if err != nil {
 		klog.Fatalf("Failed to generate leaf certificate: %v", err)
 	}
 	if err := saveCertificatePEM(leafCert, path.Join(*outputPath, "test_leaf_cert_signed_by_pre_intermediate.pem")); err != nil {
 		klog.Fatalf("Failed to save leaf cert: %v", err)
 	}
-	leafPreCert, err := chainGenerator.certificate(200, true)
+	leafPreCert, err := chainGenerator.certificate(200, true, notBefore)
 	if err != nil {
 		klog.Fatalf("Failed to generate leaf certificate: %v", err)
 	}
@@ -150,7 +165,7 @@ func genPreIssuerAndLeaves(rootCert *x509.Certificate, rootPrivKey *ecdsa.Privat
 	}
 }
 
-func rootCACert(privKey *ecdsa.PrivateKey) (*x509.Certificate, error) {
+func rootCACert(privKey *ecdsa.PrivateKey, notBefore time.Time) (*x509.Certificate, error) {
 	template := x509.Certificate{
 		SerialNumber: big.NewInt(1),
 		Subject: pkix.Name{
@@ -158,8 +173,8 @@ func rootCACert(privKey *ecdsa.PrivateKey) (*x509.Certificate, error) {
 			Country:      []string{country},
 			CommonName:   fmt.Sprintf("%s Root Test CA", organization),
 		},
-		NotBefore:             time.Now(),
-		NotAfter:              time.Now().AddDate(10, 0, 0),
+		NotBefore:             notBefore,
+		NotAfter:              notBefore.AddDate(10, 0, 0),
 		KeyUsage:              x509.KeyUsageCertSign | x509.KeyUsageCRLSign,
 		BasicConstraintsValid: true,
 		IsCA:                  true,
@@ -180,7 +195,7 @@ func rootCACert(privKey *ecdsa.PrivateKey) (*x509.Certificate, error) {
 	return cert, nil
 }
 
-func intermediateCACert(rootCACert *x509.Certificate, rootPrivKey, privKey *ecdsa.PrivateKey, preIntermediate bool) (*x509.Certificate, error) {
+func intermediateCACert(rootCACert *x509.Certificate, rootPrivKey, privKey *ecdsa.PrivateKey, preIntermediate bool, notBefore time.Time) (*x509.Certificate, error) {
 	template := x509.Certificate{
 		SerialNumber: big.NewInt(2),
 		Subject: pkix.Name{
@@ -188,8 +203,8 @@ func intermediateCACert(rootCACert *x509.Certificate, rootPrivKey, privKey *ecds
 			Country:      []string{country},
 			CommonName:   fmt.Sprintf("%s Intermediate Test CA", organization),
 		},
-		NotBefore:             time.Now(),
-		NotAfter:              time.Now().AddDate(5, 0, 0),
+		NotBefore:             notBefore,
+		NotAfter:              notBefore.AddDate(5, 0, 0),
 		KeyUsage:              x509.KeyUsageCertSign | x509.KeyUsageCRLSign,
 		BasicConstraintsValid: true,
 		IsCA:                  true,
@@ -198,7 +213,7 @@ func intermediateCACert(rootCACert *x509.Certificate, rootPrivKey, privKey *ecds
 
 	if preIntermediate {
 		preIssuerExtension := pkix.Extension{
-			Id: asn1.ObjectIdentifier{1, 3, 6, 1, 4, 1, 11129, 2, 4, 4},
+			Id: preIssuerEKUOID,
 		}
 		template.ExtraExtensions = append(template.ExtraExtensions, preIssuerExtension)
 	}
@@ -238,10 +253,7 @@ func newChainGenerator(intermediateCert *x509.Certificate, intermediateKey, leaf
 }
 
 // certificate generates a deterministic TLS certificate by using integer as the serial number.
-func (g *chainGenerator) certificate(serialNumber int64, preCert bool) (*x509.Certificate, error) {
-	notBefore := time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC)
-	notAfter := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
-
+func (g *chainGenerator) certificate(serialNumber int64, preCert bool, notBefore time.Time) (*x509.Certificate, error) {
 	template := x509.Certificate{
 		SerialNumber: big.NewInt(serialNumber),
 		Subject: pkix.Name{
@@ -253,7 +265,7 @@ func (g *chainGenerator) certificate(serialNumber int64, preCert bool) (*x509.Ce
 			Country:            []string{country},
 		},
 		NotBefore:             notBefore,
-		NotAfter:              notAfter,
+		NotAfter:              notBefore.AddDate(1, 0, 0),
 		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
 		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
 		BasicConstraintsValid: true,
@@ -261,7 +273,7 @@ func (g *chainGenerator) certificate(serialNumber int64, preCert bool) (*x509.Ce
 	}
 
 	ctPoison := pkix.Extension{
-		Id:       asn1.ObjectIdentifier{1, 3, 6, 1, 4, 1, 11129, 2, 4, 3},
+		Id:       cTPrecertPoisonOID,
 		Critical: true,
 		Value:    []byte{0x05, 0x00}, // ASN.1 NULL
 	}
@@ -288,7 +300,7 @@ func saveECDSAPrivateKeyPEM(key *ecdsa.PrivateKey, filename string) error {
 	// Marshal the private key to SEC1 ASN.1 DER.
 	derBytes, err := x509.MarshalECPrivateKey(key)
 	if err != nil {
-		return fmt.Errorf("failed to marshal EC private key: %w", err)
+		return fmt.Errorf("failed to marshal EC private key: %v", err)
 	}
 
 	// No encryption.
@@ -302,7 +314,7 @@ func saveECDSAPrivateKeyPEM(key *ecdsa.PrivateKey, filename string) error {
 
 	// Write the PEM data to the file with restrictive permissions.
 	if err := os.WriteFile(filename, pemData, 0600); err != nil {
-		return fmt.Errorf("failed to write PEM file: %w", err)
+		return fmt.Errorf("failed to write PEM file: %v", err)
 	}
 
 	return nil
@@ -315,79 +327,35 @@ func saveCertificatePEM(cert *x509.Certificate, filename string) error {
 	})
 
 	if err := os.WriteFile(filename, pemData, 0644); err != nil {
-		return fmt.Errorf("failed to write PEM file: %w", err)
+		return fmt.Errorf("failed to write PEM file: %v", err)
 	}
-	// TODO(phboneff): automate cert printin in certificate.go
+	// TODO(phboneff): automate cert printing in certificate.go
 	fmt.Println("Don't forget to update certificate.go with the matching openssl text output.")
 	return nil
 }
 
-func loadPrivateKey(path string) (*ecdsa.PrivateKey, error) {
-	keyBytes, err := os.ReadFile(path)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read key file: %w", err)
-	}
-
-	block, _ := pem.Decode(keyBytes)
-	if block == nil {
-		ecdsaKey, err := x509.ParseECPrivateKey(keyBytes)
-		if err == nil {
-			return ecdsaKey, nil
-		}
-		return nil, fmt.Errorf("failed to decode PEM block and failed to parse as DER: %w", err)
-	}
-
-	// Fix block type for testing keys.
-	block.Type = testingKey(block.Type)
-
-	switch block.Type {
-	case "EC PRIVATE KEY":
-		return x509.ParseECPrivateKey(block.Bytes)
-	default:
-		return nil, fmt.Errorf("unsupported PEM block type: %s", block.Type)
-	}
-}
-
-func loadCert(path string) (*x509.Certificate, error) {
-	certBytes, err := os.ReadFile(path)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read certificate file: %w", err)
-	}
-
-	block, rest := pem.Decode(certBytes)
-	if block == nil {
-		return nil, fmt.Errorf("failed to decode PEM block")
-	}
-	if block.Type != "CERTIFICATE" {
-		return nil, fmt.Errorf("expected PEM block type 'CERTIFICATE', got '%s'", block.Type)
-	}
-	if len(rest) > 0 {
-		klog.Info("Warning: More than one PEM block found. Parsing only the first.")
-	}
-
-	cert, err := x509.ParseCertificate(block.Bytes)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse X.509 certificate: %w", err)
-	}
-
-	return cert, nil
-}
-
-// publicKey returns the public key associated with the private key.
-func publicKey(privKey any) any {
-	switch k := privKey.(type) {
-	case *rsa.PrivateKey:
-		return k.Public()
-	case *ecdsa.PrivateKey:
-		return k.Public()
-	case *ed25519.PrivateKey:
-		return k.Public()
-	default:
-		klog.Fatalf("Unknown private key type: %T", privKey)
-		return nil // Or panic, or return an error
-	}
-}
-
 func testingKey(s string) string {
 	return strings.ReplaceAll(s, "TESTING KEY", "PRIVATE KEY")
+}
+
+type timestampFlag struct {
+	t *time.Time
+}
+
+func (t *timestampFlag) String() string {
+	if t.t != nil {
+		return t.t.Format(time.RFC3339)
+	}
+	return "2024-12-05T18:05:50.000Z"
+}
+
+func parseTime(w string) (*time.Time, error) {
+	if !strings.HasSuffix(w, "Z") {
+		return nil, fmt.Errorf("timestamps MUST be in UTC, got %v", w)
+	}
+	tt, err := time.Parse(time.RFC3339, w)
+	if err != nil {
+		return nil, fmt.Errorf("can't parse %q as RFC3339 timestamp: %v", w, err)
+	}
+	return &tt, nil
 }

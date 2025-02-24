@@ -30,43 +30,43 @@ import _ "embed"
 // $ openssl x509  -in internal/testdata/test_root_ca_cert.pem -noout -text
 //
 // Data:
-//     Version: 3 (0x2)
-//     Serial Number: 1 (0x1)
-//     Signature Algorithm: ecdsa-with-SHA384
-//     Issuer: C=GB, O=TrustFabric Transparency.dev Test Root Test CA, CN=TrustFabric Transparency.dev Test Root Test CA
-//     Validity
-//     	Not Before: Feb 24 11:50:32 2025 GMT
-//     	Not After : Feb 24 11:50:32 2035 GMT
-//     Subject: C=GB, O=TrustFabric Transparency.dev Test Root Test CA, CN=TrustFabric Transparency.dev Test Root Test CA
-//     Subject Public Key Info:
-//     	Public Key Algorithm: id-ecPublicKey
-//     		Public-Key: (384 bit)
-//     		pub:
-//     			04:19:17:1b:cb:21:16:f0:fd:98:bb:57:01:58:3e:
-//     			67:5c:f7:ee:5f:54:eb:96:b0:0e:c1:78:4f:57:a8:
-//     			3a:6d:a5:aa:63:9f:c6:cc:f5:6e:06:72:66:a2:74:
-//     			5f:0e:1a:a2:1e:7a:76:50:c0:9c:cb:7e:dd:bb:3b:
-//     			ac:6a:79:65:e5:6d:08:7a:24:b8:8b:82:96:f1:a4:
-//     			bd:09:4a:1b:b9:33:44:d4:ee:ca:76:a6:44:a4:1f:
-//     			8e:0b:5b:32:b7:e7:5d
-//     		ASN1 OID: secp384r1
-//     		NIST CURVE: P-384
-//     X509v3 extensions:
-//     	X509v3 Key Usage: critical
-//     		Certificate Sign, CRL Sign
-//     	X509v3 Basic Constraints: critical
-//     		CA:TRUE
-//     	X509v3 Subject Key Identifier:
-//     		D4:60:EC:E6:FE:F9:98:BC:19:26:D6:6F:45:04:DD:DE:68:C2:80:AA
-//     Signature Algorithm: ecdsa-with-SHA384
-//     Signature Value:
-//     30:66:02:31:00:b9:a2:d7:be:12:ac:aa:46:c4:ee:d5:6b:f1:
-//     bb:6d:b6:c9:59:be:37:c6:6e:d6:6f:aa:50:61:e4:61:59:9b:
-//     6c:bb:f4:e3:23:58:43:5a:80:86:fb:27:68:46:4a:55:8b:02:
-//     31:00:93:4a:66:15:7e:d5:74:d0:b4:a1:31:b2:36:96:77:83:
-//     f4:5d:17:d6:e8:5d:92:d7:b1:0d:c6:4e:9d:aa:68:7e:32:20:
-//     7c:7c:6e:f4:ee:74:0c:c7:4d:cb:3a:63:fa:cd
-
+//
+//	Version: 3 (0x2)
+//	Serial Number: 1 (0x1)
+//	Signature Algorithm: ecdsa-with-SHA384
+//	Issuer: C=GB, O=TrustFabric Transparency.dev Test Root Test CA, CN=TrustFabric Transparency.dev Test Root Test CA
+//	Validity
+//	    Not Before: Dec  5 18:05:50 2024 GMT
+//	    Not After : Dec  5 18:05:50 2034 GMT
+//	Subject: C=GB, O=TrustFabric Transparency.dev Test Root Test CA, CN=TrustFabric Transparency.dev Test Root Test CA
+//	Subject Public Key Info:
+//	    Public Key Algorithm: id-ecPublicKey
+//	        Public-Key: (384 bit)
+//	        pub:
+//	            04:c5:e8:0a:7e:fd:d5:3a:3e:74:67:2d:29:60:dd:
+//	            15:ad:eb:47:38:49:44:c6:87:33:53:a1:79:55:09:
+//	            27:16:df:fb:61:48:7f:0d:17:25:6c:e2:93:22:7f:
+//	            fe:2f:4e:52:29:d2:35:f8:d7:d3:22:4e:aa:3a:2a:
+//	            7c:10:a8:4a:cb:3d:2c:82:e0:d4:4c:70:ca:df:5a:
+//	            83:c4:85:df:bd:d5:c4:51:68:15:3e:f8:5d:60:55:
+//	            45:c3:4f:0e:ec:94:dd
+//	        ASN1 OID: secp384r1
+//	        NIST CURVE: P-384
+//	X509v3 extensions:
+//	    X509v3 Key Usage: critical
+//	        Certificate Sign, CRL Sign
+//	    X509v3 Basic Constraints: critical
+//	        CA:TRUE
+//	    X509v3 Subject Key Identifier:
+//	        77:1D:7C:21:61:2D:C2:05:7D:AA:30:1E:6B:7F:8F:9B:DC:61:20:68
+//	Signature Algorithm: ecdsa-with-SHA384
+//	Signature Value:
+//	30:66:02:31:00:9d:aa:cd:cf:a4:c2:a7:ce:4e:7e:52:25:67:
+//	b6:9a:aa:fe:17:b5:6c:2c:d1:c7:6a:03:72:12:fc:df:53:f5:
+//	1b:70:56:3a:a4:85:15:a0:57:a4:0e:5c:97:ba:d4:83:75:02:
+//	31:00:d3:93:fd:a0:8a:88:3d:44:48:6b:a2:fe:27:74:42:df:
+//	94:44:93:d6:31:99:90:24:20:4c:41:b1:f6:3a:1a:9a:51:bd:
+//	bf:93:88:29:ee:1c:f5:e7:ad:85:f0:8f:46:fa
 //
 //go:embed test_root_ca_cert.pem
 var CACertPEM string
@@ -83,43 +83,43 @@ var CACertPEM string
 //	Signature Algorithm: ecdsa-with-SHA384
 //	Issuer: C=GB, O=TrustFabric Transparency.dev Test Root Test CA, CN=TrustFabric Transparency.dev Test Root Test CA
 //	Validity
-//		Not Before: Jan  1 00:00:00 2023 GMT
-//		Not After : Jan  1 00:00:00 2024 GMT
+//	    Not Before: Dec  5 18:05:50 2024 GMT
+//	    Not After : Dec  5 18:05:50 2025 GMT
 //	Subject: C=GB, ST=London, L=London, O=TrustFabric Transparency.dev Test, OU=TrustFabric, CN=test.transparency.dev
 //	Subject Public Key Info:
-//		Public Key Algorithm: id-ecPublicKey
-//			Public-Key: (384 bit)
-//			pub:
-//				04:3d:fc:f8:13:0f:23:c6:78:81:38:40:eb:42:3d:
-//				c2:8e:0a:84:7d:42:0b:14:23:61:d5:17:29:a3:0b:
-//				c0:d0:21:86:25:ad:8d:a3:ad:3d:e1:5d:dc:1e:57:
-//				5d:c3:b1:69:93:87:9b:60:c2:c7:84:c4:bd:7b:bd:
-//				72:63:b9:d5:03:c8:6a:02:5a:48:8b:b1:df:19:67:
-//				13:2d:9b:fa:82:61:8c:a4:a2:62:74:a2:b2:99:22:
-//				ff:00:81:fe:68:11:04
-//			ASN1 OID: secp384r1
-//			NIST CURVE: P-384
+//	    Public Key Algorithm: id-ecPublicKey
+//	        Public-Key: (384 bit)
+//	        pub:
+//	            04:5b:04:6c:07:ac:05:1b:06:d5:e3:3c:7f:69:17:
+//	            5b:67:f0:a6:c6:9a:61:ed:cc:b1:51:50:30:2a:07:
+//	            0c:1c:a7:9b:fe:4e:48:43:5c:eb:88:5e:ce:a3:59:
+//	            a7:5d:6f:c6:82:53:f5:f0:3e:09:ab:9e:c5:e9:c5:
+//	            ba:bc:2f:39:8c:a7:63:86:d4:52:05:44:83:6e:1f:
+//	            54:1f:cd:19:cc:d4:ec:3f:d1:7e:06:95:14:4c:fd:
+//	            8f:ed:ba:7f:93:d4:f4
+//	        ASN1 OID: secp384r1
+//	        NIST CURVE: P-384
 //	X509v3 extensions:
-//		X509v3 Key Usage: critical
-//			Digital Signature, Key Encipherment
-//		X509v3 Extended Key Usage:
-//			TLS Web Server Authentication
-//		X509v3 Basic Constraints: critical
-//			CA:FALSE
-//		X509v3 Authority Key Identifier:
-//			D4:60:EC:E6:FE:F9:98:BC:19:26:D6:6F:45:04:DD:DE:68:C2:80:AA
-//		X509v3 Subject Alternative Name:
-//			DNS:test.transparency.dev
-//		CT Precertificate Poison: critical
-//			NULL
+//	    X509v3 Key Usage: critical
+//	        Digital Signature, Key Encipherment
+//	    X509v3 Extended Key Usage:
+//	        TLS Web Server Authentication
+//	    X509v3 Basic Constraints: critical
+//	        CA:FALSE
+//	    X509v3 Authority Key Identifier:
+//	        77:1D:7C:21:61:2D:C2:05:7D:AA:30:1E:6B:7F:8F:9B:DC:61:20:68
+//	    X509v3 Subject Alternative Name:
+//	        DNS:test.transparency.dev
+//	    CT Precertificate Poison: critical
+//	        NULL
 //	Signature Algorithm: ecdsa-with-SHA384
 //	Signature Value:
-//		30:65:02:30:64:8d:4f:c3:31:71:1d:e3:50:17:eb:45:62:6b:
-//		4f:ea:c3:6c:47:90:bd:fe:89:6f:f3:40:e5:3b:2f:6c:a0:c7:
-//		fa:eb:c1:0f:f8:d1:0a:be:4d:26:ae:05:49:e6:71:85:02:31:
-//		00:e9:88:e6:aa:50:b8:6f:cd:ff:ea:cc:5c:27:10:eb:d1:4d:
-//		73:b8:e3:50:56:8b:3a:f3:2a:f5:a8:bf:33:80:d6:d4:c0:db:
-//		f0:f9:02:4c:06:96:7a:48:b8:b7:3c:17:9c
+//	30:64:02:30:19:40:dc:a6:8a:36:e8:8c:f6:85:02:15:58:f1:
+//	31:18:b2:7d:0e:00:bd:05:b7:a4:fb:eb:0c:f7:3b:36:80:fa:
+//	c2:5b:3b:33:49:49:d9:20:48:bc:db:23:93:0d:1c:2d:02:30:
+//	68:7d:1a:6f:91:9f:32:15:fb:eb:20:74:96:21:69:0c:6e:16:
+//	46:c5:26:0e:60:8b:26:bc:f8:7d:e2:d4:16:8e:31:ce:36:a1:
+//	45:e0:9c:f3:f3:c4:56:97:9f:f8:db:6f
 //
 //go:embed test_leaf_pre_cert_signed_by_root.pem
 var PrecertPEMValid string
@@ -135,20 +135,20 @@ var PrecertPEMValid string
 //	Signature Algorithm: ecdsa-with-SHA384
 //	Issuer: C=GB, O=TrustFabric Transparency.dev Test Root Test CA, CN=TrustFabric Transparency.dev Test Root Test CA
 //	Validity
-//	    Not Before: Jan  1 00:00:00 2023 GMT
-//	    Not After : Jan  1 00:00:00 2024 GMT
+//	    Not Before: Dec  5 18:05:50 2024 GMT
+//	    Not After : Dec  5 18:05:50 2025 GMT
 //	Subject: C=GB, ST=London, L=London, O=TrustFabric Transparency.dev Test, OU=TrustFabric, CN=test.transparency.dev
 //	Subject Public Key Info:
 //	    Public Key Algorithm: id-ecPublicKey
 //	        Public-Key: (384 bit)
 //	        pub:
-//	            04:3d:fc:f8:13:0f:23:c6:78:81:38:40:eb:42:3d:
-//	            c2:8e:0a:84:7d:42:0b:14:23:61:d5:17:29:a3:0b:
-//	            c0:d0:21:86:25:ad:8d:a3:ad:3d:e1:5d:dc:1e:57:
-//	            5d:c3:b1:69:93:87:9b:60:c2:c7:84:c4:bd:7b:bd:
-//	            72:63:b9:d5:03:c8:6a:02:5a:48:8b:b1:df:19:67:
-//	            13:2d:9b:fa:82:61:8c:a4:a2:62:74:a2:b2:99:22:
-//	            ff:00:81:fe:68:11:04
+//	            04:5b:04:6c:07:ac:05:1b:06:d5:e3:3c:7f:69:17:
+//	            5b:67:f0:a6:c6:9a:61:ed:cc:b1:51:50:30:2a:07:
+//	            0c:1c:a7:9b:fe:4e:48:43:5c:eb:88:5e:ce:a3:59:
+//	            a7:5d:6f:c6:82:53:f5:f0:3e:09:ab:9e:c5:e9:c5:
+//	            ba:bc:2f:39:8c:a7:63:86:d4:52:05:44:83:6e:1f:
+//	            54:1f:cd:19:cc:d4:ec:3f:d1:7e:06:95:14:4c:fd:
+//	            8f:ed:ba:7f:93:d4:f4
 //	        ASN1 OID: secp384r1
 //	        NIST CURVE: P-384
 //	X509v3 extensions:
@@ -159,19 +159,17 @@ var PrecertPEMValid string
 //	    X509v3 Basic Constraints: critical
 //	        CA:FALSE
 //	    X509v3 Authority Key Identifier:
-//	        D4:60:EC:E6:FE:F9:98:BC:19:26:D6:6F:45:04:DD:DE:68:C2:80:AA
+//	        77:1D:7C:21:61:2D:C2:05:7D:AA:30:1E:6B:7F:8F:9B:DC:61:20:68
 //	    X509v3 Subject Alternative Name:
 //	        DNS:test.transparency.dev
-//
 //	Signature Algorithm: ecdsa-with-SHA384
 //	Signature Value:
-//
-//	30:65:02:30:3e:3c:2d:52:a8:52:ae:37:06:a0:6d:4e:90:84:
-//	4a:3b:63:93:0e:e8:1f:4d:bd:a7:9e:c6:59:30:24:49:77:9c:
-//	40:07:9c:79:0d:91:68:f4:a9:fd:41:4a:d6:f2:0b:af:02:31:
-//	00:e3:75:8d:87:a9:cd:0e:a9:08:da:d4:90:46:fb:94:01:7e:
-//	fa:79:96:4c:94:1c:b9:63:4a:d7:45:71:81:44:f1:08:2b:ee:
-//	7a:89:21:9f:fa:45:ba:b5:5e:7c:06:a0:84
+//	30:65:02:30:1b:56:30:9c:4c:bd:9e:18:13:2f:08:c0:52:d5:
+//	83:29:8e:f9:22:77:d9:77:9e:be:20:2a:cc:5a:4b:46:ea:71:
+//	b6:91:21:72:fd:db:c0:a1:9c:a5:69:a1:27:fa:1b:55:02:31:
+//	00:d0:3f:2b:92:83:d9:a8:b6:d8:28:f3:7b:1e:4a:b8:fd:ec:
+//	90:07:5c:02:9b:51:86:54:44:4b:cb:c9:b1:00:ac:93:ec:05:
+//	7b:35:45:23:43:dd:47:dd:0e:d0:cf:98:f0
 //
 //go:embed test_leaf_cert_signed_by_root.pem
 var TestCertPEM string
