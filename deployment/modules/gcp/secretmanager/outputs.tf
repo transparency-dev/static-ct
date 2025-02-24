@@ -3,8 +3,8 @@ output "ecdsa_p256_public_key_id" {
   value       = google_secret_manager_secret_version.sctfe_ecdsa_p256_public_key.id
 }
 
-output "ecdsa_p256_public_key_secret_data" {
-  description = "Signer public key (P256_SHA256) secret data"
+output "ecdsa_p256_public_key_data" {
+  description = "Signer public key (P256_SHA256) data from secret manager"
   value       = google_secret_manager_secret_version.sctfe_ecdsa_p256_public_key.secret_data
   sensitive   = true
 }

@@ -3,9 +3,9 @@ output "ecdsa_p256_public_key_id" {
   value       = module.secretmanager.ecdsa_p256_public_key_id
 }
 
-output "ecdsa_p256_public_key_secret_data" {
-  description = "Signer public key (P256_SHA256) secret data"
-  value       = module.secretmanager.ecdsa_p256_public_key_secret_data
+output "ecdsa_p256_public_key_data" {
+  description = "Signer public key (P256_SHA256) data from secret manager"
+  value       = module.secretmanager.ecdsa_p256_public_key_data
   sensitive   = true
 }
 
