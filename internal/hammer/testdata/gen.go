@@ -42,6 +42,8 @@ var (
 )
 
 func main() {
+	klog.InitFlags(nil)
+	flag.Parse()
 	// Generate a new RSA root CA private key.
 	rootPrivKey, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
