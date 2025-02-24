@@ -288,7 +288,7 @@ func saveECDSAPrivateKeyPEM(key *ecdsa.PrivateKey, filename string) error {
 	// Marshal the private key to SEC1 ASN.1 DER.
 	derBytes, err := x509.MarshalECPrivateKey(key)
 	if err != nil {
-		return fmt.Errorf("failed to marshal EC private key: %w")
+		return fmt.Errorf("failed to marshal EC private key: %w", err)
 	}
 
 	// No encryption.
@@ -317,6 +317,8 @@ func saveCertificatePEM(cert *x509.Certificate, filename string) error {
 	if err := os.WriteFile(filename, pemData, 0644); err != nil {
 		return fmt.Errorf("failed to write PEM file: %w", err)
 	}
+	// TODO(phboneff): automate cert printin in certificate.go
+	fmt.Println("Don't forget to update certificate.go with the matching openssl text output.")
 	return nil
 }
 

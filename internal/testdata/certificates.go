@@ -14,223 +14,143 @@
 
 package testdata
 
+import _ "embed"
+
 // This file holds test certificates. It contain four independent issuance
 // chains.
 // TODO(phboneff): clean this and make use of a single chain if possible.
-// TODO(phboneff): Use PRIVATE TESTING KEY instated of PRIVATE KEY.
 
 // Issuance chain 1
 // ================
 // The next section holds a self signed root, a leaf cert and a precert
-// issued from it directly.
+// issued from it directly. These certs were generated with ./gen.go.
 
 // CACertPEM is a valid test CA certificate.
+//
+// $ openssl x509  -in internal/testdata/test_root_ca_cert.pem -noout -text
+//
 // Data:
 //     Version: 3 (0x2)
 //     Serial Number: 1 (0x1)
-//     Signature Algorithm: sha256WithRSAEncryption
+//     Signature Algorithm: ecdsa-with-SHA384
 //     Issuer: C=GB, O=TrustFabric Transparency.dev Test Root Test CA, CN=TrustFabric Transparency.dev Test Root Test CA
 //     Validity
-//         Not Before: Feb 18 16:59:02 2025 GMT
-//         Not After : Feb 18 16:59:02 2035 GMT
+//     	Not Before: Feb 24 11:50:32 2025 GMT
+//     	Not After : Feb 24 11:50:32 2035 GMT
 //     Subject: C=GB, O=TrustFabric Transparency.dev Test Root Test CA, CN=TrustFabric Transparency.dev Test Root Test CA
 //     Subject Public Key Info:
-//         Public Key Algorithm: rsaEncryption
-//             Public-Key: (2048 bit)
-//             Modulus:
-//                 00:d6:c3:06:a7:a5:3b:96:15:24:d9:04:dc:9c:d6:
-//                 79:e3:cb:d2:6d:dc:99:b8:c7:d4:2d:40:9f:37:07:
-//                 b2:af:32:67:b9:72:0d:dd:72:ea:c6:a1:da:34:21:
-//                 22:38:5a:e1:17:b4:2e:10:84:f8:3e:be:71:d8:78:
-//                 37:9c:83:24:c6:78:71:47:77:71:29:8f:07:f1:ef:
-//                 a0:4c:d2:de:56:e7:53:78:9c:b4:6b:bd:07:e4:a8:
-//                 99:ae:27:fb:ab:7d:4b:e0:2a:f6:10:44:49:1c:b6:
-//                 6f:83:2a:2f:c5:32:93:10:87:18:63:67:0d:6a:8f:
-//                 a6:19:e7:3b:ca:34:9a:be:43:db:56:56:8c:40:8d:
-//                 5f:12:0d:14:d5:68:06:83:8b:dc:da:f4:de:76:15:
-//                 0f:23:c3:c3:03:84:33:d5:9f:fe:41:2a:c7:80:ca:
-//                 af:59:e3:2e:fe:f7:8e:bf:2c:f1:91:c0:1d:56:5e:
-//                 ec:2b:02:d5:8b:c9:27:c7:07:70:59:0a:7b:b9:29:
-//                 ea:22:fa:9f:50:dc:51:7d:11:19:1c:8f:7d:9c:93:
-//                 26:a4:16:79:90:41:9e:f0:1f:17:35:5e:d8:48:95:
-//                 e5:09:de:d6:9b:52:f9:9f:2e:02:e6:be:c8:42:38:
-//                 7c:4d:dd:9f:3f:89:20:29:aa:b9:5c:34:fa:bc:44:
-//                 58:2d
-//             Exponent: 65537 (0x10001)
+//     	Public Key Algorithm: id-ecPublicKey
+//     		Public-Key: (384 bit)
+//     		pub:
+//     			04:19:17:1b:cb:21:16:f0:fd:98:bb:57:01:58:3e:
+//     			67:5c:f7:ee:5f:54:eb:96:b0:0e:c1:78:4f:57:a8:
+//     			3a:6d:a5:aa:63:9f:c6:cc:f5:6e:06:72:66:a2:74:
+//     			5f:0e:1a:a2:1e:7a:76:50:c0:9c:cb:7e:dd:bb:3b:
+//     			ac:6a:79:65:e5:6d:08:7a:24:b8:8b:82:96:f1:a4:
+//     			bd:09:4a:1b:b9:33:44:d4:ee:ca:76:a6:44:a4:1f:
+//     			8e:0b:5b:32:b7:e7:5d
+//     		ASN1 OID: secp384r1
+//     		NIST CURVE: P-384
 //     X509v3 extensions:
-//         X509v3 Key Usage: critical
-//             Certificate Sign, CRL Sign
-//         X509v3 Basic Constraints: critical
-//             CA:TRUE
-//         X509v3 Subject Key Identifier:
-//             2C:3F:8C:DC:E4:71:9D:D2:57:7F:25:C8:7C:FA:3F:9B:1C:67:A4:F0
-//     Signature Algorithm: sha256WithRSAEncryption
+//     	X509v3 Key Usage: critical
+//     		Certificate Sign, CRL Sign
+//     	X509v3 Basic Constraints: critical
+//     		CA:TRUE
+//     	X509v3 Subject Key Identifier:
+//     		D4:60:EC:E6:FE:F9:98:BC:19:26:D6:6F:45:04:DD:DE:68:C2:80:AA
+//     Signature Algorithm: ecdsa-with-SHA384
 //     Signature Value:
-//     b7:83:0d:d2:50:44:ec:32:17:cb:19:f6:f8:f0:ff:b6:37:80:
-//     b6:ee:ca:2f:9e:7a:d4:6d:59:92:a1:02:5b:9a:63:0f:88:0b:
-//     9c:94:1d:87:a2:4a:e7:9e:99:f7:2a:a7:99:d8:95:bd:08:2b:
-//     ea:28:6b:e3:35:e5:2f:89:51:91:e7:f1:99:2a:b4:02:79:61:
-//     cf:7d:9a:79:0d:16:14:1c:58:05:e2:9c:3c:77:9d:22:3d:76:
-//     00:55:a8:77:14:ed:79:b7:37:eb:0c:29:7f:4d:e9:4e:23:62:
-//     47:cb:7b:28:fe:63:a4:67:8c:d3:84:1e:33:50:72:64:75:4b:
-//     4c:0f:83:23:d3:27:fb:72:b7:e6:fe:60:84:e3:5b:96:20:af:
-//     ca:77:05:ac:ca:9e:06:fa:fc:5f:ae:9e:26:ba:d1:1e:e6:70:
-//     04:07:4b:f4:3f:61:8e:3a:51:e2:27:12:b2:53:c3:3c:33:7c:
-//     cf:0e:9e:a8:fd:b5:e7:a1:60:9d:89:27:d7:c3:a1:f2:c2:64:
-//     04:3f:cf:ef:4e:77:ef:0e:b0:3e:b8:24:db:63:45:61:ab:2a:
-//     af:1d:b4:75:ae:99:23:64:2e:4c:8b:b4:6d:18:fa:37:08:28:
-//     e5:d8:8a:83:36:ac:af:28:3f:c8:16:8b:fd:3e:fc:1d:37:ab:
-//     ad:51:22:40
+//     30:66:02:31:00:b9:a2:d7:be:12:ac:aa:46:c4:ee:d5:6b:f1:
+//     bb:6d:b6:c9:59:be:37:c6:6e:d6:6f:aa:50:61:e4:61:59:9b:
+//     6c:bb:f4:e3:23:58:43:5a:80:86:fb:27:68:46:4a:55:8b:02:
+//     31:00:93:4a:66:15:7e:d5:74:d0:b4:a1:31:b2:36:96:77:83:
+//     f4:5d:17:d6:e8:5d:92:d7:b1:0d:c6:4e:9d:aa:68:7e:32:20:
+//     7c:7c:6e:f4:ee:74:0c:c7:4d:cb:3a:63:fa:cd
 
-const CACertPEM = `
------BEGIN CERTIFICATE-----
-MIIDuzCCAqOgAwIBAgIBATANBgkqhkiG9w0BAQsFADB/MQswCQYDVQQGEwJHQjE3
-MDUGA1UEChMuVHJ1c3RGYWJyaWMgVHJhbnNwYXJlbmN5LmRldiBUZXN0IFJvb3Qg
-VGVzdCBDQTE3MDUGA1UEAxMuVHJ1c3RGYWJyaWMgVHJhbnNwYXJlbmN5LmRldiBU
-ZXN0IFJvb3QgVGVzdCBDQTAeFw0yNTAyMTgxNjU5MDJaFw0zNTAyMTgxNjU5MDJa
-MH8xCzAJBgNVBAYTAkdCMTcwNQYDVQQKEy5UcnVzdEZhYnJpYyBUcmFuc3BhcmVu
-Y3kuZGV2IFRlc3QgUm9vdCBUZXN0IENBMTcwNQYDVQQDEy5UcnVzdEZhYnJpYyBU
-cmFuc3BhcmVuY3kuZGV2IFRlc3QgUm9vdCBUZXN0IENBMIIBIjANBgkqhkiG9w0B
-AQEFAAOCAQ8AMIIBCgKCAQEA1sMGp6U7lhUk2QTcnNZ548vSbdyZuMfULUCfNwey
-rzJnuXIN3XLqxqHaNCEiOFrhF7QuEIT4Pr5x2Hg3nIMkxnhxR3dxKY8H8e+gTNLe
-VudTeJy0a70H5KiZrif7q31L4Cr2EERJHLZvgyovxTKTEIcYY2cNao+mGec7yjSa
-vkPbVlaMQI1fEg0U1WgGg4vc2vTedhUPI8PDA4Qz1Z/+QSrHgMqvWeMu/veOvyzx
-kcAdVl7sKwLVi8knxwdwWQp7uSnqIvqfUNxRfREZHI99nJMmpBZ5kEGe8B8XNV7Y
-SJXlCd7Wm1L5ny4C5r7IQjh8Td2fP4kgKaq5XDT6vERYLQIDAQABo0IwQDAOBgNV
-HQ8BAf8EBAMCAQYwDwYDVR0TAQH/BAUwAwEB/zAdBgNVHQ4EFgQULD+M3ORxndJX
-fyXIfPo/mxxnpPAwDQYJKoZIhvcNAQELBQADggEBALeDDdJQROwyF8sZ9vjw/7Y3
-gLbuyi+eetRtWZKhAluaYw+IC5yUHYeiSueemfcqp5nYlb0IK+ooa+M15S+JUZHn
-8ZkqtAJ5Yc99mnkNFhQcWAXinDx3nSI9dgBVqHcU7Xm3N+sMKX9N6U4jYkfLeyj+
-Y6RnjNOEHjNQcmR1S0wPgyPTJ/tyt+b+YITjW5Ygr8p3BazKngb6/F+unia60R7m
-cAQHS/Q/YY46UeInErJTwzwzfM8Onqj9teehYJ2JJ9fDofLCZAQ/z+9Od+8OsD64
-JNtjRWGrKq8dtHWumSNkLkyLtG0Y+jcIKOXYioM2rK8oP8gWi/0+/B03q61RIkA=
------END CERTIFICATE-----`
+//
+//go:embed test_root_ca_cert.pem
+var CACertPEM string
 
 // PrecertPEMValid is a test certificate containing a valid CT precertificate
 // extension.
+//
+// $ openssl x509  -in internal/testdata/test_leaf_pre_cert_signed_by_root.pem -noout -text
+//
 // Data:
-//     Version: 3 (0x2)
-//     Serial Number: 200 (0xc8)
-//     Signature Algorithm: sha256WithRSAEncryption
-//     Issuer: C=GB, O=TrustFabric Transparency.dev Test Root Test CA, CN=TrustFabric Transparency.dev Test Root Test CA
-//     Validity
-//         Not Before: Jan  1 00:00:00 2023 GMT
-//         Not After : Jan  1 00:00:00 2024 GMT
-//     Subject: C=GB, ST=London, L=London, O=TrustFabric Transparency.dev Test, OU=TrustFabric, CN=test.transparency.dev
-//     Subject Public Key Info:
-//         Public Key Algorithm: rsaEncryption
-//             Public-Key: (2048 bit)
-//             Modulus:
-//                 00:b9:d2:c7:c2:15:9c:f7:ea:45:fd:d4:2b:ed:e9:
-//                 60:cb:0e:68:75:c8:16:f2:c0:12:63:75:52:d2:f6:
-//                 24:2a:1d:76:99:16:f6:02:c2:1a:5a:d0:20:fe:07:
-//                 3a:9a:79:bf:72:d8:ea:8e:6e:49:69:dc:b9:0c:b9:
-//                 45:16:cc:33:bf:29:f9:88:52:48:0a:b8:e9:44:ff:
-//                 c4:9c:c4:23:a3:ab:ec:27:cf:7c:ce:72:26:b2:14:
-//                 43:b9:a3:0b:d6:00:f7:36:13:62:01:b1:65:24:88:
-//                 e5:3e:f7:8c:15:07:65:79:74:c3:ce:02:75:39:ed:
-//                 1c:43:cf:47:69:b8:7d:22:1e:f4:d4:37:4d:8d:12:
-//                 5c:57:8d:48:61:fb:8b:0e:56:b4:8b:7a:f1:30:16:
-//                 54:4b:96:8b:13:34:3a:b6:99:2d:d4:b3:f4:df:85:
-//                 a9:c5:d2:19:06:5b:40:7e:d0:f7:28:a4:bd:cc:11:
-//                 ae:5c:e3:74:a0:1d:be:31:e4:cb:e4:a8:26:2a:ff:
-//                 c1:92:c1:8d:ac:56:8c:84:fb:25:9a:83:e6:73:dd:
-//                 ed:b4:70:2a:9f:52:d8:4f:36:09:37:ac:ad:ad:00:
-//                 79:96:db:b7:b0:e4:5d:24:a9:bb:83:51:95:81:65:
-//                 f6:0e:c1:23:d3:22:50:e8:81:4d:c5:ec:51:88:9d:
-//                 4a:a1
-//             Exponent: 65537 (0x10001)
-//     X509v3 extensions:
-//         X509v3 Key Usage: critical
-//             Digital Signature, Key Encipherment
-//         X509v3 Extended Key Usage:
-//             TLS Web Server Authentication
-//         X509v3 Basic Constraints: critical
-//             CA:FALSE
-//         X509v3 Authority Key Identifier:
-//             2C:3F:8C:DC:E4:71:9D:D2:57:7F:25:C8:7C:FA:3F:9B:1C:67:A4:F0
-//         X509v3 Subject Alternative Name:
-//             DNS:test.transparency.dev
-//         CT Precertificate Poison: critical
-//             NULL
-//     Signature Algorithm: sha256WithRSAEncryption
-//     Signature Value:
-//     18:51:44:ad:9a:bd:96:19:49:77:a9:33:e0:d8:9f:20:fa:e0:
-//     00:83:75:95:e7:39:f9:7a:62:b0:1d:81:61:a5:df:c4:d4:a5:
-//     69:4a:0a:b5:44:e1:04:9a:b5:cb:86:0b:ad:f8:9c:0b:11:20:
-//     f9:90:0b:70:5f:e6:29:45:cc:b8:fe:0d:4e:fe:bd:7c:98:33:
-//     04:84:c1:0b:8c:4e:9a:f4:09:6d:1f:5d:4e:1d:d0:b6:62:c7:
-//     01:56:f2:96:a0:30:4a:22:07:ad:a2:ef:48:2f:f6:a9:82:68:
-//     a6:4c:df:9b:32:dc:d0:37:a3:22:82:3b:13:f5:c6:c3:f0:d2:
-//     a8:75:b9:5e:93:bf:e2:a6:91:d4:41:3f:91:c8:31:23:3e:5c:
-//     76:58:1c:59:5d:46:d4:a6:eb:b6:77:57:f0:3a:79:f3:67:94:
-//     27:1f:6a:63:cc:b1:dd:20:3e:dd:e5:a9:a2:fe:c1:61:a3:da:
-//     7d:ae:5d:62:b9:d5:18:7a:2c:89:a7:63:4e:f3:f1:56:c8:f3:
-//     3a:e7:06:3d:62:25:90:cd:9f:80:08:31:93:f5:fe:3e:2f:2e:
-//     5a:f5:06:3d:5d:d2:1b:f0:29:8f:40:e0:20:eb:7e:02:ae:8c:
-//     d7:09:31:68:f9:b1:1e:ba:84:9f:b0:7c:53:3c:7a:4c:41:f4:
-//     d4:39:6c:68
-
-const PrecertPEMValid = `
------BEGIN CERTIFICATE-----
-MIIEHDCCAwSgAwIBAgICAMgwDQYJKoZIhvcNAQELBQAwfzELMAkGA1UEBhMCR0Ix
-NzA1BgNVBAoTLlRydXN0RmFicmljIFRyYW5zcGFyZW5jeS5kZXYgVGVzdCBSb290
-IFRlc3QgQ0ExNzA1BgNVBAMTLlRydXN0RmFicmljIFRyYW5zcGFyZW5jeS5kZXYg
-VGVzdCBSb290IFRlc3QgQ0EwHhcNMjMwMTAxMDAwMDAwWhcNMjQwMTAxMDAwMDAw
-WjCBkTELMAkGA1UEBhMCR0IxDzANBgNVBAgTBkxvbmRvbjEPMA0GA1UEBxMGTG9u
-ZG9uMSowKAYDVQQKEyFUcnVzdEZhYnJpYyBUcmFuc3BhcmVuY3kuZGV2IFRlc3Qx
-FDASBgNVBAsTC1RydXN0RmFicmljMR4wHAYDVQQDExV0ZXN0LnRyYW5zcGFyZW5j
-eS5kZXYwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQC50sfCFZz36kX9
-1Cvt6WDLDmh1yBbywBJjdVLS9iQqHXaZFvYCwhpa0CD+Bzqaeb9y2OqObklp3LkM
-uUUWzDO/KfmIUkgKuOlE/8ScxCOjq+wnz3zOciayFEO5owvWAPc2E2IBsWUkiOU+
-94wVB2V5dMPOAnU57RxDz0dpuH0iHvTUN02NElxXjUhh+4sOVrSLevEwFlRLlosT
-NDq2mS3Us/TfhanF0hkGW0B+0PcopL3MEa5c43SgHb4x5MvkqCYq/8GSwY2sVoyE
-+yWag+Zz3e20cCqfUthPNgk3rK2tAHmW27ew5F0kqbuDUZWBZfYOwSPTIlDogU3F
-7FGInUqhAgMBAAGjgY4wgYswDgYDVR0PAQH/BAQDAgWgMBMGA1UdJQQMMAoGCCsG
-AQUFBwMBMAwGA1UdEwEB/wQCMAAwHwYDVR0jBBgwFoAULD+M3ORxndJXfyXIfPo/
-mxxnpPAwIAYDVR0RBBkwF4IVdGVzdC50cmFuc3BhcmVuY3kuZGV2MBMGCisGAQQB
-1nkCBAMBAf8EAgUAMA0GCSqGSIb3DQEBCwUAA4IBAQAYUUStmr2WGUl3qTPg2J8g
-+uAAg3WV5zn5emKwHYFhpd/E1KVpSgq1ROEEmrXLhgut+JwLESD5kAtwX+YpRcy4
-/g1O/r18mDMEhMELjE6a9AltH11OHdC2YscBVvKWoDBKIgetou9IL/apgmimTN+b
-MtzQN6MigjsT9cbD8NKodblek7/ippHUQT+RyDEjPlx2WBxZXUbUpuu2d1fwOnnz
-Z5QnH2pjzLHdID7d5ami/sFho9p9rl1iudUYeiyJp2NO8/FWyPM65wY9YiWQzZ+A
-CDGT9f4+Ly5a9QY9XdIb8CmPQOAg634CrozXCTFo+bEeuoSfsHxTPHpMQfTUOWxo
------END CERTIFICATE-----`
+//
+//	Version: 3 (0x2)
+//	Serial Number: 200 (0xc8)
+//	Signature Algorithm: ecdsa-with-SHA384
+//	Issuer: C=GB, O=TrustFabric Transparency.dev Test Root Test CA, CN=TrustFabric Transparency.dev Test Root Test CA
+//	Validity
+//		Not Before: Jan  1 00:00:00 2023 GMT
+//		Not After : Jan  1 00:00:00 2024 GMT
+//	Subject: C=GB, ST=London, L=London, O=TrustFabric Transparency.dev Test, OU=TrustFabric, CN=test.transparency.dev
+//	Subject Public Key Info:
+//		Public Key Algorithm: id-ecPublicKey
+//			Public-Key: (384 bit)
+//			pub:
+//				04:3d:fc:f8:13:0f:23:c6:78:81:38:40:eb:42:3d:
+//				c2:8e:0a:84:7d:42:0b:14:23:61:d5:17:29:a3:0b:
+//				c0:d0:21:86:25:ad:8d:a3:ad:3d:e1:5d:dc:1e:57:
+//				5d:c3:b1:69:93:87:9b:60:c2:c7:84:c4:bd:7b:bd:
+//				72:63:b9:d5:03:c8:6a:02:5a:48:8b:b1:df:19:67:
+//				13:2d:9b:fa:82:61:8c:a4:a2:62:74:a2:b2:99:22:
+//				ff:00:81:fe:68:11:04
+//			ASN1 OID: secp384r1
+//			NIST CURVE: P-384
+//	X509v3 extensions:
+//		X509v3 Key Usage: critical
+//			Digital Signature, Key Encipherment
+//		X509v3 Extended Key Usage:
+//			TLS Web Server Authentication
+//		X509v3 Basic Constraints: critical
+//			CA:FALSE
+//		X509v3 Authority Key Identifier:
+//			D4:60:EC:E6:FE:F9:98:BC:19:26:D6:6F:45:04:DD:DE:68:C2:80:AA
+//		X509v3 Subject Alternative Name:
+//			DNS:test.transparency.dev
+//		CT Precertificate Poison: critical
+//			NULL
+//	Signature Algorithm: ecdsa-with-SHA384
+//	Signature Value:
+//		30:65:02:30:64:8d:4f:c3:31:71:1d:e3:50:17:eb:45:62:6b:
+//		4f:ea:c3:6c:47:90:bd:fe:89:6f:f3:40:e5:3b:2f:6c:a0:c7:
+//		fa:eb:c1:0f:f8:d1:0a:be:4d:26:ae:05:49:e6:71:85:02:31:
+//		00:e9:88:e6:aa:50:b8:6f:cd:ff:ea:cc:5c:27:10:eb:d1:4d:
+//		73:b8:e3:50:56:8b:3a:f3:2a:f5:a8:bf:33:80:d6:d4:c0:db:
+//		f0:f9:02:4c:06:96:7a:48:b8:b7:3c:17:9c
+//
+//go:embed test_leaf_pre_cert_signed_by_root.pem
+var PrecertPEMValid string
 
 // TestCertPEM is a certificate issued by CACertPEM, no CT extensions.
+//
+// $ openssl x509  -in internal/testdata/test_leaf_cert_signed_by_root.pem -noout -text
+//
 // Data:
 //
 //	Version: 3 (0x2)
 //	Serial Number: 100 (0x64)
-//	Signature Algorithm: sha256WithRSAEncryption
+//	Signature Algorithm: ecdsa-with-SHA384
 //	Issuer: C=GB, O=TrustFabric Transparency.dev Test Root Test CA, CN=TrustFabric Transparency.dev Test Root Test CA
 //	Validity
 //	    Not Before: Jan  1 00:00:00 2023 GMT
 //	    Not After : Jan  1 00:00:00 2024 GMT
 //	Subject: C=GB, ST=London, L=London, O=TrustFabric Transparency.dev Test, OU=TrustFabric, CN=test.transparency.dev
 //	Subject Public Key Info:
-//	    Public Key Algorithm: rsaEncryption
-//	        Public-Key: (2048 bit)
-//	        Modulus:
-//	            00:b9:d2:c7:c2:15:9c:f7:ea:45:fd:d4:2b:ed:e9:
-//	            60:cb:0e:68:75:c8:16:f2:c0:12:63:75:52:d2:f6:
-//	            24:2a:1d:76:99:16:f6:02:c2:1a:5a:d0:20:fe:07:
-//	            3a:9a:79:bf:72:d8:ea:8e:6e:49:69:dc:b9:0c:b9:
-//	            45:16:cc:33:bf:29:f9:88:52:48:0a:b8:e9:44:ff:
-//	            c4:9c:c4:23:a3:ab:ec:27:cf:7c:ce:72:26:b2:14:
-//	            43:b9:a3:0b:d6:00:f7:36:13:62:01:b1:65:24:88:
-//	            e5:3e:f7:8c:15:07:65:79:74:c3:ce:02:75:39:ed:
-//	            1c:43:cf:47:69:b8:7d:22:1e:f4:d4:37:4d:8d:12:
-//	            5c:57:8d:48:61:fb:8b:0e:56:b4:8b:7a:f1:30:16:
-//	            54:4b:96:8b:13:34:3a:b6:99:2d:d4:b3:f4:df:85:
-//	            a9:c5:d2:19:06:5b:40:7e:d0:f7:28:a4:bd:cc:11:
-//	            ae:5c:e3:74:a0:1d:be:31:e4:cb:e4:a8:26:2a:ff:
-//	            c1:92:c1:8d:ac:56:8c:84:fb:25:9a:83:e6:73:dd:
-//	            ed:b4:70:2a:9f:52:d8:4f:36:09:37:ac:ad:ad:00:
-//	            79:96:db:b7:b0:e4:5d:24:a9:bb:83:51:95:81:65:
-//	            f6:0e:c1:23:d3:22:50:e8:81:4d:c5:ec:51:88:9d:
-//	            4a:a1
-//	        Exponent: 65537 (0x10001)
+//	    Public Key Algorithm: id-ecPublicKey
+//	        Public-Key: (384 bit)
+//	        pub:
+//	            04:3d:fc:f8:13:0f:23:c6:78:81:38:40:eb:42:3d:
+//	            c2:8e:0a:84:7d:42:0b:14:23:61:d5:17:29:a3:0b:
+//	            c0:d0:21:86:25:ad:8d:a3:ad:3d:e1:5d:dc:1e:57:
+//	            5d:c3:b1:69:93:87:9b:60:c2:c7:84:c4:bd:7b:bd:
+//	            72:63:b9:d5:03:c8:6a:02:5a:48:8b:b1:df:19:67:
+//	            13:2d:9b:fa:82:61:8c:a4:a2:62:74:a2:b2:99:22:
+//	            ff:00:81:fe:68:11:04
+//	        ASN1 OID: secp384r1
+//	        NIST CURVE: P-384
 //	X509v3 extensions:
 //	    X509v3 Key Usage: critical
 //	        Digital Signature, Key Encipherment
@@ -239,51 +159,22 @@ CDGT9f4+Ly5a9QY9XdIb8CmPQOAg634CrozXCTFo+bEeuoSfsHxTPHpMQfTUOWxo
 //	    X509v3 Basic Constraints: critical
 //	        CA:FALSE
 //	    X509v3 Authority Key Identifier:
-//	        2C:3F:8C:DC:E4:71:9D:D2:57:7F:25:C8:7C:FA:3F:9B:1C:67:A4:F0
+//	        D4:60:EC:E6:FE:F9:98:BC:19:26:D6:6F:45:04:DD:DE:68:C2:80:AA
 //	    X509v3 Subject Alternative Name:
 //	        DNS:test.transparency.dev
-//	Signature Algorithm: sha256WithRSAEncryption
+//
+//	Signature Algorithm: ecdsa-with-SHA384
 //	Signature Value:
-//	b9:c2:b5:fa:44:82:3c:ca:fe:ea:f9:9a:73:00:47:20:87:f1:
-//	43:c4:78:33:d3:49:32:db:81:aa:7a:87:4c:a1:00:31:97:cf:
-//	82:d5:c1:54:d5:12:50:7e:f1:6d:3a:ae:86:99:5e:2f:e7:37:
-//	9a:d2:68:e5:09:87:53:c2:43:72:6d:a8:d5:a5:7a:df:6b:cd:
-//	7b:58:fc:d3:20:30:62:a8:3b:e4:27:b1:8f:f5:9e:e8:af:5e:
-//	84:d0:9a:23:1f:72:18:39:b5:1e:61:54:94:da:cc:3c:85:69:
-//	85:72:13:28:8f:b1:e2:9e:8b:22:1a:a6:3e:7a:b3:60:6c:96:
-//	ac:b5:ca:5d:39:66:87:f6:0d:2f:32:ec:4e:80:e5:33:cb:ae:
-//	29:52:1a:35:01:70:a3:d6:81:d0:1a:1e:c6:c3:ec:52:cc:20:
-//	af:e0:c6:b9:ee:03:30:97:f0:26:b8:c8:24:15:a9:c3:67:e2:
-//	c6:f7:83:3c:7f:50:16:e7:76:c6:f7:3a:f9:1c:ba:4e:f0:f7:
-//	76:85:68:61:de:e5:2b:bc:c3:20:9b:6c:ff:44:1a:ad:f2:81:
-//	8e:f2:39:36:4c:ea:e6:a0:81:4b:38:45:9c:55:cd:e6:09:29:
-//	45:a3:51:51:71:ac:ab:77:e3:8d:03:37:a4:20:11:70:c9:2a:
-//	32:49:25:a9
-const TestCertPEM = `
------BEGIN CERTIFICATE-----
-MIIEBDCCAuygAwIBAgIBZDANBgkqhkiG9w0BAQsFADB/MQswCQYDVQQGEwJHQjE3
-MDUGA1UEChMuVHJ1c3RGYWJyaWMgVHJhbnNwYXJlbmN5LmRldiBUZXN0IFJvb3Qg
-VGVzdCBDQTE3MDUGA1UEAxMuVHJ1c3RGYWJyaWMgVHJhbnNwYXJlbmN5LmRldiBU
-ZXN0IFJvb3QgVGVzdCBDQTAeFw0yMzAxMDEwMDAwMDBaFw0yNDAxMDEwMDAwMDBa
-MIGRMQswCQYDVQQGEwJHQjEPMA0GA1UECBMGTG9uZG9uMQ8wDQYDVQQHEwZMb25k
-b24xKjAoBgNVBAoTIVRydXN0RmFicmljIFRyYW5zcGFyZW5jeS5kZXYgVGVzdDEU
-MBIGA1UECxMLVHJ1c3RGYWJyaWMxHjAcBgNVBAMTFXRlc3QudHJhbnNwYXJlbmN5
-LmRldjCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBALnSx8IVnPfqRf3U
-K+3pYMsOaHXIFvLAEmN1UtL2JCoddpkW9gLCGlrQIP4HOpp5v3LY6o5uSWncuQy5
-RRbMM78p+YhSSAq46UT/xJzEI6Or7CfPfM5yJrIUQ7mjC9YA9zYTYgGxZSSI5T73
-jBUHZXl0w84CdTntHEPPR2m4fSIe9NQ3TY0SXFeNSGH7iw5WtIt68TAWVEuWixM0
-OraZLdSz9N+FqcXSGQZbQH7Q9yikvcwRrlzjdKAdvjHky+SoJir/wZLBjaxWjIT7
-JZqD5nPd7bRwKp9S2E82CTesra0AeZbbt7DkXSSpu4NRlYFl9g7BI9MiUOiBTcXs
-UYidSqECAwEAAaN4MHYwDgYDVR0PAQH/BAQDAgWgMBMGA1UdJQQMMAoGCCsGAQUF
-BwMBMAwGA1UdEwEB/wQCMAAwHwYDVR0jBBgwFoAULD+M3ORxndJXfyXIfPo/mxxn
-pPAwIAYDVR0RBBkwF4IVdGVzdC50cmFuc3BhcmVuY3kuZGV2MA0GCSqGSIb3DQEB
-CwUAA4IBAQC5wrX6RII8yv7q+ZpzAEcgh/FDxHgz00ky24GqeodMoQAxl8+C1cFU
-1RJQfvFtOq6GmV4v5zea0mjlCYdTwkNybajVpXrfa817WPzTIDBiqDvkJ7GP9Z7o
-r16E0JojH3IYObUeYVSU2sw8hWmFchMoj7HinosiGqY+erNgbJastcpdOWaH9g0v
-MuxOgOUzy64pUho1AXCj1oHQGh7Gw+xSzCCv4Ma57gMwl/AmuMgkFanDZ+LG94M8
-f1AW53bG9zr5HLpO8Pd2hWhh3uUrvMMgm2z/RBqt8oGO8jk2TOrmoIFLOEWcVc3m
-CSlFo1FRcayrd+ONAzekIBFwySoySSWp
------END CERTIFICATE-----`
+//
+//	30:65:02:30:3e:3c:2d:52:a8:52:ae:37:06:a0:6d:4e:90:84:
+//	4a:3b:63:93:0e:e8:1f:4d:bd:a7:9e:c6:59:30:24:49:77:9c:
+//	40:07:9c:79:0d:91:68:f4:a9:fd:41:4a:d6:f2:0b:af:02:31:
+//	00:e3:75:8d:87:a9:cd:0e:a9:08:da:d4:90:46:fb:94:01:7e:
+//	fa:79:96:4c:94:1c:b9:63:4a:d7:45:71:81:44:f1:08:2b:ee:
+//	7a:89:21:9f:fa:45:ba:b5:5e:7c:06:a0:84
+//
+//go:embed test_leaf_cert_signed_by_root.pem
+var TestCertPEM string
 
 // Issuance chain 2
 // ================
