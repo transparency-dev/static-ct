@@ -125,6 +125,8 @@ resource "google_cloudbuild_trigger" "build_trigger" {
       script = <<EOT
         terragrunt --terragrunt-non-interactive --terragrunt-no-color apply -auto-approve -no-color 2>&1
         terragrunt --terragrunt-no-color output --raw conformance_url -no-color > /workspace/conformance_url
+        terragrunt --terragrunt-no-color output --raw conformance_bucket_name -no-color > /workspace/conformance_bucket_name
+        terragrunt --terragrunt-no-color output --raw ecdsa_p256_public_key_secret_data -no-color > /workspace/conformance_log_public_key.pem
       EOT
       dir    = "deployment/live/gcp/ci"
       env = [
@@ -143,34 +145,35 @@ resource "google_cloudbuild_trigger" "build_trigger" {
       id       = "bearer_token"
       name     = "gcr.io/cloud-builders/gcloud"
       script   = <<EOT
+        gcloud auth print-access-token > /workspace/cb_access
         curl -H "Metadata-Flavor: Google" "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/${local.cloudbuild_service_account}/identity?audience=$(cat /workspace/conformance_url)" > /workspace/cb_identity
       EOT
       wait_for = ["terraform_apply_conformance_ci"]
     }
 
-    ## Test against the conformance server.
-    ## TODO: Replace this with CT Hammer when it is ready.
+    ## Test against the conformance server with CT Hammer.
     step {
-      id       = "curl_test"
-      name     = "gcr.io/cloud-builders/gcloud"
+      id       = "ct_hammer"
+      name     = "golang"
       script   = <<EOT
-        apt update && apt install jq -y
+        apt update && apt install -y retry
 
-        mkdir -p /tmp/httpschain
-        openssl genrsa -out /tmp/httpschain/cert.key 2048
-        openssl req -new -key /tmp/httpschain/cert.key -out /tmp/httpschain/cert.csr -config=internal/testdata/fake-ca.cfg
-        openssl x509 -req -days 3650 -in /tmp/httpschain/cert.csr -CAkey internal/testdata/fake-ca.privkey.pem -CA internal/testdata/fake-ca.cert -passin pass:"gently" -outform pem -out /tmp/httpschain/chain.pem -provider legacy -provider default
-        cat internal/testdata/fake-ca.cert >> /tmp/httpschain/chain.pem
-        cat /tmp/httpschain/chain.pem | jq --raw-input --slurp --compact-output 'split("\n-----END CERTIFICATE-----\n") | map(select(length > 0) | sub("^-----BEGIN CERTIFICATE-----\n"; "") | sub("\n-----END CERTIFICATE-----$"; "")) | { "chain": . }' > /tmp/httpschain/chain.json
-        curl -s -o /tmp/add_chain_response_body -w "%%{http_code}" -X POST --data @/tmp/httpschain/chain.json -H "Content-Type: application/json" -H "Authorization: Bearer $(cat /workspace/cb_identity)" $(cat /workspace/conformance_url)/ci-${var.project_id}/ct/v1/add-chain > /tmp/add_chain_response_code
+        openssl ec -pubin -inform PEM -in /workspace/conformance_log_public_key.pem -outform der -out /workspace/conformance_log_public_key.der
+        base64 -w 0 /workspace/conformance_log_public_key.der > /workspace/conformance_log_public_key
 
-        cat /tmp/add_chain_response_code; echo
-        cat /tmp/add_chain_response_body; echo
-        
-        if ! grep -q 200 /tmp/add_chain_response_code; then
-          echo "Error: File does not contain 200 status OK" >&2
-          exit 1
-        fi
+        retry -t 5 -d 15 --until=success go run ./internal/hammer \
+          --origin="ci-static-ct" \
+          --log_public_key="$(cat /workspace/conformance_log_public_key)" \
+          --log_url="https://storage.googleapis.com/$(cat /workspace/conformance_bucket_name)/" \
+          --write_log_url="$(cat /workspace/conformance_url)/ci-static-ct" \
+          -v=1 \
+          --show_ui=false \
+          --bearer_token="$(cat /workspace/cb_access)" \
+          --bearer_token_write="$(cat /workspace/cb_identity)" \
+          --logtostderr \
+          --num_writers=256 \
+          --max_write_ops=256 \
+          --leaf_write_goal=10000
       EOT
       wait_for = ["bearer_token"]
     }
@@ -191,7 +194,7 @@ resource "google_cloudbuild_trigger" "build_trigger" {
         "TF_INPUT=false",
         "TF_VAR_project_id=${var.project_id}"
       ]
-      wait_for = ["curl_test"]
+      wait_for = ["ct_hammer"]
     }
 
     options {

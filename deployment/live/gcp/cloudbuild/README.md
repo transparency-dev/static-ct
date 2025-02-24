@@ -8,7 +8,7 @@ is responsible for:
 1. Building the `cmd/gcp` and `cmd/gcp/ci` docker images from the `main` branch,
 1. Deploying the `cmd/gcp/ci` image to Cloud Run,
 1. Creating a fresh conformance testing environment,
-1. Running the conformance test (TODO: with CT Hammer) against the newly build conformance docker image,
+1. Running the conformance test with [CT Hammer](/internal/hammer/) against the newly build conformance docker image,
 1. Turning-down the conformance testing environment.
 
 ## Initial setup

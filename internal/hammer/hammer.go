@@ -358,8 +358,8 @@ func verifySupportedKeyAlgorithm(key any) error {
 	}
 }
 
-// logSigVerifier creates a note.Verifier for the Static CT API log by taking
-// an origin string and a base64-encoded public key.
+// logSigVerifier creates a note.Verifier for the Trillian Log by taking an
+// origin string and a base64-encoded public key.
 func logSigVerifier(origin, b64PubKey string) (note.Verifier, error) {
 	if origin == "" {
 		return nil, errors.New("origin cannot be empty")
