@@ -12,12 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// gen is a tool to generate test RSA keys and test certificates for hammer.
+// gen is a tool to generate test EC keys and test certificates for hammer.
 package main
 
 import (
 	"crypto/ecdsa"
 	"crypto/ed25519"
+	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
@@ -49,12 +50,12 @@ func main() {
 	klog.InitFlags(nil)
 	flag.Parse()
 	// Generate root.
-	// Generate a new RSA root CA private key.
-	rootPrivKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	// Generate a new EC root CA private key.
+	rootPrivKey, err := ecdsa.GenerateKey(elliptic.P384(), rand.Reader)
 	if err != nil {
 		klog.Fatalf("Failed to generate root CA private key: %v", err)
 	}
-	if err := saveRSAPrivateKeyPEM(rootPrivKey, path.Join(*outputPath, "test_root_ca_private_key.pem")); err != nil {
+	if err := saveECDSAPrivateKeyPEM(rootPrivKey, path.Join(*outputPath, "test_root_ca_private_key.pem")); err != nil {
 		klog.Fatalf("Failed to save root CA private key: %v", err)
 	}
 
@@ -73,14 +74,14 @@ func main() {
 }
 
 // genPreIssuerAndLeaves generates a cert and a pre-cert.
-func genLeaves(rootCert *x509.Certificate, rootPrivKey *rsa.PrivateKey) {
+func genLeaves(rootCert *x509.Certificate, rootPrivKey *ecdsa.PrivateKey) {
 	// Generate leaf certs chaining to root.
-	// Generate a new RSA leaf certificate signing private key.
-	leafCertPrivateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	// Generate a new ECDSA leaf certificate signing private key.
+	leafCertPrivateKey, err := ecdsa.GenerateKey(elliptic.P384(), rand.Reader)
 	if err != nil {
 		klog.Fatalf("Failed to generate leaf certificate signing private key: %v", err)
 	}
-	if err := saveRSAPrivateKeyPEM(leafCertPrivateKey, path.Join(*outputPath, "test_leaf_signed_by_root_signing_private_key.pem")); err != nil {
+	if err := saveECDSAPrivateKeyPEM(leafCertPrivateKey, path.Join(*outputPath, "test_leaf_signed_by_root_signing_private_key.pem")); err != nil {
 		klog.Fatalf("Failed to save leaf certificate signing private key: %v", err)
 	}
 
@@ -104,13 +105,13 @@ func genLeaves(rootCert *x509.Certificate, rootPrivKey *rsa.PrivateKey) {
 
 // genPreIssuerAndLeaves generates a pre-issuer intermediate cert, a cert,
 // a pre-cert.
-func genPreIssuerAndLeaves(rootCert *x509.Certificate, rootPrivKey *rsa.PrivateKey) {
-	// Generate a new RSA intermediate CA private key.
-	preIntermediatePrivKey, err := rsa.GenerateKey(rand.Reader, 2048)
+func genPreIssuerAndLeaves(rootCert *x509.Certificate, rootPrivKey *ecdsa.PrivateKey) {
+	// Generate a new ECDSA intermediate CA private key.
+	preIntermediatePrivKey, err := ecdsa.GenerateKey(elliptic.P384(), rand.Reader)
 	if err != nil {
 		klog.Fatalf("Failed to generate intermediate CA private key: %v", err)
 	}
-	if err := saveRSAPrivateKeyPEM(preIntermediatePrivKey, path.Join(*outputPath, "test_pre_intermediate_ca_private_key.pem")); err != nil {
+	if err := saveECDSAPrivateKeyPEM(preIntermediatePrivKey, path.Join(*outputPath, "test_pre_intermediate_ca_private_key.pem")); err != nil {
 		klog.Fatalf("Failed to save intermediate CA private key: %v", err)
 	}
 
@@ -123,12 +124,12 @@ func genPreIssuerAndLeaves(rootCert *x509.Certificate, rootPrivKey *rsa.PrivateK
 		klog.Fatalf("Failed to save intermediate CA certificate: %v", err)
 	}
 
-	// Generate a new RSA leaf certificate signing private key.
-	leafCertPrivateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	// Generate a new ECDSA leaf certificate signing private key.
+	leafCertPrivateKey, err := ecdsa.GenerateKey(elliptic.P384(), rand.Reader)
 	if err != nil {
 		klog.Fatalf("Failed to generate leaf certificate signing private key: %v", err)
 	}
-	if err := saveRSAPrivateKeyPEM(leafCertPrivateKey, path.Join(*outputPath, "test_leaf_signed_by_pre_intermediate_signing_private_key.pem")); err != nil {
+	if err := saveECDSAPrivateKeyPEM(leafCertPrivateKey, path.Join(*outputPath, "test_leaf_signed_by_pre_intermediate_signing_private_key.pem")); err != nil {
 		klog.Fatalf("Failed to save leaf certificate signing private key: %v", err)
 	}
 
@@ -149,7 +150,7 @@ func genPreIssuerAndLeaves(rootCert *x509.Certificate, rootPrivKey *rsa.PrivateK
 	}
 }
 
-func rootCACert(privKey *rsa.PrivateKey) (*x509.Certificate, error) {
+func rootCACert(privKey *ecdsa.PrivateKey) (*x509.Certificate, error) {
 	template := x509.Certificate{
 		SerialNumber: big.NewInt(1),
 		Subject: pkix.Name{
@@ -179,7 +180,7 @@ func rootCACert(privKey *rsa.PrivateKey) (*x509.Certificate, error) {
 	return cert, nil
 }
 
-func intermediateCACert(rootCACert *x509.Certificate, rootPrivKey, privKey *rsa.PrivateKey, preIntermediate bool) (*x509.Certificate, error) {
+func intermediateCACert(rootCACert *x509.Certificate, rootPrivKey, privKey *ecdsa.PrivateKey, preIntermediate bool) (*x509.Certificate, error) {
 	template := x509.Certificate{
 		SerialNumber: big.NewInt(2),
 		Subject: pkix.Name{
@@ -237,7 +238,6 @@ func newChainGenerator(intermediateCert *x509.Certificate, intermediateKey, leaf
 }
 
 // certificate generates a deterministic TLS certificate by using integer as the serial number.
-// Note that deterministic signature algorithms are RSA and Ed25519.
 func (g *chainGenerator) certificate(serialNumber int64, preCert bool) (*x509.Certificate, error) {
 	notBefore := time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC)
 	notAfter := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
@@ -284,13 +284,16 @@ func (g *chainGenerator) certificate(serialNumber int64, preCert bool) (*x509.Ce
 	return cert, nil
 }
 
-func saveRSAPrivateKeyPEM(key *rsa.PrivateKey, filename string) error {
-	// Marshal the private key to PKCS1 ASN.1 DER.
-	derBytes := x509.MarshalPKCS1PrivateKey(key)
+func saveECDSAPrivateKeyPEM(key *ecdsa.PrivateKey, filename string) error {
+	// Marshal the private key to SEC1 ASN.1 DER.
+	derBytes, err := x509.MarshalECPrivateKey(key)
+	if err != nil {
+		return fmt.Errorf("failed to marshal EC private key: %w")
+	}
 
 	// No encryption.
 	block := &pem.Block{
-		Type:  "RSA TESTING KEY",
+		Type:  "EC TESTING KEY",
 		Bytes: derBytes,
 	}
 
@@ -317,7 +320,7 @@ func saveCertificatePEM(cert *x509.Certificate, filename string) error {
 	return nil
 }
 
-func loadPrivateKey(path string) (*rsa.PrivateKey, error) {
+func loadPrivateKey(path string) (*ecdsa.PrivateKey, error) {
 	keyBytes, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read key file: %w", err)
@@ -325,9 +328,9 @@ func loadPrivateKey(path string) (*rsa.PrivateKey, error) {
 
 	block, _ := pem.Decode(keyBytes)
 	if block == nil {
-		rsaKey, err := x509.ParsePKCS1PrivateKey(keyBytes)
+		ecdsaKey, err := x509.ParseECPrivateKey(keyBytes)
 		if err == nil {
-			return rsaKey, nil
+			return ecdsaKey, nil
 		}
 		return nil, fmt.Errorf("failed to decode PEM block and failed to parse as DER: %w", err)
 	}
@@ -336,8 +339,8 @@ func loadPrivateKey(path string) (*rsa.PrivateKey, error) {
 	block.Type = testingKey(block.Type)
 
 	switch block.Type {
-	case "RSA PRIVATE KEY":
-		return x509.ParsePKCS1PrivateKey(block.Bytes)
+	case "EC PRIVATE KEY":
+		return x509.ParseECPrivateKey(block.Bytes)
 	default:
 		return nil, fmt.Errorf("unsupported PEM block type: %s", block.Type)
 	}
