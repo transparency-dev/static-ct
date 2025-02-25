@@ -78,7 +78,7 @@ func isValid(c *x509.Certificate, certType int, currentChain []*x509.Certificate
 	if len(currentChain) > 0 {
 		child := currentChain[len(currentChain)-1]
 		if !bytes.Equal(child.RawIssuer, c.RawSubject) {
-			return x509.CertificateInvalidError{c, x509.NameMismatch, ""}
+			return x509.CertificateInvalidError{Cert: c, Reason: x509.NameMismatch, Detail: ""}
 		}
 	}
 
@@ -116,7 +116,7 @@ func isValid(c *x509.Certificate, certType int, currentChain []*x509.Certificate
 	// encryption key could only be used for Diffie-Hellman key agreement.
 
 	if certType == intermediateCertificate && (!c.BasicConstraintsValid || !c.IsCA) {
-		return x509.CertificateInvalidError{c, x509.NotAuthorizedToSign, ""}
+		return x509.CertificateInvalidError{Cert: c, Reason: x509.NotAuthorizedToSign, Detail: ""}
 	}
 
 	// TooManyIntermediates check deleted.
@@ -208,7 +208,7 @@ func Verify(c *x509.Certificate, opts VerifyOptions) (chains [][]*x509.Certifica
 
 	if len(candidateChains) == 0 {
 		var details []string
-		err = x509.CertificateInvalidError{c, x509.IncompatibleUsage, strings.Join(details, ", ")}
+		err = x509.CertificateInvalidError{Cert: c, Reason: x509.IncompatibleUsage, Detail: strings.Join(details, ", ")}
 		return nil, err
 	}
 
