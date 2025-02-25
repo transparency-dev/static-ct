@@ -15,10 +15,10 @@
 package x509util_test
 
 import (
+	"crypto/x509"
 	"encoding/pem"
 	"testing"
 
-	"github.com/google/certificate-transparency-go/x509"
 	"github.com/transparency-dev/static-ct/internal/x509util"
 )
 
@@ -102,7 +102,7 @@ func parsePEM(t *testing.T, pemCert string) *x509.Certificate {
 	}
 
 	cert, err := x509.ParseCertificate(block.Bytes)
-	if x509.IsFatal(err) {
+	if err != nil {
 		t.Fatalf("Failed to parse PEM certificate: %v", err)
 	}
 	return cert

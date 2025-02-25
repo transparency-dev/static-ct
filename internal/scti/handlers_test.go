@@ -19,6 +19,7 @@ import (
 	"bytes"
 	"context"
 	"crypto"
+	"crypto/x509"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -30,7 +31,6 @@ import (
 	"time"
 
 	"github.com/golang/mock/gomock"
-	"github.com/google/certificate-transparency-go/x509"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/transparency-dev/static-ct/internal/testdata"

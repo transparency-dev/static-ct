@@ -18,13 +18,13 @@ import (
 	"bytes"
 	"crypto"
 	"crypto/sha256"
+	"crypto/x509"
 	"encoding/hex"
 	"encoding/pem"
 	"testing"
 	"time"
 
 	"github.com/google/certificate-transparency-go/tls"
-	"github.com/google/certificate-transparency-go/x509"
 	"github.com/kylelemons/godebug/pretty"
 	"github.com/transparency-dev/static-ct/internal/testdata"
 	"github.com/transparency-dev/static-ct/internal/types"
@@ -245,7 +245,7 @@ func TestSerializeV1STHSignatureKAT(t *testing.T) {
 
 func TestBuildV1MerkleTreeLeafForCert(t *testing.T) {
 	cert, err := x509util.CertificateFromPEM([]byte(testdata.LeafSignedByFakeIntermediateCertPEM))
-	if x509.IsFatal(err) {
+	if err != nil {
 		t.Fatalf("failed to set up test cert: %v", err)
 	}
 
@@ -308,7 +308,7 @@ func TestBuildV1MerkleTreeLeafForCert(t *testing.T) {
 
 func TestSignV1SCTForPrecertificate(t *testing.T) {
 	cert, err := x509util.CertificateFromPEM([]byte(testdata.PrecertPEMValid))
-	if x509.IsFatal(err) {
+	if err != nil {
 		t.Fatalf("failed to set up test precert: %v", err)
 	}
 
@@ -367,7 +367,7 @@ func TestSignV1SCTForPrecertificate(t *testing.T) {
 	if got, want := keyHash[:], leaf.TimestampedEntry.PrecertEntry.IssuerKeyHash[:]; !bytes.Equal(got, want) {
 		t.Fatalf("Issuer key hash bytes mismatch, got %v, expected %v", got, want)
 	}
-	defangedTBS, _ := x509.RemoveCTPoison(cert.RawTBSCertificate)
+	defangedTBS, _ := x509util.RemoveCTPoison(cert.RawTBSCertificate)
 	if got, want := leaf.TimestampedEntry.PrecertEntry.TBSCertificate, defangedTBS; !bytes.Equal(got, want) {
 		t.Fatalf("TBS cert mismatch, got %v, expected %v", got, want)
 	}
