@@ -44,7 +44,7 @@ resource "google_cloud_run_v2_service" "default" {
         "--bucket=${var.bucket}",
         "--spanner_db_path=${local.spanner_log_db_path}",
         "--spanner_dedup_db_path=${local.spanner_dedup_db_path}",
-        "--roots_pem_file=/bin/fake-ca.cert",
+        "--roots_pem_file=/bin/test_root_ca_cert.pem",
         "--origin=${var.base_name}",
         "--signer_public_key_secret_name=${var.signer_public_key_secret_name}",
         "--signer_private_key_secret_name=${var.signer_private_key_secret_name}",
