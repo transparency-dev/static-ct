@@ -2,11 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package x509
+package x509util
 
 import (
 	"bytes"
 	"crypto"
+	"crypto/x509"
 	"crypto/x509/pkix"
 	"errors"
 	"fmt"
@@ -65,7 +66,7 @@ const (
 // CertificateInvalidError results when an odd error occurs. Users of this
 // library probably want to handle all these errors uniformly.
 type CertificateInvalidError struct {
-	Cert   *Certificate
+	Cert   *x509.Certificate
 	Reason InvalidReason
 	Detail string
 }
@@ -103,7 +104,7 @@ func (e CertificateInvalidError) Error() string {
 // HostnameError results when the set of authorized names doesn't match the
 // requested name.
 type HostnameError struct {
-	Certificate *Certificate
+	Certificate *x509.Certificate
 	Host        string
 }
 
@@ -138,13 +139,13 @@ func (h HostnameError) Error() string {
 
 // UnknownAuthorityError results when the certificate issuer is unknown
 type UnknownAuthorityError struct {
-	Cert *Certificate
+	Cert *x509.Certificate
 	// hintErr contains an error that may be helpful in determining why an
 	// authority wasn't found.
 	hintErr error
 	// hintCert contains a possible authority certificate that was rejected
 	// because of the error in hintErr.
-	hintCert *Certificate
+	hintCert *x509.Certificate
 }
 
 func (e UnknownAuthorityError) Error() string {
@@ -191,10 +192,10 @@ type VerifyOptions struct {
 	// Intermediates is an optional pool of certificates that are not trust
 	// anchors, but can be used to form a chain from the leaf certificate to a
 	// root certificate.
-	Intermediates *CertPool
+	Intermediates *x509.CertPool
 	// Roots is the set of trusted root certificates the leaf certificate needs
 	// to chain up to. If nil, the system roots or the platform verifier are used.
-	Roots *CertPool
+	Roots *x509.CertPool
 
 	// CurrentTime is used to check the validity of all certificates in the
 	// chain. If zero, the current time is used.
@@ -203,7 +204,7 @@ type VerifyOptions struct {
 	// KeyUsages specifies which Extended Key Usage values are acceptable. A
 	// chain is accepted if it allows any of the listed values. An empty list
 	// means ExtKeyUsageServerAuth. To accept any key usage, include ExtKeyUsageAny.
-	KeyUsages []ExtKeyUsage
+	KeyUsages []x509.ExtKeyUsage
 
 	// MaxConstraintComparisions is the maximum number of comparisons to
 	// perform when checking a given certificate's name constraints. If
@@ -215,7 +216,7 @@ type VerifyOptions struct {
 	// CertificatePolicies specifies which certificate policy OIDs are
 	// acceptable during policy validation. An empty CertificatePolices
 	// field implies any valid policy is acceptable.
-	CertificatePolicies []OID
+	CertificatePolicies []x509.OID
 
 	// The following policy fields are unexported, because we do not expect
 	// users to actually need to use them, but are useful for testing the
@@ -591,9 +592,9 @@ func (c *Certificate) checkNameConstraints(count *int,
 
 // isValid performs validity checks on c given that it is a candidate to append
 // to the chain in currentChain.
-func (c *Certificate) isValid(certType int, currentChain []*Certificate, opts *VerifyOptions) error {
+func (c *Certificate) isValid(certType int, currentChain []*x509.Certificate, opts *VerifyOptions) error {
 	if len(c.UnhandledCriticalExtensions) > 0 {
-		return UnhandledCriticalExtension{}
+		return x509.UnhandledCriticalExtension{}
 	}
 
 	if len(currentChain) > 0 {
@@ -635,7 +636,7 @@ func (c *Certificate) isValid(certType int, currentChain []*Certificate, opts *V
 
 	if (certType == intermediateCertificate || certType == rootCertificate) &&
 		c.hasNameConstraints() {
-		toCheck := []*Certificate{}
+		toCheck := []*x509.Certificate{}
 		for _, c := range currentChain {
 			if c.hasSANExtension() {
 				toCheck = append(toCheck, c)
@@ -774,7 +775,7 @@ func (c *Certificate) isValid(certType int, currentChain []*Certificate, opts *V
 // Certificates other than c in the returned chains should not be modified.
 //
 // WARNING: this function doesn't do any revocation checking.
-func (c *Certificate) Verify(opts VerifyOptions) (chains [][]*Certificate, err error) {
+func (c *Certificate) Verify(opts VerifyOptions) (chains [][]*x509.Certificate, err error) {
 	// Platform-specific verification needs the ASN.1 contents so
 	// this makes the behavior consistent across platforms.
 	if len(c.Raw) == 0 {
@@ -828,29 +829,29 @@ func (c *Certificate) Verify(opts VerifyOptions) (chains [][]*Certificate, err e
 		}
 	}
 
-	var candidateChains [][]*Certificate
+	var candidateChains [][]*x509.Certificate
 	if opts.Roots.contains(c) {
-		candidateChains = [][]*Certificate{{c}}
+		candidateChains = [][]*x509.Certificate{{c}}
 	} else {
-		candidateChains, err = c.buildChains([]*Certificate{c}, nil, &opts)
+		candidateChains, err = c.buildChains([]*x509.Certificate{c}, nil, &opts)
 		if err != nil {
 			return nil, err
 		}
 	}
 
 	if len(opts.KeyUsages) == 0 {
-		opts.KeyUsages = []ExtKeyUsage{ExtKeyUsageServerAuth}
+		opts.KeyUsages = []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth}
 	}
 
 	for _, eku := range opts.KeyUsages {
-		if eku == ExtKeyUsageAny {
+		if eku == x509.ExtKeyUsageAny {
 			// If any key usage is acceptable, no need to check the chain for
 			// key usages.
 			return candidateChains, nil
 		}
 	}
 
-	chains = make([][]*Certificate, 0, len(candidateChains))
+	chains = make([][]*x509.Certificate, 0, len(candidateChains))
 	var incompatibleKeyUsageChains, invalidPoliciesChains int
 	for _, candidate := range candidateChains {
 		if !checkChainForKeyUsage(candidate, opts.KeyUsages) {
@@ -881,8 +882,8 @@ func (c *Certificate) Verify(opts VerifyOptions) (chains [][]*Certificate, err e
 	return chains, nil
 }
 
-func appendToFreshChain(chain []*Certificate, cert *Certificate) []*Certificate {
-	n := make([]*Certificate, len(chain)+1)
+func appendToFreshChain(chain []*x509.Certificate, cert *x509.Certificate) []*x509.Certificate {
+	n := make([]*x509.Certificate, len(chain)+1)
 	copy(n, chain)
 	n[len(chain)] = cert
 	return n
@@ -893,7 +894,7 @@ func appendToFreshChain(chain []*Certificate, cert *Certificate) []*Certificate 
 // subject, public key, and SAN, if present, are equal. This prevents loops that
 // are created by mutual cross-signatures, or other cross-signature bridge
 // oddities.
-func alreadyInChain(candidate *Certificate, chain []*Certificate) bool {
+func alreadyInChain(candidate *x509.Certificate, chain []*x509.Certificate) bool {
 	type pubKeyEqual interface {
 		Equal(crypto.PublicKey) bool
 	}
@@ -938,10 +939,10 @@ func alreadyInChain(candidate *Certificate, chain []*Certificate) bool {
 // for failed checks due to different intermediates having the same Subject.
 const maxChainSignatureChecks = 100
 
-func (c *Certificate) buildChains(currentChain []*Certificate, sigChecks *int, opts *VerifyOptions) (chains [][]*Certificate, err error) {
+func (c *Certificate) buildChains(currentChain []*x509.Certificate, sigChecks *int, opts *VerifyOptions) (chains [][]*x509.Certificate, err error) {
 	var (
 		hintErr  error
-		hintCert *Certificate
+		hintCert *x509.Certificate
 	)
 
 	considerCandidate := func(certType int, candidate potentialParent) {
@@ -989,7 +990,7 @@ func (c *Certificate) buildChains(currentChain []*Certificate, sigChecks *int, o
 		case rootCertificate:
 			chains = append(chains, appendToFreshChain(currentChain, candidate.cert))
 		case intermediateCertificate:
-			var childChains [][]*Certificate
+			var childChains [][]*x509.Certificate
 			childChains, err = candidate.cert.buildChains(appendToFreshChain(currentChain, candidate.cert), sigChecks, opts)
 			chains = append(chains, childChains...)
 		}
@@ -1182,8 +1183,8 @@ func (c *Certificate) VerifyHostname(h string) error {
 	return HostnameError{c, h}
 }
 
-func checkChainForKeyUsage(chain []*Certificate, keyUsages []ExtKeyUsage) bool {
-	usages := make([]ExtKeyUsage, len(keyUsages))
+func checkChainForKeyUsage(chain []*x509.Certificate, keyUsages []x509.ExtKeyUsage) bool {
+	usages := make([]x509.ExtKeyUsage, len(keyUsages))
 	copy(usages, keyUsages)
 
 	if len(chain) == 0 {
@@ -1205,13 +1206,13 @@ NextCert:
 		}
 
 		for _, usage := range cert.ExtKeyUsage {
-			if usage == ExtKeyUsageAny {
+			if usage == x509.ExtKeyUsageAny {
 				// The certificate is explicitly good for any usage.
 				continue NextCert
 			}
 		}
 
-		const invalidUsage ExtKeyUsage = -1
+		const invalidUsage x509.ExtKeyUsage = -1
 
 	NextRequestedUsage:
 		for i, requestedUsage := range usages {
@@ -1236,8 +1237,8 @@ NextCert:
 	return true
 }
 
-func mustNewOIDFromInts(ints []uint64) OID {
-	oid, err := OIDFromInts(ints)
+func mustNewOIDFromInts(ints []uint64) x509.OID {
+	oid, err := x509.OIDFromInts(ints)
 	if err != nil {
 		panic(fmt.Sprintf("OIDFromInts(%v) unexpected error: %v", ints, err))
 	}
@@ -1245,18 +1246,18 @@ func mustNewOIDFromInts(ints []uint64) OID {
 }
 
 type policyGraphNode struct {
-	validPolicy       OID
-	expectedPolicySet []OID
+	validPolicy       x509.OID
+	expectedPolicySet []x509.OID
 	// we do not implement qualifiers, so we don't track qualifier_set
 
 	parents  map[*policyGraphNode]bool
 	children map[*policyGraphNode]bool
 }
 
-func newPolicyGraphNode(valid OID, parents []*policyGraphNode) *policyGraphNode {
+func newPolicyGraphNode(valid x509.OID, parents []*policyGraphNode) *policyGraphNode {
 	n := &policyGraphNode{
 		validPolicy:       valid,
-		expectedPolicySet: []OID{valid},
+		expectedPolicySet: []x509.OID{valid},
 		children:          map[*policyGraphNode]bool{},
 		parents:           map[*policyGraphNode]bool{},
 	}
@@ -1279,7 +1280,7 @@ var anyPolicyOID = mustNewOIDFromInts([]uint64{2, 5, 29, 32, 0})
 func newPolicyGraph() *policyGraph {
 	root := policyGraphNode{
 		validPolicy:       anyPolicyOID,
-		expectedPolicySet: []OID{anyPolicyOID},
+		expectedPolicySet: []x509.OID{anyPolicyOID},
 		children:          map[*policyGraphNode]bool{},
 		parents:           map[*policyGraphNode]bool{},
 	}
@@ -1318,11 +1319,11 @@ func (pg *policyGraph) leaves() map[string]*policyGraphNode {
 	return pg.strata[pg.depth]
 }
 
-func (pg *policyGraph) leafWithPolicy(policy OID) *policyGraphNode {
+func (pg *policyGraph) leafWithPolicy(policy x509.OID) *policyGraphNode {
 	return pg.strata[pg.depth][string(policy.der)]
 }
 
-func (pg *policyGraph) deleteLeaf(policy OID) {
+func (pg *policyGraph) deleteLeaf(policy x509.OID) {
 	n := pg.strata[pg.depth][string(policy.der)]
 	if n == nil {
 		return
@@ -1381,7 +1382,7 @@ func (pg *policyGraph) incrDepth() {
 	pg.strata = append(pg.strata, map[string]*policyGraphNode{})
 }
 
-func policiesValid(chain []*Certificate, opts VerifyOptions) bool {
+func policiesValid(chain []*x509.Certificate, opts VerifyOptions) bool {
 	// The following code implements the policy verification algorithm as
 	// specified in RFC 5280 and updated by RFC 9618. In particular the
 	// following sections are replaced by RFC 9618:
@@ -1479,7 +1480,7 @@ func policiesValid(chain []*Certificate, opts VerifyOptions) bool {
 				}
 
 				for oidStr, parents := range missing {
-					pg.insert(newPolicyGraphNode(OID{der: []byte(oidStr)}, parents))
+					pg.insert(newPolicyGraphNode(x509.OID{der: []byte(oidStr)}, parents))
 				}
 			}
 
@@ -1490,7 +1491,7 @@ func policiesValid(chain []*Certificate, opts VerifyOptions) bool {
 				// 6.1.4 (b) -- as updated by RFC 9618
 				if len(cert.PolicyMappings) > 0 {
 					// collect map of issuer -> []subject
-					mappings := map[string][]OID{}
+					mappings := map[string][]x509.OID{}
 
 					for _, mapping := range cert.PolicyMappings {
 						if policyMapping > 0 {
@@ -1510,11 +1511,11 @@ func policiesValid(chain []*Certificate, opts VerifyOptions) bool {
 
 					for issuerStr, subjectPolicies := range mappings {
 						// 6.1.4 (b) (1) -- as updated by RFC 9618
-						if matching := pg.leafWithPolicy(OID{der: []byte(issuerStr)}); matching != nil {
+						if matching := pg.leafWithPolicy(x509.OID{der: []byte(issuerStr)}); matching != nil {
 							matching.expectedPolicySet = subjectPolicies
 						} else if matching := pg.leafWithPolicy(anyPolicyOID); matching != nil {
 							// 6.1.4 (b) (2) -- as updated by RFC 9618
-							n := newPolicyGraphNode(OID{der: []byte(issuerStr)}, []*policyGraphNode{matching})
+							n := newPolicyGraphNode(x509.OID{der: []byte(issuerStr)}, []*policyGraphNode{matching})
 							n.expectedPolicySet = subjectPolicies
 							pg.insert(n)
 						}
