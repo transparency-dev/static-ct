@@ -47,9 +47,9 @@ var (
 
 var (
 	// From RFC6962 Section 3.1. To identify pre-certs.
-	cTPrecertPoisonOID = asn1.ObjectIdentifier{1, 3, 6, 1, 4, 1, 11129, 2, 4, 3}
+	ctPrecertPoisonOID = asn1.ObjectIdentifier{1, 3, 6, 1, 4, 1, 11129, 2, 4, 3}
 	ctPoison           = pkix.Extension{
-		Id:       cTPrecertPoisonOID,
+		Id:       ctPrecertPoisonOID,
 		Critical: true,
 		Value:    []byte{0x05, 0x00}, // ASN.1 NULL
 	}
@@ -273,7 +273,7 @@ func (g *chainGenerator) certificate(serialNumber int64, preCert bool, notBefore
 	}
 
 	ctPoison := pkix.Extension{
-		Id:       cTPrecertPoisonOID,
+		Id:       ctPrecertPoisonOID,
 		Critical: true,
 		Value:    []byte{0x05, 0x00}, // ASN.1 NULL
 	}
