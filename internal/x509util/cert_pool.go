@@ -2,11 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package x509
+package x509util
 
 import (
 	"bytes"
 	"crypto/sha256"
+	"crypto/x509"
 	"encoding/pem"
 	"sync"
 )
@@ -47,7 +48,7 @@ type lazyCert struct {
 	// constraint is a function to run against a chain when it is a candidate to
 	// be added to the chain. This allows adding arbitrary constraints that are
 	// not specified in the certificate itself.
-	constraint func([]*Certificate) error
+	constraint func([]*x509.Certificate) error
 
 	// getCert returns the certificate.
 	//
@@ -57,7 +58,7 @@ type lazyCert struct {
 	// error in the signature primarily is meant for use in the
 	// case where a cert file existed on local disk when the program
 	// started up is deleted later before it's read.
-	getCert func() (*Certificate, error)
+	getCert func() (*x509.Certificate, error)
 }
 
 // NewCertPool returns a new, empty CertPool.
@@ -78,7 +79,7 @@ func (s *CertPool) len() int {
 }
 
 // cert returns cert index n in s.
-func (s *CertPool) cert(n int) (*Certificate, func([]*Certificate) error, error) {
+func (s *CertPool) cert(n int) (*x509.Certificate, func([]*x509.Certificate) error, error) {
 	cert, err := s.lazyCerts[n].getCert()
 	return cert, s.lazyCerts[n].constraint, err
 }
@@ -123,13 +124,13 @@ func SystemCertPool() (*CertPool, error) {
 }
 
 type potentialParent struct {
-	cert       *Certificate
-	constraint func([]*Certificate) error
+	cert       *x509.Certificate
+	constraint func([]*x509.Certificate) error
 }
 
 // findPotentialParents returns the certificates in s which might have signed
 // cert.
-func (s *CertPool) findPotentialParents(cert *Certificate) []potentialParent {
+func (s *CertPool) findPotentialParents(cert *x509.Certificate) []potentialParent {
 	if s == nil {
 		return nil
 	}
@@ -169,7 +170,7 @@ func (s *CertPool) findPotentialParents(cert *Certificate) []potentialParent {
 	return candidates
 }
 
-func (s *CertPool) contains(cert *Certificate) bool {
+func (s *CertPool) contains(cert *x509.Certificate) bool {
 	if s == nil {
 		return false
 	}
@@ -177,11 +178,11 @@ func (s *CertPool) contains(cert *Certificate) bool {
 }
 
 // AddCert adds a certificate to a pool.
-func (s *CertPool) AddCert(cert *Certificate) {
+func (s *CertPool) AddCert(cert *x509.Certificate) {
 	if cert == nil {
 		panic("adding nil Certificate to CertPool")
 	}
-	s.addCertFunc(sha256.Sum224(cert.Raw), string(cert.RawSubject), func() (*Certificate, error) {
+	s.addCertFunc(sha256.Sum224(cert.Raw), string(cert.RawSubject), func() (*x509.Certificate, error) {
 		return cert, nil
 	}, nil)
 }
@@ -191,7 +192,7 @@ func (s *CertPool) AddCert(cert *Certificate) {
 //
 // The rawSubject is Certificate.RawSubject and must be non-empty.
 // The getCert func may be called 0 or more times.
-func (s *CertPool) addCertFunc(rawSum224 sum224, rawSubject string, getCert func() (*Certificate, error), constraint func([]*Certificate) error) {
+func (s *CertPool) addCertFunc(rawSum224 sum224, rawSubject string, getCert func() (*x509.Certificate, error), constraint func([]*x509.Certificate) error) {
 	if getCert == nil {
 		panic("getCert can't be nil")
 	}
@@ -228,18 +229,18 @@ func (s *CertPool) AppendCertsFromPEM(pemCerts []byte) (ok bool) {
 		}
 
 		certBytes := block.Bytes
-		cert, err := ParseCertificate(certBytes)
+		cert, err := x509.ParseCertificate(certBytes)
 		if err != nil {
 			continue
 		}
 		var lazyCert struct {
 			sync.Once
-			v *Certificate
+			v *x509.Certificate
 		}
-		s.addCertFunc(sha256.Sum224(cert.Raw), string(cert.RawSubject), func() (*Certificate, error) {
+		s.addCertFunc(sha256.Sum224(cert.Raw), string(cert.RawSubject), func() (*x509.Certificate, error) {
 			lazyCert.Do(func() {
 				// This can't fail, as the same bytes already parsed above.
-				lazyCert.v, _ = ParseCertificate(certBytes)
+				lazyCert.v, _ = x509.ParseCertificate(certBytes)
 				certBytes = nil
 			})
 			return lazyCert.v, nil
@@ -284,11 +285,11 @@ func (s *CertPool) Equal(other *CertPool) bool {
 // it will additionally pass the whole chain to constraint to determine its
 // validity. If constraint returns a non-nil error, the chain will be discarded.
 // constraint may be called concurrently from multiple goroutines.
-func (s *CertPool) AddCertWithConstraint(cert *Certificate, constraint func([]*Certificate) error) {
+func (s *CertPool) AddCertWithConstraint(cert *x509.Certificate, constraint func([]*x509.Certificate) error) {
 	if cert == nil {
 		panic("adding nil Certificate to CertPool")
 	}
-	s.addCertFunc(sha256.Sum224(cert.Raw), string(cert.RawSubject), func() (*Certificate, error) {
+	s.addCertFunc(sha256.Sum224(cert.Raw), string(cert.RawSubject), func() (*x509.Certificate, error) {
 		return cert, nil
 	}, constraint)
 }
