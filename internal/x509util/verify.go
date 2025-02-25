@@ -208,7 +208,7 @@ func Verify(c *x509.Certificate, opts VerifyOptions) (chains [][]*x509.Certifica
 
 	if len(candidateChains) == 0 {
 		var details []string
-		err = x509.CertificateInvalidError{c, x509.NoValidChains, strings.Join(details, ", ")}
+		err = x509.CertificateInvalidError{c, x509.IncompatibleUsage, strings.Join(details, ", ")}
 		return nil, err
 	}
 
