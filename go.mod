@@ -1,6 +1,6 @@
 module github.com/transparency-dev/static-ct
 
-go 1.23.1
+go 1.24.0
 
 require (
 	cloud.google.com/go/secretmanager v1.14.5
