@@ -68,7 +68,7 @@ const (
 
 // isValid performs validity checks on c given that it is a candidate to append
 // to the chain in currentChain.
-func isValid(c *x509.Certificate, certType int, currentChain []*x509.Certificate, opts *VerifyOptions) error {
+func isValid(c *x509.Certificate, certType int, currentChain []*x509.Certificate) error {
 	// UnhandledCriticalExtension check deleted.
 	// Precertificates have the poison extension which the Go library code does
 	// not recognize; also the Go library code does not support the standard
@@ -176,7 +176,7 @@ func Verify(c *x509.Certificate, opts VerifyOptions) (chains [][]*x509.Certifica
 		return nil, fmt.Errorf("opts.Roots == nil, roots MUST be provided")
 	}
 
-	err = isValid(c, leafCertificate, nil, &opts)
+	err = isValid(c, leafCertificate, nil)
 	if err != nil {
 		return
 	}
@@ -297,7 +297,7 @@ func buildChains(c *x509.Certificate, currentChain []*x509.Certificate, sigCheck
 			return
 		}
 
-		err = isValid(candidate.cert, certType, currentChain, opts)
+		err = isValid(candidate.cert, certType, currentChain)
 		if err != nil {
 			if hintErr == nil {
 				hintErr = err
