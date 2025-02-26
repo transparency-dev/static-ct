@@ -2,33 +2,22 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package x509
+package x509fork
 
-import "testing"
+import (
+	"crypto/x509"
+	"testing"
+)
 
 func TestCertPoolEqual(t *testing.T) {
-	tc := &Certificate{Raw: []byte{1, 2, 3}, RawSubject: []byte{2}}
-	otherTC := &Certificate{Raw: []byte{9, 8, 7}, RawSubject: []byte{8}}
+	tc := &x509.Certificate{Raw: []byte{1, 2, 3}, RawSubject: []byte{2}}
+	otherTC := &x509.Certificate{Raw: []byte{9, 8, 7}, RawSubject: []byte{8}}
 
 	emptyPool := NewCertPool()
 	nonSystemPopulated := NewCertPool()
 	nonSystemPopulated.AddCert(tc)
 	nonSystemPopulatedAlt := NewCertPool()
 	nonSystemPopulatedAlt.AddCert(otherTC)
-	emptySystem, err := SystemCertPool()
-	if err != nil {
-		t.Fatal(err)
-	}
-	populatedSystem, err := SystemCertPool()
-	if err != nil {
-		t.Fatal(err)
-	}
-	populatedSystem.AddCert(tc)
-	populatedSystemAlt, err := SystemCertPool()
-	if err != nil {
-		t.Fatal(err)
-	}
-	populatedSystemAlt.AddCert(otherTC)
 	tests := []struct {
 		name  string
 		a     *CertPool
@@ -57,30 +46,6 @@ func TestCertPoolEqual(t *testing.T) {
 			name:  "two populated pools, different content",
 			a:     nonSystemPopulated,
 			b:     nonSystemPopulatedAlt,
-			equal: false,
-		},
-		{
-			name:  "two empty system pools",
-			a:     emptySystem,
-			b:     emptySystem,
-			equal: true,
-		},
-		{
-			name:  "one empty system pool, one populated system pool",
-			a:     emptySystem,
-			b:     populatedSystem,
-			equal: false,
-		},
-		{
-			name:  "two populated system pools",
-			a:     populatedSystem,
-			b:     populatedSystem,
-			equal: true,
-		},
-		{
-			name:  "two populated pools, different content",
-			a:     populatedSystem,
-			b:     populatedSystemAlt,
 			equal: false,
 		},
 		{
