@@ -74,7 +74,6 @@ func isValid(c *x509.Certificate, certType int, currentChain []*x509.Certificate
 	// not recognize; also the Go library code does not support the standard
 	// PolicyConstraints extension (which is required to be marked critical, RFC
 	// 5280 s4.2.1.11)
-	// TODO(phboneff): re-evaluate whether PolicyConstraints is still an issue.
 	if len(currentChain) > 0 {
 		child := currentChain[len(currentChain)-1]
 		if !bytes.Equal(child.RawIssuer, c.RawSubject) {
@@ -93,10 +92,8 @@ func isValid(c *x509.Certificate, certType int, currentChain []*x509.Certificate
 	}
 
 	// CANotAuthorizedForThisName check deleted.
-	// Allow to log all certificates, even if they have been isued by a CA that
-	// is not auhotized to issue certs for a given domain.
-	// TODO(phboneff): check whether we can add this constraint back to be closer
-	// to the x509 library.
+	// Allow logging of all certificates, even if they have been issued by a CA that
+	// is not authorized to issue certs for a given domain.
 
 	// KeyUsage status flags are ignored. From Engineering Security, Peter
 	// Gutmann: A European government CA marked its signing certificates as
