@@ -2,9 +2,11 @@
 
 This is a minimalist fork of [`crypto/x509`](https://pkg.go.dev/crypto/x509). 
 
-[!WARNING] This library is not safe to use for applications outside of this repository.
+> [!WARNING]
+> This library is not safe to use for applications outside of this repository.
 
-[!WARNING] This fork will not be kept in synced with upstream. It will not be updated, unless required by a security vulnerability or a critical functionality issue.
+> [!WARNING]
+> This fork will not be kept in synced with upstream. It will not be updated, unless required by a security vulnerability or a critical functionality issue.
 
 As specified by [RFC6962 S3.1](https://www.rfc-editor.org/rfc/rfc6962#section-3.1), CT logs MUST validate sumbmitted chains to ensure that they link up to roots they accept. `crypto/x509` implements this, and also runs additional common chain validation checks. However, these additional checks:
  - Do not allow chains to contain precertificates or preissuers intermediates.
