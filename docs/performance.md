@@ -1,6 +1,6 @@
 # TesseraCT Storage Performance
 
-TesseraCT is designed to scale to meet current CT issuance load in a cost-effective manner.
+TesseraCT is designed to meet current CT issuance load in a cost-effective manner.
 
 The indicative figures below were measured using the [CT hammer tool](/internal/hammer/) as of [commit `2872ea2`](https://github.com/transparency-dev/static-ct/commit/2872ea2387b2d3077eb832112277eb19a7a907bd). The performance tests were conducted in a controlled environment with deterministic synthetic certificates for a limited amount of time. QPS was measured using the average values collected over the test period.
 
