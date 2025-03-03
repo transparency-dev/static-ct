@@ -1,14 +1,17 @@
 # TesseraCT Storage Performance
 
-TesseraCT is designed to scale to meet the needs of most currently envisioned workloads in a cost-effective manner.
+TesseraCT is designed to scale to meet current CT issuance load in a cost-effective manner.
 
-The indicative figures below were measured using the [CT hammer tool](/internal/hammer/) as of [commit `2872ea2`](https://github.com/transparency-dev/static-ct/commit/2872ea2387b2d3077eb832112277eb19a7a907bd).
+The indicative figures below were measured using the [CT hammer tool](/internal/hammer/) as of [commit `2872ea2`](https://github.com/transparency-dev/static-ct/commit/2872ea2387b2d3077eb832112277eb19a7a907bd). The performance tests were conducted in a controlled environment with deterministic synthetic certificates for a limited amount of time. QPS was measured using the average values collected over the test period.
+
+> [!NOTE]
+> These are not definitive numbers, and that more tests are to come with an improved codebase.
 
 ## Backends
 
 ### GCP
 
-The table below shows some rough numbers of measured performance:
+The table below shows the measured performance over 12 hours in each instance type:
 
 | Instance Type                    | Cloud Spanner | Write QPS |
 | -------------------------------- | ------------- | --------- |
@@ -44,7 +47,7 @@ MiB Swap:      0.0 total,      0.0 free,      0.0 used.    156.1 avail Mem
 
 - e2-medium (2 vCPUs, 4 GB Memory)
 
-The write QPS is around 150. The bottleneck comes from the Cloud Spanner CPU utilization which is always around 95%. The dedup-db takes the majority of the CPU resources. The VM CPU usage is around 50%.
+The write QPS is around 150. The bottleneck is Cloud Spanner CPU. Utilization is always around 100%, most of which is used for deduplication. The VM CPU usage is around 50%.
 
 ```
 ┌──────────────────────────────────────────────────────────────────────┐
