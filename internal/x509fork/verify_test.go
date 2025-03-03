@@ -1232,7 +1232,7 @@ func TestPathBuilding(t *testing.T) {
 			//   * Trust Anchor -> A -> B -> EE
 			//   * Trust Anchor -> C -> A -> B -> EE
 			//
-			// [x509fork edit]: These paths should also be valids since EKU checks have been disabled.
+			// [x509fork edit]: These paths should also be valid since EKU checks have been disabled.
 			//   * Trust Anchor -> A -> C -> B -> EE
 			//   * Trust Anchor -> C -> B -> EE
 			//
@@ -1315,7 +1315,7 @@ func TestPathBuilding(t *testing.T) {
 			//   * Trust Anchor -> A -> B -> EE
 			//   * Trust Anchor -> C -> A -> B -> EE
 			//
-			// [x509fork edit]: These paths should also be valids since EKU checks have been disabled.
+			// [x509fork edit]: These paths should also be valid since EKU checks have been disabled.
 			//   * Trust Anchor -> C -> B -> EE
 			//   * Trust Anchor -> A -> C -> B -> EE
 			//
