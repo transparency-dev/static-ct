@@ -10,7 +10,7 @@ terraform {
 # Cloud Run
 
 locals {
-  cloudrun_service_account_id = "cloudrun-${var.env}-sa"
+  cloudrun_service_account_id = var.env == "" ? "cloudrun-sa" : "cloudrun-${var.env}-sa"
   spanner_log_db_path         = "projects/${var.project_id}/instances/${var.log_spanner_instance}/databases/${var.log_spanner_db}"
   spanner_dedup_db_path       = "projects/${var.project_id}/instances/${var.log_spanner_instance}/databases/${var.dedup_spanner_db}"
 }
