@@ -43,6 +43,16 @@ MiB Mem :    970.0 total,    106.9 free,    813.9 used,    193.2 buff/cache
 MiB Swap:      0.0 total,      0.0 free,      0.0 used.    156.1 avail Mem 
 ```
 
+<details>
+
+<summary>Graphs</summary>
+
+![e2-micro VM CPU Utilization](./assets/gcp/e2-micro-cloud-spanner-100pu/vm-cpu-utilization.png)
+
+![Cloud Spanner 100 PUs CPU Utilization](./assets/gcp/e2-micro-cloud-spanner-100pu/cloud-spanner-total-cpu-utilization.png)
+
+</details>
+
 #### e2-medium VM Instance + Cloud Spanner 100 PUs
 
 - e2-medium (2 vCPUs, 4 GB Memory)
@@ -70,6 +80,16 @@ MiB Swap:      0.0 total,      0.0 free,      0.0 used.   3032.7 avail Mem
    4885 user      20   0 2910800 279060  31420 S  52.2   6.9     18,26 gcp
 ```
 
+<details>
+
+<summary>Graphs</summary>
+
+![e2-medium VM CPU Utilization](./assets/gcp/e2-medium-cloud-spanner-100pu/vm-cpu-utilization.png)
+
+![Cloud Spanner 100 PUs CPU Utilization](./assets/gcp/e2-medium-cloud-spanner-100pu/cloud-spanner-total-cpu-utilization.png)
+
+</details>
+
 #### e2-medium VM Instance + Cloud Spanner 200 PUs
 
 - e2-medium (2 vCPUs, 4 GB Memory)
@@ -96,6 +116,16 @@ MiB Swap:      0.0 total,      0.0 free,      0.0 used.   2989.2 avail Mem
     PID USER      PR  NI    VIRT    RES    SHR S  %CPU  %MEM     TIME+ COMMAND
    4885 user      20   0 2911056 297500  23760 S  97.7   7.4     33,59 gcp 
 ```
+
+<details>
+
+<summary>Graphs</summary>
+
+![e2-medium VM CPU Utilization](./assets/gcp/e2-medium-cloud-spanner-200pu/vm-cpu-utilization.png)
+
+![Cloud Spanner 200 PUs CPU Utilization](./assets/gcp/e2-medium-cloud-spanner-200pu/cloud-spanner-total-cpu-utilization.png)
+
+</details>
 
 ### AWS
 
