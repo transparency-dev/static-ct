@@ -58,7 +58,7 @@ resource "google_cloudbuild_trigger" "build_trigger" {
   }
 
   build {
-    ## Destroy any pre-existing deployment/live/gcp/ci environment.
+    ## Destroy any pre-existing deployment/live/gcp/static-ct/ci environment.
     ## This might happen if a previous cloud build failed for some reason.
     step {
       id     = "preclean_env"
@@ -66,7 +66,7 @@ resource "google_cloudbuild_trigger" "build_trigger" {
       script = <<EOT
         terragrunt --terragrunt-non-interactive --terragrunt-no-color destroy -auto-approve -no-color 2>&1
       EOT
-      dir    = "deployment/live/gcp/ci"
+      dir    = "deployment/live/gcp/static-ct/ci"
       env = [
         "GOOGLE_PROJECT=${var.project_id}",
         "TF_IN_AUTOMATION=1",
@@ -116,7 +116,7 @@ resource "google_cloudbuild_trigger" "build_trigger" {
       wait_for = ["docker_build_conformance_gcp"]
     }
 
-    ## Apply the deployment/live/gcp/ci terragrunt config.
+    ## Apply the deployment/live/gcp/static-ct/ci terragrunt config.
     ## This will bring up the conformance infrastructure, including a service
     ## running the conformance server docker image built above.
     step {
@@ -128,7 +128,7 @@ resource "google_cloudbuild_trigger" "build_trigger" {
         terragrunt --terragrunt-no-color output --raw conformance_bucket_name -no-color > /workspace/conformance_bucket_name
         terragrunt --terragrunt-no-color output --raw ecdsa_p256_public_key_data -no-color > /workspace/conformance_log_public_key.pem
       EOT
-      dir    = "deployment/live/gcp/ci"
+      dir    = "deployment/live/gcp/static-ct/ci"
       env = [
         "GOOGLE_PROJECT=${var.project_id}",
         "TF_IN_AUTOMATION=1",
@@ -178,7 +178,7 @@ resource "google_cloudbuild_trigger" "build_trigger" {
       wait_for = ["bearer_token"]
     }
 
-    ## Destroy the deployment/live/gcp/ci terragrunt config.
+    ## Destroy the deployment/live/gcp/static-ct/ci terragrunt config.
     ## This will tear down the conformance infrastructure we brought up
     ## above.
     step {
@@ -187,7 +187,7 @@ resource "google_cloudbuild_trigger" "build_trigger" {
       script = <<EOT
         terragrunt --terragrunt-non-interactive --terragrunt-no-color destroy -auto-approve -no-color 2>&1
       EOT
-      dir    = "deployment/live/gcp/ci"
+      dir    = "deployment/live/gcp/static-ct/ci"
       env = [
         "GOOGLE_PROJECT=${var.project_id}",
         "TF_IN_AUTOMATION=1",
