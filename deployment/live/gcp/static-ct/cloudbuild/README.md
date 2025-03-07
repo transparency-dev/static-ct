@@ -1,6 +1,7 @@
 # GCP Cloud Build Triggers and Steps
 
 This directory contains terragrunt files to configure our Cloud Build pipeline(s).
+It needs to be deployed manually with `terragrunt apply` when changes are made.
 
 The Cloud Build pipeline is triggered on commits to the `main` branch of the repo, and
 is responsible for:
