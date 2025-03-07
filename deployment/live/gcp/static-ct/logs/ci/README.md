@@ -15,7 +15,7 @@ At a high level, this environment consists of:
 
 ### Automatic Deployment
 
-This GCP SCTFE conformance CI environment is designed to be deployed by the Cloud Build ([Terraform module](/deployment/modules/gcp/cloudbuild/), [Terragrunt configuration](/deployment/live/gcp/cloudbuild/prod/)).
+This GCP SCTFE conformance CI environment is designed to be deployed by the Cloud Build ([Terraform module](/deployment/modules/gcp/cloudbuild/), [Terragrunt configuration](/deployment/live/gcp/static-ct/cloudbuild/prod/)).
 
 ### Manual Deployment
 
@@ -47,5 +47,5 @@ docker push ${GOOGLE_REGION}-docker.pkg.dev/${GOOGLE_PROJECT}/docker-ci/conforma
 ```
 
 Terraforming the project can be done by:
-  1. `cd` to the relevant directory (deployment/live/gcp/ci/) for the environment to deploy/change.
+  1. `cd` to the relevant directory (deployment/live/gcp/static-ct/ci/) for the environment to deploy/change.
   2. Run `terragrunt apply`.
