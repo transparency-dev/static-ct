@@ -1,5 +1,5 @@
 locals {
-  docker_env = "ci"
+  docker_env = include.root.locals.env
 }
 
 include "root" {
