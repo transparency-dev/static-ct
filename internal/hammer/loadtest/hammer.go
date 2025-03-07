@@ -31,11 +31,15 @@ type HammerOpts struct {
 	NumReadersRandom int
 	NumReadersFull   int
 	NumWriters       int
+	NumMMDVerifiers  int
+	MMDDuration      time.Duration
 }
 
 func NewHammer(tracker *client.LogStateTracker, f client.EntryBundleFetcherFunc, w LeafWriter, gen func() []byte, seqLeafChan chan<- LeafTime, errChan chan<- error, opts HammerOpts) *Hammer {
 	readThrottle := NewThrottle(opts.MaxReadOpsPerSecond)
 	writeThrottle := NewThrottle(opts.MaxWriteOpsPerSecond)
+
+	leafMMDChan := make(chan LeafMMD, opts.NumWriters)
 
 	randomReaders := NewWorkerPool(func() Worker {
 		return NewLeafReader(tracker, f, RandomNextLeaf(), readThrottle.TokenChan, errChan)
@@ -44,7 +48,10 @@ func NewHammer(tracker *client.LogStateTracker, f client.EntryBundleFetcherFunc,
 		return NewLeafReader(tracker, f, MonotonicallyIncreasingNextLeaf(), readThrottle.TokenChan, errChan)
 	})
 	writers := NewWorkerPool(func() Worker {
-		return NewLogWriter(w, gen, writeThrottle.TokenChan, errChan, seqLeafChan)
+		return NewLogWriter(w, gen, writeThrottle.TokenChan, errChan, seqLeafChan, leafMMDChan)
+	})
+	mmdVerifiers := NewWorkerPool(func() Worker {
+		return NewMMDVerifier(tracker, errChan, leafMMDChan, opts.MMDDuration)
 	})
 
 	return &Hammer{
@@ -52,6 +59,7 @@ func NewHammer(tracker *client.LogStateTracker, f client.EntryBundleFetcherFunc,
 		randomReaders: randomReaders,
 		fullReaders:   fullReaders,
 		writers:       writers,
+		mmdVerifiers:  mmdVerifiers,
 		readThrottle:  readThrottle,
 		writeThrottle: writeThrottle,
 		tracker:       tracker,
@@ -66,6 +74,7 @@ type Hammer struct {
 	randomReaders WorkerPool
 	fullReaders   WorkerPool
 	writers       WorkerPool
+	mmdVerifiers  WorkerPool
 	readThrottle  *Throttle
 	writeThrottle *Throttle
 	tracker       *client.LogStateTracker
@@ -81,6 +90,9 @@ func (h *Hammer) Run(ctx context.Context) {
 	}
 	for i := 0; i < h.opts.NumWriters; i++ {
 		h.writers.Grow(ctx)
+	}
+	for i := 0; i < h.opts.NumMMDVerifiers; i++ {
+		h.mmdVerifiers.Grow(ctx)
 	}
 
 	go h.readThrottle.Run(ctx)

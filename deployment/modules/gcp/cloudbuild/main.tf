@@ -173,6 +173,7 @@ resource "google_cloudbuild_trigger" "build_trigger" {
           --logtostderr \
           --num_writers=256 \
           --max_write_ops=256 \
+          --num_mmd_verifiers=256 \
           --leaf_write_goal=10000
       EOT
       wait_for = ["bearer_token"]
