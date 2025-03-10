@@ -274,7 +274,7 @@ func (w *LogWriter) Kill() {
 }
 
 // NewMMDVerifier creates a MMDVerifier.
-func NewMMDVerifier(tracker *client.LogStateTracker, mmdDuration time.Duration, errChan chan<- error, leafMMDChan chan LeafMMD) *MMDVerifier {
+func NewMMDVerifier(tracker *client.LogStateTracker, mmdDuration time.Duration, errChan chan<- error, leafMMDChan <-chan LeafMMD) *MMDVerifier {
 	return &MMDVerifier{
 		tracker:     tracker,
 		mmdDuration: mmdDuration,
@@ -289,7 +289,7 @@ type MMDVerifier struct {
 	tracker     *client.LogStateTracker
 	mmdDuration time.Duration
 	errChan     chan<- error
-	leafMMDChan chan LeafMMD
+	leafMMDChan <-chan LeafMMD
 	cancel      func()
 }
 
