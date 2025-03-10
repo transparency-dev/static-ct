@@ -155,42 +155,42 @@ type httpLeafWriter struct {
 	bearerToken string
 }
 
-func (w httpLeafWriter) Write(ctx context.Context, newLeaf []byte) (uint64, error) {
+func (w httpLeafWriter) Write(ctx context.Context, newLeaf []byte) (uint64, uint64, error) {
 	req, err := http.NewRequest(http.MethodPost, w.u.String(), bytes.NewReader(newLeaf))
 	if err != nil {
-		return 0, fmt.Errorf("failed to create request: %v", err)
+		return 0, 0, fmt.Errorf("failed to create request: %v", err)
 	}
 	if w.bearerToken != "" {
 		req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", w.bearerToken))
 	}
 	resp, err := w.hc.Do(req.WithContext(ctx))
 	if err != nil {
-		return 0, fmt.Errorf("failed to write leaf: %v", err)
+		return 0, 0, fmt.Errorf("failed to write leaf: %v", err)
 	}
 	body, err := io.ReadAll(resp.Body)
 	_ = resp.Body.Close()
 	if err != nil {
-		return 0, fmt.Errorf("failed to read body: %v", err)
+		return 0, 0, fmt.Errorf("failed to read body: %v", err)
 	}
 	switch resp.StatusCode {
 	case http.StatusOK:
 		if resp.Request.Method != http.MethodPost {
-			return 0, fmt.Errorf("write leaf was redirected to %s", resp.Request.URL)
+			return 0, 0, fmt.Errorf("write leaf was redirected to %s", resp.Request.URL)
 		}
 		// Continue below
 	case http.StatusServiceUnavailable, http.StatusBadGateway, http.StatusGatewayTimeout:
 		// These status codes may indicate a delay before retrying, so handle that here:
 		time.Sleep(retryDelay(resp.Header.Get("RetryAfter"), time.Second))
 
-		return 0, fmt.Errorf("log not available. Status code: %d. Body: %q %w", resp.StatusCode, body, ErrRetry)
+		return 0, 0, fmt.Errorf("log not available. Status code: %d. Body: %q %w", resp.StatusCode, body, ErrRetry)
 	default:
-		return 0, fmt.Errorf("write leaf was not OK. Status code: %d. Body: %q", resp.StatusCode, body)
+		return 0, 0, fmt.Errorf("write leaf was not OK. Status code: %d. Body: %q", resp.StatusCode, body)
 	}
-	index, err := parseAddChainResponse(body)
+	index, timestamp, err := parseAddChainResponse(body)
 	if err != nil {
-		return 0, fmt.Errorf("write leaf failed to parse response: %v", body)
+		return 0, 0, fmt.Errorf("write leaf failed to parse response: %v", body)
 	}
-	return index, nil
+	return index, timestamp, nil
 }
 
 func retryDelay(retryAfter string, defaultDur time.Duration) time.Duration {
@@ -216,7 +216,7 @@ type roundRobinLeafWriter struct {
 	ws  []httpLeafWriter
 }
 
-func (rr *roundRobinLeafWriter) Write(ctx context.Context, newLeaf []byte) (uint64, error) {
+func (rr *roundRobinLeafWriter) Write(ctx context.Context, newLeaf []byte) (uint64, uint64, error) {
 	w := rr.next()
 	return w(ctx, newLeaf)
 }
@@ -232,39 +232,39 @@ func (rr *roundRobinLeafWriter) next() LeafWriter {
 }
 
 // parseAddChainResponse parses the add-chain response and returns the leaf
-// index from the extensions.
+// index from the extensions and timestamp from the response.
 // Code is inspired by https://github.com/FiloSottile/sunlight/blob/main/tile.go.
-func parseAddChainResponse(body []byte) (uint64, error) {
+func parseAddChainResponse(body []byte) (uint64, uint64, error) {
 	var resp types.AddChainResponse
 	if err := json.Unmarshal(body, &resp); err != nil {
-		return 0, fmt.Errorf("can't parse add-chain response: %v", err)
+		return 0, 0, fmt.Errorf("can't parse add-chain response: %v", err)
 	}
 
 	extensionBytes, err := base64.StdEncoding.DecodeString(resp.Extensions)
 	if err != nil {
-		return 0, fmt.Errorf("can't decode extensions: %v", err)
+		return 0, 0, fmt.Errorf("can't decode extensions: %v", err)
 	}
 	extensions := cryptobyte.String(extensionBytes)
 	var extensionType uint8
 	var extensionData cryptobyte.String
 	var leafIdx int64
 	if !extensions.ReadUint8(&extensionType) {
-		return 0, fmt.Errorf("can't read extension type")
+		return 0, 0, fmt.Errorf("can't read extension type")
 	}
 	if extensionType != 0 {
-		return 0, fmt.Errorf("wrong extension type %d, want 0", extensionType)
+		return 0, 0, fmt.Errorf("wrong extension type %d, want 0", extensionType)
 	}
 	if !extensions.ReadUint16LengthPrefixed(&extensionData) {
-		return 0, fmt.Errorf("can't read extension data")
+		return 0, 0, fmt.Errorf("can't read extension data")
 	}
 	if !readUint40(&extensionData, &leafIdx) {
-		return 0, fmt.Errorf("can't read leaf index from extension")
+		return 0, 0, fmt.Errorf("can't read leaf index from extension")
 	}
 	if !extensionData.Empty() ||
 		!extensions.Empty() {
-		return 0, fmt.Errorf("invalid data tile extensions: %v", resp.Extensions)
+		return 0, 0, fmt.Errorf("invalid data tile extensions: %v", resp.Extensions)
 	}
-	return uint64(leafIdx), nil
+	return uint64(leafIdx), resp.Timestamp, nil
 }
 
 // readUint40 decodes a big-endian, 40-bit value into out and advances over it.

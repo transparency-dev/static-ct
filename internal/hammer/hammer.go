@@ -65,6 +65,8 @@ var (
 
 	maxWriteOpsPerSecond = flag.Int("max_write_ops", 0, "The maximum number of write operations per second")
 	numWriters           = flag.Int("num_writers", 0, "The number of independent write tasks to run")
+	numMMDVerifiers      = flag.Int("num_mmd_verifiers", 0, "The number of MMD verifiers performing inclusion proof for the added leaves")
+	mmdDuration          = flag.Duration("mmd_duration", 10*time.Second, "The Maximum Merge Delay (MMD) duration of the log")
 
 	dupChance = flag.Float64("dup_chance", 0.1, "The probability of a generated leaf being a duplicate of a previous value")
 
@@ -160,6 +162,8 @@ func main() {
 		NumReadersRandom:     *numReadersRandom,
 		NumReadersFull:       *numReadersFull,
 		NumWriters:           *numWriters,
+		NumMMDVerifiers:      *numMMDVerifiers,
+		MMDDuration:          *mmdDuration,
 	}
 	hammer := loadtest.NewHammer(&tracker, f.ReadEntryBundle, w, gen, ha.SeqLeafChan, ha.ErrChan, opts)
 
