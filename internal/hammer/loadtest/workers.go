@@ -327,8 +327,9 @@ func (v *MMDVerifier) Run(ctx context.Context) {
 				continue
 			}
 
-			// A new proof builder is required because v.tracker.ProofBuilder
-			// is not thread safe.
+			// Copy the checkpoint from the log tracker to rebuild a new proof builder.
+			// TODO: Keep using the proof builder from log tracker and bump it when the
+			// checkpoint is invalidated.
 			checkpoint := v.tracker.LatestConsistent
 			pb, err := client.NewProofBuilder(ctx, log.Checkpoint{
 				Origin: v.tracker.Origin,
