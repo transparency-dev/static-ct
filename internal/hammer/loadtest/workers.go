@@ -319,9 +319,7 @@ func (v *MMDVerifier) Run(ctx context.Context) {
 			// Retry if the leaf is not yet integrated into the log.
 			if leafMMD.index >= v.tracker.LatestConsistent.Size {
 				// Verify MMD timestamp.
-				sec := int64(leafMMD.timestamp / 1000)
-				nsec := int64((leafMMD.timestamp % 1000) * 1000000)
-				if time.Unix(sec, nsec).Add(v.mmdDuration).Before(time.Now()) {
+				if time.UnixMilli(int64(leafMMD.timestamp)).Add(v.mmdDuration).Before(time.Now()) {
 					v.errChan <- fmt.Errorf("leaf index %d MMD violation at %d", leafMMD.index, leafMMD.timestamp)
 					break
 				}
