@@ -51,7 +51,7 @@ func NewHammer(tracker *client.LogStateTracker, f client.EntryBundleFetcherFunc,
 		return NewLogWriter(w, gen, writeThrottle.TokenChan, errChan, seqLeafChan, leafMMDChan)
 	})
 	mmdVerifiers := NewWorkerPool(func() Worker {
-		return NewMMDVerifier(tracker, errChan, leafMMDChan, opts.MMDDuration)
+		return NewMMDVerifier(tracker, opts.MMDDuration, errChan, leafMMDChan)
 	})
 
 	return &Hammer{
