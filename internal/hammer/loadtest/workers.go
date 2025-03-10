@@ -323,44 +323,44 @@ func (v *MMDVerifier) Run(ctx context.Context) {
 				nsec := int64((leafMMD.timestamp % 1000) * 1000000)
 				if time.Unix(sec, nsec).Add(v.mmdDuration).Before(time.Now()) {
 					v.errChan <- fmt.Errorf("leaf index %d MMD violation at %d", leafMMD.index, leafMMD.timestamp)
+					break
 				}
 
-				break
+				continue
 			}
 
 			// A new proof builder is required because v.tracker.ProofBuilder
 			// is not thread safe.
-			size := v.tracker.LatestConsistent.Size
-			hash := v.tracker.LatestConsistent.Hash
+			checkpoint := v.tracker.LatestConsistent
 			pb, err := client.NewProofBuilder(ctx, log.Checkpoint{
 				Origin: v.tracker.Origin,
-				Size:   size,
-				Hash:   hash,
+				Size:   checkpoint.Size,
+				Hash:   checkpoint.Hash,
 			}, v.tracker.TileFetcher)
 			if err != nil {
 				v.errChan <- fmt.Errorf("failed to create proof builder: %w", err)
-				continue
+				break
 			}
 			ip, err := pb.InclusionProof(ctx, leafMMD.index)
 			if err != nil {
 				v.errChan <- fmt.Errorf("failed to create inclusion proof: %w", err)
-				continue
+				break
 			}
 
 			certs, err := x509.ParseCertificates(leafMMD.leaf)
 			if err != nil {
 				v.errChan <- fmt.Errorf("failed to parse certificates: %w", err)
-				continue
+				break
 			}
 			entry, err := entryFromChain(certs, false, leafMMD.timestamp)
 			if err != nil {
 				v.errChan <- fmt.Errorf("failed to create entry from chain: %w", err)
-				continue
+				break
 			}
 			leafHash := entry.MerkleLeafHash(leafMMD.index)
-			if err := proof.VerifyInclusion(rfc6962.DefaultHasher, leafMMD.index, size, leafHash, ip, hash); err != nil {
+			if err := proof.VerifyInclusion(rfc6962.DefaultHasher, leafMMD.index, checkpoint.Size, leafHash, ip, checkpoint.Hash); err != nil {
 				v.errChan <- fmt.Errorf("failed to verify inclusion proof: %w", err)
-				continue
+				break
 			}
 
 			leafMMD = nil
@@ -377,7 +377,7 @@ func (v *MMDVerifier) Kill() {
 }
 
 // entryFromChain generates an Entry from a chain and timestamp.
-// copied from certificate-transparency-go/serialization.go
+// Copied from certificate-transparency-go/serialization.go and internal/scti/handlers.go.
 // TODO(phboneff): move in a different file maybe?
 func entryFromChain(chain []*x509.Certificate, isPrecert bool, timestamp uint64) (*ctonly.Entry, error) {
 	leaf := ctonly.Entry{
@@ -438,7 +438,7 @@ func entryFromChain(chain []*x509.Certificate, isPrecert bool, timestamp uint64)
 
 // isPreIssuer indicates whether a certificate is a pre-cert issuer with the specific
 // certificate transparency extended key usage.
-// copied form certificate-transparency-go/serialization.go
+// Copied from certificate-transparency-go/serialization.go and internal/scti/handlers.go.
 func isPreIssuer(issuer *x509.Certificate) bool {
 	for _, eku := range issuer.ExtKeyUsage {
 		if eku == x509.ExtKeyUsageCertificateTransparency {
