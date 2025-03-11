@@ -255,11 +255,11 @@ func (w *LogWriter) Run(ctx context.Context) {
 		}
 
 		// Send LeafMMD for inclusion proof verification.
-		select {
-		case w.leafMMDChan <- LeafMMD{chain, index, timestamp}:
-		default:
-			// Drop if leafMMDChan is full. This could happen if the MMD verifiers are falling behind.
-			if cap(w.leafMMDChan) > 0 {
+		if cap(w.leafMMDChan) > 0 {
+			select {
+			case w.leafMMDChan <- LeafMMD{chain, index, timestamp}:
+			default:
+				// Drop if leafMMDChan is full. This could happen if the MMD verifiers are falling behind.
 				klog.V(3).Infof("leafMMDChan is full: dropping leaf index: %d", index)
 			}
 		}
