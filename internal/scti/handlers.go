@@ -28,6 +28,8 @@ import (
 	"sync"
 	"time"
 
+	"slices"
+
 	"github.com/google/certificate-transparency-go/tls"
 	"github.com/google/certificate-transparency-go/x509"
 	"github.com/prometheus/client_golang/prometheus"
@@ -510,10 +512,5 @@ func entryFromChain(chain []*x509.Certificate, isPrecert bool, timestamp uint64)
 // certificate transparency extended key usage.
 // copied form certificate-transparency-go/serialization.go
 func isPreIssuer(issuer *x509.Certificate) bool {
-	for _, eku := range issuer.ExtKeyUsage {
-		if eku == x509.ExtKeyUsageCertificateTransparency {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(issuer.ExtKeyUsage, x509.ExtKeyUsageCertificateTransparency)
 }
