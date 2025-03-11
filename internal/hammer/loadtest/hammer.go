@@ -39,7 +39,7 @@ func NewHammer(tracker *client.LogStateTracker, f client.EntryBundleFetcherFunc,
 	readThrottle := NewThrottle(opts.MaxReadOpsPerSecond)
 	writeThrottle := NewThrottle(opts.MaxWriteOpsPerSecond)
 
-	leafMMDChan := make(chan LeafMMD, opts.NumWriters)
+	leafMMDChan := make(chan LeafMMD, opts.NumWriters*opts.NumMMDVerifiers)
 
 	randomReaders := NewWorkerPool(func() Worker {
 		return NewLeafReader(tracker, f, RandomNextLeaf(), readThrottle.TokenChan, errChan)
