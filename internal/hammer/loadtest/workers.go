@@ -315,6 +315,9 @@ func (v *MMDVerifier) Run(ctx context.Context) {
 				}
 				leafMMD = &mmd
 			default:
+				// Nothing in the leafMMDChan, wait a bit and try again.
+				time.Sleep(100 * time.Millisecond)
+				continue
 			}
 		} else {
 			// We have a leaf but failed to find it integrated last time, wait a bit and try again.
