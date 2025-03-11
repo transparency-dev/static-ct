@@ -41,7 +41,7 @@ func NewHammer(tracker *client.LogStateTracker, f client.EntryBundleFetcherFunc,
 
 	var leafMMDChan chan LeafMMD
 	if opts.NumMMDVerifiers > 0 {
-		leafMMDChan = make(chan LeafMMD, opts.NumWriters*12)
+		leafMMDChan = make(chan LeafMMD, opts.NumWriters*2)
 	}
 
 	randomReaders := NewWorkerPool(func() Worker {
