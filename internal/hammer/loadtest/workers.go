@@ -259,7 +259,9 @@ func (w *LogWriter) Run(ctx context.Context) {
 		case w.leafMMDChan <- LeafMMD{chain, index, timestamp}:
 		default:
 			// Drop if leafMMDChan is full. This could happen if the MMD verifiers are falling behind.
-			klog.V(3).Infof("leafMMDChan is full: dropping leaf index: %d", index)
+			if len(w.leafMMDChan) > 0 {
+				klog.V(3).Infof("leafMMDChan is full: dropping leaf index: %d", index)
+			}
 		}
 
 		klog.V(2).Infof("Wrote leaf at index %d", index)
