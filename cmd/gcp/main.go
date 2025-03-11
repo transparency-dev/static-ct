@@ -187,7 +187,11 @@ func newGCPStorage(ctx context.Context, signer note.Signer) (*storage.CTStorage,
 		return nil, fmt.Errorf("Failed to initialize GCP Tessera storage driver: %v", err)
 	}
 
-	appender, _, err := tessera.NewAppender(ctx, driver, tessera.WithCheckpointSigner(signer), tessera.WithCTLayout())
+	opts := tessera.NewAppendOptions().
+		WithCheckpointSigner(signer).
+		WithCTLayout()
+
+	appender, _, err := tessera.NewAppender(ctx, driver, opts)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to initialize GCP Tessera appender: %v", err)
 	}
