@@ -329,7 +329,7 @@ func (v *MMDVerifier) Run(ctx context.Context) {
 			// Verify MMD timestamp.
 			if time.UnixMilli(int64(leafMMD.timestamp)).Add(v.mmdDuration).Before(time.Now()) {
 				v.errChan <- fmt.Errorf("leaf index %d MMD violation at %d", leafMMD.index, leafMMD.timestamp)
-				break
+				continue
 			}
 
 			continue
@@ -349,32 +349,31 @@ func (v *MMDVerifier) Run(ctx context.Context) {
 		if err != nil {
 			v.errChan <- fmt.Errorf("failed to create proof builder: %w", err)
 			leafMMD = nil
-			break
+			continue
 		}
 		ip, err := pb.InclusionProof(ctx, leafMMD.index)
 		if err != nil {
 			v.errChan <- fmt.Errorf("failed to create inclusion proof: %w", err)
 			leafMMD = nil
-			break
+			continue
 		}
-
 		certs, err := x509.ParseCertificates(leafMMD.leaf)
 		if err != nil {
 			v.errChan <- fmt.Errorf("failed to parse certificates: %w", err)
 			leafMMD = nil
-			break
+			continue
 		}
 		entry, err := entryFromChain(certs, false, leafMMD.timestamp)
 		if err != nil {
 			v.errChan <- fmt.Errorf("failed to create entry from chain: %w", err)
 			leafMMD = nil
-			break
+			continue
 		}
 		leafHash := entry.MerkleLeafHash(leafMMD.index)
 		if err := proof.VerifyInclusion(rfc6962.DefaultHasher, leafMMD.index, checkpoint.Size, leafHash, ip, checkpoint.Hash); err != nil {
 			v.errChan <- fmt.Errorf("failed to verify inclusion proof: %w", err)
 			leafMMD = nil
-			break
+			continue
 		}
 
 		leafMMD = nil
