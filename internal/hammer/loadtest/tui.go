@@ -98,11 +98,13 @@ func (c *tuiController) Run(ctx context.Context) {
 			c.hammer.randomReaders.Grow(ctx)
 			c.hammer.fullReaders.Grow(ctx)
 			c.hammer.writers.Grow(ctx)
+			c.hammer.mmdVerifiers.Grow(ctx)
 		case 'W':
 			klog.Info("Decreasing the number of workers")
 			c.hammer.randomReaders.Shrink(ctx)
 			c.hammer.fullReaders.Shrink(ctx)
 			c.hammer.writers.Shrink(ctx)
+			c.hammer.mmdVerifiers.Shrink(ctx)
 		}
 		return event
 	})
