@@ -335,6 +335,8 @@ func (v *MMDVerifier) Run(ctx context.Context) {
 		// Copy the checkpoint from the log tracker to rebuild a new proof builder.
 		// TODO: Keep using the proof builder from log tracker. Bump it when the
 		// checkpoint is invalidated.
+		// TODO: Exit gracefully with error code when the following logic hits
+		// any error.
 		checkpoint := v.tracker.LatestConsistent
 		pb, err := client.NewProofBuilder(ctx, log.Checkpoint{
 			Origin: v.tracker.Origin,
