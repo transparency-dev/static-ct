@@ -303,6 +303,8 @@ func (v *MMDVerifier) Run(ctx context.Context) {
 	}
 	ctx, v.cancel = context.WithCancel(ctx)
 
+	var checkpoint log.Checkpoint
+	var proofBuilder *client.ProofBuilder
 	var leafMMD *LeafMMD // The leaf we are currently processing, if any.
 	for {
 		if leafMMD == nil {
@@ -331,23 +333,28 @@ func (v *MMDVerifier) Run(ctx context.Context) {
 			continue
 		}
 
-		// Copy the checkpoint from the log tracker to rebuild a new proof builder.
-		// TODO: Keep using the proof builder from log tracker. Bump it when the
-		// checkpoint is invalidated.
+		// Update the checkpoint and proof builder only if needed, so the node
+		// cache in the proof builder can be effectively used to improve the
+		// performance.
+		if leafMMD.index >= checkpoint.Size && checkpoint.Size < v.tracker.LatestConsistent.Size {
+			checkpoint = v.tracker.LatestConsistent
+
+			var err error
+			proofBuilder, err = client.NewProofBuilder(ctx, log.Checkpoint{
+				Origin: v.tracker.Origin,
+				Size:   checkpoint.Size,
+				Hash:   checkpoint.Hash,
+			}, v.tracker.TileFetcher)
+			if err != nil {
+				v.errChan <- fmt.Errorf("failed to create proof builder: %w", err)
+				leafMMD = nil
+				continue
+			}
+		}
+
 		// TODO: Exit gracefully with error code when the following logic hits
 		// any error.
-		checkpoint := v.tracker.LatestConsistent
-		pb, err := client.NewProofBuilder(ctx, log.Checkpoint{
-			Origin: v.tracker.Origin,
-			Size:   checkpoint.Size,
-			Hash:   checkpoint.Hash,
-		}, v.tracker.TileFetcher)
-		if err != nil {
-			v.errChan <- fmt.Errorf("failed to create proof builder: %w", err)
-			leafMMD = nil
-			continue
-		}
-		ip, err := pb.InclusionProof(ctx, leafMMD.index)
+		ip, err := proofBuilder.InclusionProof(ctx, leafMMD.index)
 		if err != nil {
 			v.errChan <- fmt.Errorf("failed to create inclusion proof: %w", err)
 			leafMMD = nil
