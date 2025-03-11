@@ -299,71 +299,72 @@ func (v *MMDVerifier) Run(ctx context.Context) {
 		panic("MMDVerifier was ran multiple times")
 	}
 	ctx, v.cancel = context.WithCancel(ctx)
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		default:
-		}
 
-		var leafMMD *LeafMMD
-		for {
-			if leafMMD == nil {
-				mmd, ok := <-v.leafMMDChan
+	var leafMMD *LeafMMD // The leaf we are currently processing, if any.
+	for {
+		if leafMMD == nil {
+			select {
+			case <-ctx.Done():
+				return
+			case mmd, ok := <-v.leafMMDChan:
 				if !ok {
-					break
+					return
 				}
 				leafMMD = &mmd
+			default:
 			}
-
-			// Retry if the leaf is not yet integrated into the log.
-			if leafMMD.index >= v.tracker.LatestConsistent.Size {
-				// Verify MMD timestamp.
-				if time.UnixMilli(int64(leafMMD.timestamp)).Add(v.mmdDuration).Before(time.Now()) {
-					v.errChan <- fmt.Errorf("leaf index %d MMD violation at %d", leafMMD.index, leafMMD.timestamp)
-					break
-				}
-
-				continue
-			}
-
-			// Copy the checkpoint from the log tracker to rebuild a new proof builder.
-			// TODO: Keep using the proof builder from log tracker. Bump it when the
-			// checkpoint is invalidated.
-			checkpoint := v.tracker.LatestConsistent
-			pb, err := client.NewProofBuilder(ctx, log.Checkpoint{
-				Origin: v.tracker.Origin,
-				Size:   checkpoint.Size,
-				Hash:   checkpoint.Hash,
-			}, v.tracker.TileFetcher)
-			if err != nil {
-				v.errChan <- fmt.Errorf("failed to create proof builder: %w", err)
-				break
-			}
-			ip, err := pb.InclusionProof(ctx, leafMMD.index)
-			if err != nil {
-				v.errChan <- fmt.Errorf("failed to create inclusion proof: %w", err)
-				break
-			}
-
-			certs, err := x509.ParseCertificates(leafMMD.leaf)
-			if err != nil {
-				v.errChan <- fmt.Errorf("failed to parse certificates: %w", err)
-				break
-			}
-			entry, err := entryFromChain(certs, false, leafMMD.timestamp)
-			if err != nil {
-				v.errChan <- fmt.Errorf("failed to create entry from chain: %w", err)
-				break
-			}
-			leafHash := entry.MerkleLeafHash(leafMMD.index)
-			if err := proof.VerifyInclusion(rfc6962.DefaultHasher, leafMMD.index, checkpoint.Size, leafHash, ip, checkpoint.Hash); err != nil {
-				v.errChan <- fmt.Errorf("failed to verify inclusion proof: %w", err)
-				break
-			}
-
-			leafMMD = nil
+		} else {
+			// We have a leaf but failed to find it integrated last time, wait a bit and try again.
+			time.Sleep(100 * time.Millisecond)
 		}
+
+		// Retry if the leaf is not yet integrated into the log.
+		if leafMMD.index >= v.tracker.LatestConsistent.Size {
+			// Verify MMD timestamp.
+			if time.UnixMilli(int64(leafMMD.timestamp)).Add(v.mmdDuration).Before(time.Now()) {
+				v.errChan <- fmt.Errorf("leaf index %d MMD violation at %d", leafMMD.index, leafMMD.timestamp)
+				break
+			}
+
+			continue
+		}
+
+		// Copy the checkpoint from the log tracker to rebuild a new proof builder.
+		// TODO: Keep using the proof builder from log tracker. Bump it when the
+		// checkpoint is invalidated.
+		checkpoint := v.tracker.LatestConsistent
+		pb, err := client.NewProofBuilder(ctx, log.Checkpoint{
+			Origin: v.tracker.Origin,
+			Size:   checkpoint.Size,
+			Hash:   checkpoint.Hash,
+		}, v.tracker.TileFetcher)
+		if err != nil {
+			v.errChan <- fmt.Errorf("failed to create proof builder: %w", err)
+			break
+		}
+		ip, err := pb.InclusionProof(ctx, leafMMD.index)
+		if err != nil {
+			v.errChan <- fmt.Errorf("failed to create inclusion proof: %w", err)
+			break
+		}
+
+		certs, err := x509.ParseCertificates(leafMMD.leaf)
+		if err != nil {
+			v.errChan <- fmt.Errorf("failed to parse certificates: %w", err)
+			break
+		}
+		entry, err := entryFromChain(certs, false, leafMMD.timestamp)
+		if err != nil {
+			v.errChan <- fmt.Errorf("failed to create entry from chain: %w", err)
+			break
+		}
+		leafHash := entry.MerkleLeafHash(leafMMD.index)
+		if err := proof.VerifyInclusion(rfc6962.DefaultHasher, leafMMD.index, checkpoint.Size, leafHash, ip, checkpoint.Hash); err != nil {
+			v.errChan <- fmt.Errorf("failed to verify inclusion proof: %w", err)
+			break
+		}
+
+		leafMMD = nil
 	}
 }
 
