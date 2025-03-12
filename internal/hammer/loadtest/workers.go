@@ -24,6 +24,8 @@ import (
 	"math/rand/v2"
 	"time"
 
+	"slices"
+
 	"github.com/google/certificate-transparency-go/x509"
 	"github.com/transparency-dev/formats/log"
 	"github.com/transparency-dev/merkle/proof"
@@ -455,10 +457,5 @@ func entryFromChain(chain []*x509.Certificate, isPrecert bool, timestamp uint64)
 // certificate transparency extended key usage.
 // Copied from certificate-transparency-go/serialization.go and internal/scti/handlers.go.
 func isPreIssuer(issuer *x509.Certificate) bool {
-	for _, eku := range issuer.ExtKeyUsage {
-		if eku == x509.ExtKeyUsageCertificateTransparency {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(issuer.ExtKeyUsage, x509.ExtKeyUsageCertificateTransparency)
 }
