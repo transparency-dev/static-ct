@@ -372,7 +372,7 @@ func getRoots(_ context.Context, opts *HandlerOptions, log *log, w http.Response
 		rawCerts = append(rawCerts, cert.Raw)
 	}
 
-	jsonMap := make(map[string]interface{})
+	jsonMap := make(map[string]any)
 	jsonMap[jsonMapKeyCertificates] = rawCerts
 	enc := json.NewEncoder(w)
 	err := enc.Encode(jsonMap)
