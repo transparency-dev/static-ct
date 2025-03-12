@@ -82,7 +82,7 @@ func (d *DedupStorage) Add(ctx context.Context, entries []dedup.LeafDedupInfo) e
 		m = append(m, &spanner.MutationGroup{
 			Mutations: []*spanner.Mutation{
 				spanner.Insert("IDSeq", []string{"id", "h", "idx", "timestamp"},
-				[]interface{}{0, e.LeafID, int64(e.Idx), int64(e.Timestamp)})},
+					[]interface{}{0, e.LeafID, int64(e.Idx), int64(e.Timestamp)})},
 		})
 	}
 
