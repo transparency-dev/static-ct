@@ -493,13 +493,6 @@ func (r *AddChainResponse) ToSignedCertificateTimestamp() (*SignedCertificateTim
 	return &sct, nil
 }
 
-// AddJSONRequest represents the JSON request body sent to the add-json POST method.
-// The corresponding response re-uses AddChainResponse.
-// This is an experimental addition not covered by RFC6962.
-type AddJSONRequest struct {
-	Data interface{} `json:"data"`
-}
-
 // GetSTHResponse represents the JSON response to the get-sth GET method from section 4.3.
 type GetSTHResponse struct {
 	TreeSize          uint64 `json:"tree_size"`           // Number of certs in the current tree
