@@ -161,7 +161,7 @@ func Verify(c *x509.Certificate, opts VerifyOptions) (chains [][]*x509.Certifica
 	if len(c.Raw) == 0 {
 		return nil, errNotParsed
 	}
-	for i := 0; i < opts.Intermediates.len(); i++ {
+	for i := range opts.Intermediates.len() {
 		c, _, err := opts.Intermediates.cert(i)
 		if err != nil {
 			return nil, fmt.Errorf("crypto/x509: error fetching intermediate: %w", err)
