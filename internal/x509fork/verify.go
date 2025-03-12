@@ -11,6 +11,7 @@ import (
 	"crypto/x509/pkix"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 )
 
@@ -195,12 +196,10 @@ func Verify(c *x509.Certificate, opts VerifyOptions) (chains [][]*x509.Certifica
 		opts.KeyUsages = []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth}
 	}
 
-	for _, eku := range opts.KeyUsages {
-		if eku == x509.ExtKeyUsageAny {
-			// If any key usage is acceptable, no need to check the chain for
-			// key usages.
-			return candidateChains, nil
-		}
+	if slices.Contains(opts.KeyUsages, x509.ExtKeyUsageAny) {
+		// If any key usage is acceptable, no need to check the chain for
+		// key usages.
+		return candidateChains, nil
 	}
 
 	if len(candidateChains) == 0 {
