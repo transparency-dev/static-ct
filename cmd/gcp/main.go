@@ -28,7 +28,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/google/trillian/monitoring/opencensus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	sctfe "github.com/transparency-dev/static-ct"
 	"github.com/transparency-dev/static-ct/storage"
@@ -53,9 +52,6 @@ var (
 	metricsEndpoint            = flag.String("metrics_endpoint", "", "Endpoint for serving metrics; if left empty, metrics will be visible on --http_endpoint.")
 	httpDeadline               = flag.Duration("http_deadline", time.Second*10, "Deadline for HTTP requests.")
 	maskInternalErrors         = flag.Bool("mask_internal_errors", false, "Don't return error strings with Internal Server Error HTTP responses.")
-	tracing                    = flag.Bool("tracing", false, "If true opencensus Stackdriver tracing will be enabled. See https://opencensus.io/.")
-	tracingProjectID           = flag.String("tracing_project_id", "", "project ID to pass to stackdriver. Can be empty for GCP, consult docs for other platforms.")
-	tracingPercent             = flag.Int("tracing_percent", 0, "Percent of requests to be traced. Zero is a special case to use the DefaultSampler.")
 	origin                     = flag.String("origin", "", "Origin of the log, for checkpoints and the monitoring prefix.")
 	bucket                     = flag.String("bucket", "", "Name of the bucket to store the log in.")
 	spannerDB                  = flag.String("spanner_db_path", "", "Spanner database path: projects/{projectId}/instances/{instanceId}/databases/{databaseId}.")
@@ -118,17 +114,8 @@ func main() {
 		http.Handle("/metrics", promhttp.Handler())
 	}
 
-	// If we're enabling tracing we need to use an instrumented http.Handler.
-	var handler http.Handler
-	if *tracing {
-		handler, err = opencensus.EnableHTTPServerTracing(*tracingProjectID, *tracingPercent)
-		if err != nil {
-			klog.Exitf("Failed to initialize stackdriver / opencensus tracing: %v", err)
-		}
-	}
-
 	// Bring up the HTTP server and serve until we get a signal not to.
-	srv := http.Server{Addr: *httpEndpoint, Handler: handler}
+	srv := http.Server{Addr: *httpEndpoint}
 	shutdownWG := new(sync.WaitGroup)
 	go awaitSignal(func() {
 		shutdownWG.Add(1)
