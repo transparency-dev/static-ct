@@ -19,6 +19,7 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
+	"crypto/rsa"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/asn1"
@@ -83,9 +84,25 @@ func main() {
 		klog.Fatalf("Failed to save root CA certificate: %v", err)
 	}
 
+	// Generate CT server private keys (ECDSA, RSA).
+	ctServerECDSAPrivKey, err := ecdsa.GenerateKey(elliptic.P384(), rand.Reader)
+	if err != nil {
+		klog.Fatalf("Failed to generate CT server ECDSA private key: %v", err)
+	}
+	if err := saveECDSAPrivateKeyPEM(ctServerECDSAPrivKey, path.Join(*outputPath, "test_ct_server_ecdsa_private_key.pem")); err != nil {
+		klog.Fatalf("Failed to save CT server ECDSA private key: %v", err)
+	}
+
+	ctServerRSAPrivKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		klog.Fatalf("Failed to generate CT server RSA private key: %v", err)
+	}
+	if err := saveRSAPrivateKeyPEM(ctServerRSAPrivKey, path.Join(*outputPath, "test_ct_server_rsa_private_key.pem")); err != nil {
+		klog.Fatalf("Failed to save CT server RSA private key: %v", err)
+	}
+
 	genLeaves(rootCert, rootPrivKey, *notBefore)
 	genPreIssuerAndLeaves(rootCert, rootPrivKey, *notBefore)
-
 }
 
 // genLeaves generates a cert and a pre-cert.
@@ -315,6 +332,27 @@ func saveECDSAPrivateKeyPEM(key *ecdsa.PrivateKey, filename string) error {
 	// Write the PEM data to the file with restrictive permissions.
 	if err := os.WriteFile(filename, pemData, 0600); err != nil {
 		return fmt.Errorf("failed to write PEM file: %v", err)
+	}
+
+	return nil
+}
+
+func saveRSAPrivateKeyPEM(key *rsa.PrivateKey, filename string) error {
+	// Marshal the private key to PKCS1 ASN.1 DER.
+	derBytes := x509.MarshalPKCS1PrivateKey(key)
+
+	// No encryption.
+	block := &pem.Block{
+		Type:  "RSA TESTING KEY",
+		Bytes: derBytes,
+	}
+
+	// Encode the PEM block to memory.
+	pemData := pem.EncodeToMemory(block)
+
+	// Write the PEM data to the file with restrictive permissions.
+	if err := os.WriteFile(filename, pemData, 0600); err != nil {
+		return fmt.Errorf("failed to write PEM file: %w", err)
 	}
 
 	return nil
