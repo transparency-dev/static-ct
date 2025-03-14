@@ -570,7 +570,7 @@ func deadlineMatcher() gomock.Matcher {
 	return dlMatcher{}
 }
 
-func (d dlMatcher) Matches(x interface{}) bool {
+func (d dlMatcher) Matches(x any) bool {
 	ctx, ok := x.(context.Context)
 	if !ok {
 		return false
@@ -632,9 +632,9 @@ func loadCertsIntoPoolOrDie(t *testing.T, certs []string) *x509util.PEMCertPool 
 
 // cmpMatcher is a custom gomock.Matcher that uses cmp.Equal combined with a
 // cmp.Comparer that knows how to properly compare proto.Message types.
-type cmpMatcher struct{ want interface{} }
+type cmpMatcher struct{ want any }
 
-func (m cmpMatcher) Matches(got interface{}) bool {
+func (m cmpMatcher) Matches(got any) bool {
 	return cmp.Equal(got, m.want, cmp.Comparer(proto.Equal))
 }
 func (m cmpMatcher) String() string {

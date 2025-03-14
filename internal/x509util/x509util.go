@@ -118,7 +118,7 @@ func appendHexData(buf *bytes.Buffer, data []byte, count int, prefix string) {
 	}
 }
 
-func publicKeyToString(_ x509.PublicKeyAlgorithm, pub interface{}) string {
+func publicKeyToString(_ x509.PublicKeyAlgorithm, pub any) string {
 	var buf bytes.Buffer
 	switch pub := pub.(type) {
 	case *rsa.PublicKey:
