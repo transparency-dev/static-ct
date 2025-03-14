@@ -178,7 +178,7 @@ func newGCPStorage(ctx context.Context, signer note.Signer) (*storage.CTStorage,
 		WithCheckpointSigner(signer).
 		WithCTLayout()
 
-	// TODO(phboneff): figure out the best way to thread the `shutdown` func NewAppends returns back out to main so we can cleanly close Tessera down
+	// TODO(phbnf): figure out the best way to thread the `shutdown` func NewAppends returns back out to main so we can cleanly close Tessera down
 	// when it's time to exit.
 	appender, _, _, err := tessera.NewAppender(ctx, driver, opts)
 	if err != nil {
