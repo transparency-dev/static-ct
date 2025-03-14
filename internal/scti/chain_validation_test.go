@@ -27,6 +27,79 @@ import (
 	"github.com/transparency-dev/static-ct/internal/x509util"
 )
 
+func TestParseExtKeyUsages(t *testing.T) {
+	for _, tc := range []struct {
+		desc        string
+		extKeyUsage []string
+		wantEKU     []x509.ExtKeyUsage
+		wantErr     bool
+	}{
+		{
+			desc:        "empty",
+			extKeyUsage: []string{},
+			wantEKU:     []x509.ExtKeyUsage{},
+			wantErr:     false,
+		},
+		{
+			desc:        "valid-single",
+			extKeyUsage: []string{"ServerAuth"},
+			wantEKU:     []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+			wantErr:     false,
+		},
+		{
+			desc:        "valid-multiple",
+			extKeyUsage: []string{"ServerAuth", "ClientAuth"},
+			wantEKU:     []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth},
+			wantErr:     false,
+		},
+		{
+			desc:        "invalid",
+			extKeyUsage: []string{"InvalidUsage"},
+			wantEKU:     nil,
+			wantErr:     true,
+		},
+		{
+			desc:        "mixed",
+			extKeyUsage: []string{"ServerAuth", "InvalidUsage"},
+			wantEKU:     nil,
+			wantErr:     true,
+		},
+		{
+			desc:        "any",
+			extKeyUsage: []string{"Any"},
+			wantEKU:     nil,
+			wantErr:     false,
+		},
+		{
+			desc:        "any-with-other-usages",
+			extKeyUsage: []string{"Any", "ServerAuth"},
+			wantEKU:     nil,
+			wantErr:     false,
+		},
+	} {
+		t.Run(tc.desc, func(t *testing.T) {
+			got, err := ParseExtKeyUsages(tc.extKeyUsage)
+			if tc.wantErr {
+				if err == nil {
+					t.Errorf("ParseExtKeyUsages(%v) = nil, want error", tc.extKeyUsage)
+				}
+				return
+			}
+			if err != nil {
+				t.Errorf("ParseExtKeyUsages(%v) = %v, want nil", tc.extKeyUsage, err)
+			}
+			if len(got) != len(tc.wantEKU) {
+				t.Errorf("ParseExtKeyUsages(%v) = %v, want %v", tc.extKeyUsage, got, tc.wantEKU)
+			}
+			for i, e := range tc.wantEKU {
+				if got[i] != e {
+					t.Errorf("ParseExtKeyUsages(%v) = %v, want %v", tc.extKeyUsage, got, tc.wantEKU)
+				}
+			}
+		})
+	}
+}
+
 func wipeExtensions(cert *x509.Certificate) *x509.Certificate {
 	cert.Extensions = cert.Extensions[:0]
 	return cert
