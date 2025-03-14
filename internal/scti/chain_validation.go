@@ -45,7 +45,6 @@ var stringToKeyUsage = map[string]x509.ExtKeyUsage{
 
 // ParseExtKeyUsages parses strings into x509ExtKeyUsage.
 // Throws an error if the string does not match with a known key usage.
-// TODO(phboneff): add tests
 func ParseExtKeyUsages(kus []string) ([]x509.ExtKeyUsage, error) {
 	lExtKeyUsages := make([]x509.ExtKeyUsage, 0, len(kus))
 	// Validate the extended key usages list.
