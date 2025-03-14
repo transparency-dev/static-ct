@@ -146,6 +146,10 @@ func isPrecertificate(cert *x509.Certificate) (bool, error) {
 // the submitted chain in the order of submission.
 // TODO(phboneff): make this a method func([][]byte) ([]*x509.Certificate, error)
 func validateChain(rawChain [][]byte, validationOpts ChainValidationOpts) ([]*x509.Certificate, error) {
+	if len(rawChain) == 0 {
+		return nil, errors.New("empty certificate chain")
+	}
+
 	// First make sure the certs parse as X.509
 	chain := make([]*x509.Certificate, 0, len(rawChain))
 	intermediatePool := x509util.NewPEMCertPool()

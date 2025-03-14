@@ -249,6 +249,16 @@ func TestValidateChain(t *testing.T) {
 				v.extKeyUsages = []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth}
 			},
 		},
+		{
+			desc:    "empty-chain",
+			chain:   [][]byte{},
+			wantErr: true,
+		},
+		{
+			desc:    "nil-chain",
+			chain:   nil,
+			wantErr: true,
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.desc, func(t *testing.T) {
