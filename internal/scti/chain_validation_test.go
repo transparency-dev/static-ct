@@ -78,6 +78,12 @@ func TestIsPrecertificate(t *testing.T) {
 			wantPrecert: false,
 			wantErr:     true,
 		},
+		{
+			desc:        "nil-cert",
+			cert:        nil,
+			wantPrecert: false,
+			wantErr:     true,
+		},
 	}
 
 	for _, test := range tests {

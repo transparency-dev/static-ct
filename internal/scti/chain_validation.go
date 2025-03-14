@@ -126,6 +126,10 @@ func NewChainValidationOpts(trustedRoots *x509util.PEMCertPool, rejectExpired, r
 // An error is returned if the CT extension is present but is not ASN.1 NULL as defined
 // by the spec.
 func isPrecertificate(cert *x509.Certificate) (bool, error) {
+	if cert == nil {
+		return false, errors.New("nil certificate")
+	}
+
 	for _, ext := range cert.Extensions {
 		if x509.OIDExtensionCTPoison.Equal(ext.Id) {
 			if !ext.Critical || !bytes.Equal(asn1.NullBytes, ext.Value) {
