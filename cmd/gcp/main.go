@@ -178,7 +178,9 @@ func newGCPStorage(ctx context.Context, signer note.Signer) (*storage.CTStorage,
 		WithCheckpointSigner(signer).
 		WithCTLayout()
 
-	appender, _, err := tessera.NewAppender(ctx, driver, opts)
+	// TODO(phboneff): figure out the best way to thread the `shutdown` func NewAppends returns back out to main so we can cleanly close Tessera down
+	// when it's time to exit.
+	appender, _, _, err := tessera.NewAppender(ctx, driver, opts)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to initialize GCP Tessera appender: %v", err)
 	}
