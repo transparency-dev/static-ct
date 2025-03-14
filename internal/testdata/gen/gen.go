@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// gen is a tool to generate test EC keys and test certificates for hammer.
+// gen is a tool to generate test ECDSA/RSA keys and test certificates.
 package main
 
 import (
