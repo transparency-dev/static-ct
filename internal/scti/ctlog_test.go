@@ -14,7 +14,6 @@ import (
 	"strings"
 	"testing"
 
-	trillianpem "github.com/google/trillian/crypto/keys/pem"
 	"github.com/transparency-dev/static-ct/internal/x509util"
 	"github.com/transparency-dev/static-ct/storage"
 	"golang.org/x/mod/sumdb/note"
@@ -22,11 +21,11 @@ import (
 
 func TestNewLog(t *testing.T) {
 	ctx := context.Background()
-	ecdsaSigner, err := trillianpem.ReadPrivateKeyFile("../testdata/ct-http-server.privkey.pem", "dirk")
+	ecdsaSigner, err := loadPEMPrivateKey("../testdata/test_ct_server_ecdsa_private_key.pem")
 	if err != nil {
 		t.Fatalf("Can't open key: %v", err)
 	}
-	rsaSigner, err := loadPEMPrivateKey("../testdata/test_rsa_private_key.pem")
+	rsaSigner, err := loadPEMPrivateKey("../testdata/test_ct_server_rsa_private_key.pem")
 	if err != nil {
 		t.Fatalf("Failed to generate RSA key: %v", err)
 	}
@@ -102,7 +101,7 @@ func loadPEMPrivateKey(path string) (crypto.Signer, error) {
 	}
 
 	// Fix block type for testing keys.
-	block.Type = strings.ReplaceAll(block.Type, "TEST PRIVATE KEY", "PRIVATE KEY")
+	block.Type = strings.ReplaceAll(block.Type, "TESTING KEY", "PRIVATE KEY")
 
 	var privateKey any
 	switch block.Type {
