@@ -100,6 +100,67 @@ func TestParseExtKeyUsages(t *testing.T) {
 	}
 }
 
+func TestParseOIDs(t *testing.T) {
+	for _, tc := range []struct {
+		desc     string
+		oids     []string
+		wantOIDs []asn1.ObjectIdentifier
+		wantErr  bool
+	}{
+		{
+			desc:     "empty",
+			oids:     []string{},
+			wantOIDs: []asn1.ObjectIdentifier{},
+			wantErr:  false,
+		},
+		{
+			desc:     "valid-single",
+			oids:     []string{"1.2.3"},
+			wantOIDs: []asn1.ObjectIdentifier{[]int{1, 2, 3}},
+			wantErr:  false,
+		},
+		{
+			desc:     "valid-multiple",
+			oids:     []string{"1.2.3", "4.5.6"},
+			wantOIDs: []asn1.ObjectIdentifier{[]int{1, 2, 3}, []int{4, 5, 6}},
+			wantErr:  false,
+		},
+		{
+			desc:     "invalid",
+			oids:     []string{"1.2.a"},
+			wantOIDs: nil,
+			wantErr:  true,
+		},
+		{
+			desc:     "mixed-valid-invalid",
+			oids:     []string{"1.2.3", "1.2.a"},
+			wantOIDs: nil,
+			wantErr:  true,
+		},
+	} {
+		t.Run(tc.desc, func(t *testing.T) {
+			got, err := ParseOIDs(tc.oids)
+			if tc.wantErr {
+				if err == nil {
+					t.Errorf("ParseOIDs(%v) = nil, want error", tc.oids)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("ParseOIDs(%v) = %v, want nil", tc.oids, err)
+			}
+			if len(got) != len(tc.wantOIDs) {
+				t.Errorf("ParseOIDs(%v) = %v, want %v", tc.oids, got, tc.wantOIDs)
+			}
+			for i, e := range tc.wantOIDs {
+				if !got[i].Equal(e) {
+					t.Errorf("ParseOIDs(%v) = %v, want %v", tc.oids, got, tc.wantOIDs)
+				}
+			}
+		})
+	}
+}
+
 func wipeExtensions(cert *x509.Certificate) *x509.Certificate {
 	cert.Extensions = cert.Extensions[:0]
 	return cert

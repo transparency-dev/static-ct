@@ -65,8 +65,7 @@ func ParseExtKeyUsages(kus []string) ([]x509.ExtKeyUsage, error) {
 	return lExtKeyUsages, nil
 }
 
-// ParseOIDs parses strings of dot seaparated numbers into OIDs.
-// TODO(phboneff): add tests
+// ParseOIDs parses strings of dot separated numbers into OIDs.
 func ParseOIDs(oids []string) ([]asn1.ObjectIdentifier, error) {
 	ret := make([]asn1.ObjectIdentifier, 0, len(oids))
 	for _, s := range oids {
