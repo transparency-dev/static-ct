@@ -142,6 +142,8 @@ resource "google_cloudbuild_trigger" "build_trigger" {
 
     ## TODO(phboneff): move to its own container.
     ## Test against the conformance server with CT Preloader.
+    ## Leave enough time for the preloader to run, until the token expires.
+    timeout = "3600s" // 60 minutes
     step {
       id       = "ct_preloader"
       name     = "golang"
@@ -151,10 +153,14 @@ resource "google_cloudbuild_trigger" "build_trigger" {
         go run github.com/google/certificate-transparency-go/preload/preloader@master \
           --target_log_uri=$(cat /workspace/conformance_url)/arche2025h1.ct.transparency.dev \
 	        --target_bearer_token="$(cat /workspace/cb_identity)" \
-          --source_log_uri=https://ct.googleapis.com/logs/us1/argon2025h1
-	        --start_index=$START_INDEX
+          --source_log_uri=https://ct.googleapis.com/logs/us1/argon2025h1 \
+	        --start_index=$START_INDEX \
+          --num_workers=10 \
+          --parallel_fetch=10 \
+          --parallel_submit=10
       EOT
       wait_for = ["bearer_token"]
+      timeout = "3000s" // 50 minutes
     }
 
     options {
@@ -166,4 +172,34 @@ resource "google_cloudbuild_trigger" "build_trigger" {
   depends_on = [
     module.artifactregistry
   ]
+}
+
+resource "google_cloud_scheduler_job" "deploy_cron" {
+  paused = false
+  project = var.project_id
+  region  = var.location
+  name    = "deploy-cron"
+
+  schedule  = "*/50 * * * *"
+  time_zone = "America/Los_Angeles"
+
+  attempt_deadline = "120s"
+
+  // TODO(phboneff): use a batch job instead maybe
+  http_target {
+    http_method = "POST"
+    uri         = "https://cloudbuild.googleapis.com/v1/projects/${var.project_id}/locations/${var.location}/triggers/${google_cloudbuild_trigger.build_trigger.trigger_id}:run"
+    body        = base64encode(jsonencode({
+      source = {
+        branchName = "preloader"
+      }
+    }))
+    headers = {
+      "Content-Type" = "application/json"
+    }
+
+    oauth_token {
+      service_account_email = local.scheduler_service_account
+    }
+  }
 }
