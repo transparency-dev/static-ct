@@ -510,6 +510,9 @@ func entryFromChain(chain []*x509.Certificate, isPrecert bool, timestamp uint64)
 // isPreIssuer indicates whether a certificate is a pre-cert issuer with the specific
 // certificate transparency extended key usage.
 func isPreIssuer(cert *x509.Certificate) bool {
+	// Look for the extension in the Extensions field and not ExtKeyUsage
+	// since the base TLS library does not recognize this extension as
+	// an ExtKeyUsage.
 	for _, ext := range cert.Extensions {
 		if types.OIDExtKeyUsageCertificateTransparency.Equal(ext.Id) {
 			return true

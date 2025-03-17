@@ -227,8 +227,11 @@ func validateChain(rawChain [][]byte, validationOpts ChainValidationOpts) ([]*x5
 		}
 	}
 
-	// We can now do the verification. Use fairly lax options for verification, as
-	// CT is intended to observe certificates rather than police them.
+	// We can now do the verification. Use x509fork with looser verification
+	// constraints to:
+	//  - allow pre-certificates and chains with pre-issuers
+	//  - allow certificate without policing them since this is not CT's responsibility
+	// See /internal/internal/x509fork/README.md for further information.
 	verifyOpts := x509fork.VerifyOptions{
 		Roots:         validationOpts.trustedRoots.CertPool(),
 		Intermediates: intermediatePool.CertPool(),

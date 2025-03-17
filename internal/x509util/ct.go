@@ -25,7 +25,7 @@ import (
 
 var (
 	oidExtensionAuthorityKeyId = asn1.ObjectIdentifier{2, 5, 29, 35}
-	// OIDExtensionCTPoison is defined in RFC 6962 s3.1.
+	// These extensions are defined in RFC 6962 s3.1.
 	oidExtensionCTPoison                        = asn1.ObjectIdentifier{1, 3, 6, 1, 4, 1, 11129, 2, 4, 3}
 	oidExtensionKeyUsageCertificateTransparency = asn1.ObjectIdentifier{1, 3, 6, 1, 4, 1, 11129, 2, 4, 4}
 )
