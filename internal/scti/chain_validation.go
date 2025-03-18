@@ -16,14 +16,16 @@ package scti
 
 import (
 	"bytes"
+	"crypto/x509"
+	"encoding/asn1"
 	"errors"
 	"fmt"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/google/certificate-transparency-go/asn1"
-	"github.com/google/certificate-transparency-go/x509"
+	"github.com/transparency-dev/static-ct/internal/types"
+	"github.com/transparency-dev/static-ct/internal/x509fork"
 	"github.com/transparency-dev/static-ct/internal/x509util"
 	"k8s.io/klog/v2"
 )
@@ -129,7 +131,7 @@ func isPrecertificate(cert *x509.Certificate) (bool, error) {
 	}
 
 	for _, ext := range cert.Extensions {
-		if x509.OIDExtensionCTPoison.Equal(ext.Id) {
+		if types.OIDExtensionCTPoison.Equal(ext.Id) {
 			if !ext.Critical || !bytes.Equal(asn1.NullBytes, ext.Value) {
 				return false, fmt.Errorf("CT poison ext is not critical or invalid: %v", ext)
 			}
@@ -158,8 +160,8 @@ func validateChain(rawChain [][]byte, validationOpts ChainValidationOpts) ([]*x5
 
 	for i, certBytes := range rawChain {
 		cert, err := x509.ParseCertificate(certBytes)
-		if x509.IsFatal(err) {
-			return nil, err
+		if err != nil {
+			return nil, fmt.Errorf("x509.ParseCertificate(): %v", err)
 		}
 
 		chain = append(chain, cert)
@@ -229,32 +231,18 @@ func validateChain(rawChain [][]byte, validationOpts ChainValidationOpts) ([]*x5
 		}
 	}
 
-	// We can now do the verification.  Use fairly lax options for verification, as
-	// CT is intended to observe certificates rather than police them.
-	verifyOpts := x509.VerifyOptions{
-		Roots:             validationOpts.trustedRoots.CertPool(),
-		CurrentTime:       now,
-		Intermediates:     intermediatePool.CertPool(),
-		DisableTimeChecks: true,
-		// Precertificates have the poison extension; also the Go library code does not
-		// support the standard PolicyConstraints extension (which is required to be marked
-		// critical, RFC 5280 s4.2.1.11), so never check unhandled critical extensions.
-		DisableCriticalExtensionChecks: true,
-		// Pre-issued precertificates have the Certificate Transparency EKU; also some
-		// leaves have unknown EKUs that should not be bounced just because the intermediate
-		// does not also have them (cf. https://github.com/golang/go/issues/24590) so
-		// disable EKU checks inside the x509 library, but we've already done our own check
-		// on the leaf above.
-		DisableEKUChecks: true,
-		// Path length checks get confused by the presence of an additional
-		// pre-issuer intermediate, so disable them.
-		DisablePathLenChecks:        true,
-		DisableNameConstraintChecks: true,
-		DisableNameChecks:           false,
-		KeyUsages:                   validationOpts.extKeyUsages,
+	// We can now do the verification. Use x509fork with looser verification
+	// constraints to:
+	//  - allow pre-certificates and chains with pre-issuers
+	//  - allow certificate without policing them since this is not CT's responsibility
+	// See /internal/x509fork/README.md for further information.
+	verifyOpts := x509fork.VerifyOptions{
+		Roots:         validationOpts.trustedRoots.CertPool(),
+		Intermediates: intermediatePool.CertPool(),
+		KeyUsages:     validationOpts.extKeyUsages,
 	}
 
-	verifiedChains, err := cert.Verify(verifyOpts)
+	verifiedChains, err := x509fork.Verify(cert, verifyOpts)
 	if err != nil {
 		return nil, err
 	}

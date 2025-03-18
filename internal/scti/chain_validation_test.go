@@ -15,15 +15,16 @@
 package scti
 
 import (
+	"crypto/x509"
+	"crypto/x509/pkix"
+	"encoding/asn1"
 	"encoding/pem"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/google/certificate-transparency-go/asn1"
-	"github.com/google/certificate-transparency-go/x509"
-	"github.com/google/certificate-transparency-go/x509/pkix"
 	"github.com/transparency-dev/static-ct/internal/testdata"
+	"github.com/transparency-dev/static-ct/internal/types"
 	"github.com/transparency-dev/static-ct/internal/x509util"
 )
 
@@ -168,13 +169,13 @@ func wipeExtensions(cert *x509.Certificate) *x509.Certificate {
 
 func makePoisonNonCritical(cert *x509.Certificate) *x509.Certificate {
 	// Invalid as a pre-cert because poison extension needs to be marked as critical.
-	cert.Extensions = []pkix.Extension{{Id: x509.OIDExtensionCTPoison, Critical: false, Value: asn1.NullBytes}}
+	cert.Extensions = []pkix.Extension{{Id: types.OIDExtensionCTPoison, Critical: false, Value: asn1.NullBytes}}
 	return cert
 }
 
 func makePoisonNonNull(cert *x509.Certificate) *x509.Certificate {
 	// Invalid as a pre-cert because poison extension is not ASN.1 NULL value.
-	cert.Extensions = []pkix.Extension{{Id: x509.OIDExtensionCTPoison, Critical: false, Value: []byte{0x42, 0x42, 0x42}}}
+	cert.Extensions = []pkix.Extension{{Id: types.OIDExtensionCTPoison, Critical: false, Value: []byte{0x42, 0x42, 0x42}}}
 	return cert
 }
 
@@ -420,7 +421,7 @@ func TestValidateChain(t *testing.T) {
 			if len(gotPath) != test.wantPathLen {
 				t.Errorf("|ValidateChain()|=%d; want %d", len(gotPath), test.wantPathLen)
 				for _, c := range gotPath {
-					t.Logf("Subject: %s Issuer: %s", x509util.NameToString(c.Subject), x509util.NameToString(c.Issuer))
+					t.Logf("Subject: %s Issuer: %s", c.Subject, c.Issuer)
 				}
 			}
 		})
@@ -624,8 +625,8 @@ func pemToCert(t *testing.T, pemData string) *x509.Certificate {
 	}
 
 	cert, err := x509.ParseCertificate(bytes.Bytes)
-	if x509.IsFatal(err) {
-		t.Fatal(err)
+	if err != nil {
+		t.Fatalf("x509.ParseCertificate(): %v", err)
 	}
 
 	return cert
@@ -696,7 +697,7 @@ func TestPreIssuedCert(t *testing.T) {
 				t.Fatalf("failed to ValidateChain: %v", err)
 			}
 			for i, c := range chain {
-				t.Logf("chain[%d] = \n%s", i, x509util.CertificateToString(c))
+				t.Logf("chain[%d] = \n%s", i, c.Subject)
 			}
 		})
 	}

@@ -17,6 +17,7 @@ package loadtest
 import (
 	"context"
 	"crypto/sha256"
+	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -24,14 +25,12 @@ import (
 	"math/rand/v2"
 	"time"
 
-	"slices"
-
-	"github.com/google/certificate-transparency-go/x509"
 	"github.com/transparency-dev/formats/log"
 	"github.com/transparency-dev/merkle/proof"
 	"github.com/transparency-dev/merkle/rfc6962"
 	"github.com/transparency-dev/static-ct/internal/client"
 	"github.com/transparency-dev/static-ct/internal/types"
+	"github.com/transparency-dev/static-ct/internal/x509util"
 	"github.com/transparency-dev/trillian-tessera/api/layout"
 	"github.com/transparency-dev/trillian-tessera/ctonly"
 	"k8s.io/klog/v2"
@@ -427,7 +426,7 @@ func entryFromChain(chain []*x509.Certificate, isPrecert bool, timestamp uint64)
 
 	// Next, post-process the DER-encoded TBSCertificate, to remove the CT poison
 	// extension and possibly update the issuer field.
-	defangedTBS, err := x509.BuildPrecertTBS(cert.RawTBSCertificate, preIssuer)
+	defangedTBS, err := x509util.BuildPrecertTBS(cert.RawTBSCertificate, preIssuer)
 	if err != nil {
 		return nil, fmt.Errorf("failed to remove poison extension: %v", err)
 	}
@@ -445,6 +444,14 @@ func entryFromChain(chain []*x509.Certificate, isPrecert bool, timestamp uint64)
 // isPreIssuer indicates whether a certificate is a pre-cert issuer with the specific
 // certificate transparency extended key usage.
 // Copied from certificate-transparency-go/serialization.go and internal/scti/handlers.go.
-func isPreIssuer(issuer *x509.Certificate) bool {
-	return slices.Contains(issuer.ExtKeyUsage, x509.ExtKeyUsageCertificateTransparency)
+// TODO(phboneff): unify these.
+func isPreIssuer(cert *x509.Certificate) bool {
+	// Look for the extension in the Extensions field and not ExtKeyUsage
+	// since crypto/x509 does not recognize this extension as an ExtKeyUsage.
+	for _, ext := range cert.Extensions {
+		if types.OIDExtKeyUsageCertificateTransparency.Equal(ext.Id) {
+			return true
+		}
+	}
+	return false
 }

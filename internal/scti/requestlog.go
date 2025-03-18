@@ -16,11 +16,10 @@ package scti
 
 import (
 	"context"
+	"crypto/x509"
 	"encoding/hex"
 	"time"
 
-	"github.com/google/certificate-transparency-go/x509"
-	"github.com/google/certificate-transparency-go/x509util"
 	"k8s.io/klog/v2"
 )
 
@@ -86,8 +85,8 @@ func (dlr *DefaultRequestLog) addDERToChain(_ context.Context, d []byte) {
 // certificate that is part of a submitted chain.
 func (dlr *DefaultRequestLog) addCertToChain(_ context.Context, cert *x509.Certificate) {
 	klog.V(vLevel).Infof("RL: Cert: Sub: %s Iss: %s notBef: %s notAft: %s",
-		x509util.NameToString(cert.Subject),
-		x509util.NameToString(cert.Issuer),
+		cert.Subject,
+		cert.Issuer,
 		cert.NotBefore.Format(time.RFC1123Z),
 		cert.NotAfter.Format(time.RFC1123Z))
 }

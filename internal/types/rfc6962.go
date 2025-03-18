@@ -2,12 +2,13 @@ package types
 
 import (
 	"crypto/sha256"
+	"crypto/x509"
+	"encoding/asn1"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
 
 	"github.com/google/certificate-transparency-go/tls"
-	"github.com/google/certificate-transparency-go/x509"
 )
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -41,6 +42,12 @@ func (e LogEntryType) String() string {
 const (
 	TreeLeafPrefix = byte(0x00)
 	TreeNodePrefix = byte(0x01)
+)
+
+// Defined in RFC 6962 s3.1.
+var (
+	OIDExtensionCTPoison                  = asn1.ObjectIdentifier{1, 3, 6, 1, 4, 1, 11129, 2, 4, 3}
+	OIDExtKeyUsageCertificateTransparency = asn1.ObjectIdentifier{1, 3, 6, 1, 4, 1, 11129, 2, 4, 4}
 )
 
 // MerkleLeafType represents the MerkleLeafType enum from section 3.4:
@@ -396,19 +403,6 @@ func (m *MerkleTreeLeaf) X509Certificate() (*x509.Certificate, error) {
 		return nil, fmt.Errorf("cannot call X509Certificate on a MerkleTreeLeaf that is not an X509 entry")
 	}
 	return x509.ParseCertificate(m.TimestampedEntry.X509Entry.Data)
-}
-
-// Precertificate returns the X.509 Precertificate contained within the MerkleTreeLeaf.
-//
-// The returned precertificate is embedded in an x509.Certificate, but is in the
-// form stored internally in the log rather than the original submitted form
-// (i.e. it does not include the poison extension and any changes to reflect the
-// final certificate's issuer have been made; see x509.BuildPrecertTBS).
-func (m *MerkleTreeLeaf) Precertificate() (*x509.Certificate, error) {
-	if m.TimestampedEntry.EntryType != PrecertLogEntryType {
-		return nil, fmt.Errorf("cannot call Precertificate on a MerkleTreeLeaf that is not a precert entry")
-	}
-	return x509.ParseTBSCertificate(m.TimestampedEntry.PrecertEntry.TBSCertificate)
 }
 
 // APIEndpoint is a string that represents one of the Certificate Transparency
