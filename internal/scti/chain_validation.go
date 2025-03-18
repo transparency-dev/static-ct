@@ -231,7 +231,7 @@ func validateChain(rawChain [][]byte, validationOpts ChainValidationOpts) ([]*x5
 	// constraints to:
 	//  - allow pre-certificates and chains with pre-issuers
 	//  - allow certificate without policing them since this is not CT's responsibility
-	// See /internal/internal/x509fork/README.md for further information.
+	// See /internal/x509fork/README.md for further information.
 	verifyOpts := x509fork.VerifyOptions{
 		Roots:         validationOpts.trustedRoots.CertPool(),
 		Intermediates: intermediatePool.CertPool(),
