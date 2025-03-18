@@ -234,7 +234,8 @@ func (s *CertPool) AppendCertsFromPEM(pemCerts []byte) (ok bool) {
 
 // Subjects returns a list of the DER-encoded subjects of
 // all of the certificates in the pool.
-// Undeprecated in this fork.
+// Deprecated in the original package: https://pkg.go.dev/crypto/x509#CertPool.Subjects.
+// Undeprecated here since it's still used by some tests.
 func (s *CertPool) Subjects() [][]byte {
 	res := make([][]byte, s.len())
 	for i, lc := range s.lazyCerts {
