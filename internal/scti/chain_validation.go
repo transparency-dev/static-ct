@@ -24,8 +24,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/transparency-dev/static-ct/internal/lax509"
 	"github.com/transparency-dev/static-ct/internal/types"
-	"github.com/transparency-dev/static-ct/internal/x509fork"
 	"github.com/transparency-dev/static-ct/internal/x509util"
 	"k8s.io/klog/v2"
 )
@@ -231,18 +231,18 @@ func validateChain(rawChain [][]byte, validationOpts ChainValidationOpts) ([]*x5
 		}
 	}
 
-	// We can now do the verification. Use x509fork with looser verification
+	// We can now do the verification. Use lax509 with looser verification
 	// constraints to:
 	//  - allow pre-certificates and chains with pre-issuers
 	//  - allow certificate without policing them since this is not CT's responsibility
-	// See /internal/x509fork/README.md for further information.
-	verifyOpts := x509fork.VerifyOptions{
+	// See /internal/lax509/README.md for further information.
+	verifyOpts := lax509.VerifyOptions{
 		Roots:         validationOpts.trustedRoots.CertPool(),
 		Intermediates: intermediatePool.CertPool(),
 		KeyUsages:     validationOpts.extKeyUsages,
 	}
 
-	verifiedChains, err := x509fork.Verify(cert, verifyOpts)
+	verifiedChains, err := lax509.Verify(cert, verifyOpts)
 	if err != nil {
 		return nil, err
 	}

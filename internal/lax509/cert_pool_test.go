@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package x509fork
+package lax509
 
 import (
 	"crypto/x509"
