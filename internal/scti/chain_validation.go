@@ -231,11 +231,11 @@ func validateChain(rawChain [][]byte, validationOpts ChainValidationOpts) ([]*x5
 		}
 	}
 
-	// We can now do the verification. Use x509fork with looser verification
+	// We can now do the verification. Use lax509 with looser verification
 	// constraints to:
 	//  - allow pre-certificates and chains with pre-issuers
 	//  - allow certificate without policing them since this is not CT's responsibility
-	// See /internal/x509fork/README.md for further information.
+	// See /internal/lax509/README.md for further information.
 	verifyOpts := lax509.VerifyOptions{
 		Roots:         validationOpts.trustedRoots.CertPool(),
 		Intermediates: intermediatePool.CertPool(),
