@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package x509fork
+package lax509
 
 import (
 	"crypto"
@@ -1232,7 +1232,7 @@ func TestPathBuilding(t *testing.T) {
 			//   * Trust Anchor -> A -> B -> EE
 			//   * Trust Anchor -> C -> A -> B -> EE
 			//
-			// [x509fork edit]: These paths should also be valid since EKU checks have been disabled.
+			// [lax509 edit]: These paths should also be valid since EKU checks have been disabled.
 			//   * Trust Anchor -> A -> C -> B -> EE
 			//   * Trust Anchor -> C -> B -> EE
 			//
@@ -1315,7 +1315,7 @@ func TestPathBuilding(t *testing.T) {
 			//   * Trust Anchor -> A -> B -> EE
 			//   * Trust Anchor -> C -> A -> B -> EE
 			//
-			// [x509fork edit]: These paths should also be valid since EKU checks have been disabled.
+			// [lax509 edit]: These paths should also be valid since EKU checks have been disabled.
 			//   * Trust Anchor -> C -> B -> EE
 			//   * Trust Anchor -> A -> C -> B -> EE
 			//
@@ -1561,7 +1561,7 @@ func TestPathBuilding(t *testing.T) {
 			// Build a basic graph with two paths from leaf to root, but the path passing
 			// through C should be ignored, because it has invalid EKU nesting.
 			//
-			// [x509fork edit]: the second path should not be ignored since EKU checks
+			// [lax509 edit]: the second path should not be ignored since EKU checks
 			// have been disabled.
 			name: "ignore invalid EKU path",
 			graph: trustGraphDescription{
