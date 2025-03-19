@@ -70,6 +70,11 @@ resource "google_cloud_run_v2_service" "default" {
         }
       }
     }
+    containers {
+      image      = "us-docker.pkg.dev/cloud-ops-agents-artifacts/cloud-run-gmp-sidecar/cloud-run-gmp-sidecar:1.2.0"
+      name       = "collector"
+      depends_on = ["conformance"]
+    }
   }
 
   deletion_protection = false
