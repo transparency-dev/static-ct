@@ -17,7 +17,6 @@ package tls
 import (
 	"crypto"
 	"crypto/ecdsa"
-	"crypto/rsa"
 	"fmt"
 )
 
@@ -44,10 +43,6 @@ type HashAlgorithm Enum
 
 // HashAlgorithm constants from RFC 5246 s7.4.1.4.1.
 const (
-	None   HashAlgorithm = 0
-	MD5    HashAlgorithm = 1
-	SHA1   HashAlgorithm = 2
-	SHA224 HashAlgorithm = 3
 	SHA256 HashAlgorithm = 4
 	SHA384 HashAlgorithm = 5
 	SHA512 HashAlgorithm = 6
@@ -55,14 +50,6 @@ const (
 
 func (h HashAlgorithm) String() string {
 	switch h {
-	case None:
-		return "None"
-	case MD5:
-		return "MD5"
-	case SHA1:
-		return "SHA1"
-	case SHA224:
-		return "SHA224"
 	case SHA256:
 		return "SHA256"
 	case SHA384:
@@ -80,7 +67,6 @@ type SignatureAlgorithm Enum
 // SignatureAlgorithm constants from RFC 5246 s7.4.1.4.1.
 const (
 	Anonymous SignatureAlgorithm = 0
-	RSA       SignatureAlgorithm = 1
 	ECDSA     SignatureAlgorithm = 3
 )
 
@@ -88,8 +74,6 @@ func (s SignatureAlgorithm) String() string {
 	switch s {
 	case Anonymous:
 		return "Anonymous"
-	case RSA:
-		return "RSA"
 	case ECDSA:
 		return "ECDSA"
 	default:
@@ -103,8 +87,6 @@ func SignatureAlgorithmFromPubKey(k crypto.PublicKey) SignatureAlgorithm {
 	switch k.(type) {
 	case *ecdsa.PublicKey:
 		return ECDSA
-	case *rsa.PublicKey:
-		return RSA
 	default:
 		return Anonymous
 	}

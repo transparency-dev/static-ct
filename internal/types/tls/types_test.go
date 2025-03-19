@@ -17,7 +17,6 @@ package tls
 import (
 	"crypto"
 	"crypto/ecdsa"
-	"crypto/rsa"
 	"testing"
 )
 
@@ -26,10 +25,6 @@ func TestHashAlgorithmString(t *testing.T) {
 		algo HashAlgorithm
 		want string
 	}{
-		{None, "None"},
-		{MD5, "MD5"},
-		{SHA1, "SHA1"},
-		{SHA224, "SHA224"},
 		{SHA256, "SHA256"},
 		{SHA384, "SHA384"},
 		{SHA512, "SHA512"},
@@ -48,7 +43,6 @@ func TestSignatureAlgorithmString(t *testing.T) {
 		want string
 	}{
 		{Anonymous, "Anonymous"},
-		{RSA, "RSA"},
 		{ECDSA, "ECDSA"},
 		{99, "UNKNOWN(99)"},
 	}
@@ -65,8 +59,8 @@ func TestDigitallySignedString(t *testing.T) {
 		want string
 	}{
 		{
-			ds:   DigitallySigned{Algorithm: SignatureAndHashAlgorithm{Hash: SHA1, Signature: RSA}, Signature: []byte{0x01, 0x02}},
-			want: "Signature: HashAlgo=SHA1 SignAlgo=RSA Value=0102",
+			ds:   DigitallySigned{Algorithm: SignatureAndHashAlgorithm{Hash: SHA256, Signature: ECDSA}, Signature: []byte{0x01, 0x02}},
+			want: "Signature: HashAlgo=SHA256 SignAlgo=ECDSA Value=0102",
 		},
 		{
 			ds:   DigitallySigned{Algorithm: SignatureAndHashAlgorithm{Hash: 99, Signature: 99}, Signature: []byte{0x03, 0x04}},
@@ -87,7 +81,6 @@ func TestSignatureAlgorithm(t *testing.T) {
 		want SignatureAlgorithm
 	}{
 		{name: "ECDSA", key: new(ecdsa.PublicKey), want: ECDSA},
-		{name: "RSA", key: new(rsa.PublicKey), want: RSA},
 		{name: "Other", key: "foo", want: Anonymous},
 	} {
 		if got := SignatureAlgorithmFromPubKey(test.key); got != test.want {
