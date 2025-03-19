@@ -7,7 +7,7 @@ import (
 	"encoding/base64"
 	"fmt"
 
-	"github.com/google/certificate-transparency-go/tls"
+	"github.com/transparency-dev/static-ct/internal/types/tls"
 )
 
 ///////////////////////////////////////////////////////////////////////////////
