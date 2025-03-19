@@ -9,7 +9,6 @@ require (
 	github.com/RobinUS2/golang-moving-average v1.0.0
 	github.com/gdamore/tcell/v2 v2.8.1
 	github.com/golang/mock v1.7.0-rc.1
-	github.com/google/certificate-transparency-go v1.3.1
 	github.com/google/go-cmp v0.7.0
 	github.com/kylelemons/godebug v1.1.0
 	github.com/prometheus/client_golang v1.21.1
