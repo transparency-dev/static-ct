@@ -786,8 +786,6 @@ github.com/golang/snappy v0.0.3/go.mod h1:/XxbfmMg8lxefKM7IXC3fBNl/7bRcc72aCRzEW
 github.com/golang/snappy v0.0.4/go.mod h1:/XxbfmMg8lxefKM7IXC3fBNl/7bRcc72aCRzEWrmP2Q=
 github.com/google/btree v0.0.0-20180813153112-4030bb1f1f0c/go.mod h1:lNA+9X1NB3Zf8V7Ke586lFgjr2dZNuvo3lPJSGZ5JPQ=
 github.com/google/btree v1.0.0/go.mod h1:lNA+9X1NB3Zf8V7Ke586lFgjr2dZNuvo3lPJSGZ5JPQ=
-github.com/google/certificate-transparency-go v1.3.1 h1:akbcTfQg0iZlANZLn0L9xOeWtyCIdeoYhKrqi5iH3Go=
-github.com/google/certificate-transparency-go v1.3.1/go.mod h1:gg+UQlx6caKEDQ9EElFOujyxEQEfOiQzAt6782Bvi8k=
 github.com/google/flatbuffers v2.0.8+incompatible/go.mod h1:1AeVuKshWv4vARoZatz6mlQ0JxURH0Kv5+zNeJKJCa8=
 github.com/google/go-cmp v0.2.0/go.mod h1:oXzfMopK8JAjlY9xF4vHSVASa0yLyX7SntLO5aqRK0M=
 github.com/google/go-cmp v0.3.0/go.mod h1:8QqcDgzrUqlUb/G2PQTWiueGozuR1884gddMywk6iLU=
@@ -976,12 +974,6 @@ github.com/transparency-dev/formats v0.0.0-20250127084410-134797944be6 h1:TVUG0R
 github.com/transparency-dev/formats v0.0.0-20250127084410-134797944be6/go.mod h1:tSjZBSQ1ZMxgaOMppnyw48SbTDL947PD/8KYbvrx+lE=
 github.com/transparency-dev/merkle v0.0.2 h1:Q9nBoQcZcgPamMkGn7ghV8XiTZ/kRxn1yCG81+twTK4=
 github.com/transparency-dev/merkle v0.0.2/go.mod h1:pqSy+OXefQ1EDUVmAJ8MUhHB9TXGuzVAT58PqBoHz1A=
-github.com/transparency-dev/trillian-tessera v0.1.1-0.20250314143707-b7c8fb6d4491 h1:HZg3ZJqnMJ2X+t+2jMP2GY1vXrES6R1YtADIURAxb0o=
-github.com/transparency-dev/trillian-tessera v0.1.1-0.20250314143707-b7c8fb6d4491/go.mod h1:uvyZ7WGpaRDPY+4Lme+s1vEUOluYevTYzrDg9j05cYU=
-github.com/transparency-dev/trillian-tessera v0.1.1-0.20250317142235-ed0b4e51d70e h1:wFX4UhEkJEeId3obw8VH9soCyjmLSYzUeYDOsUSYKjE=
-github.com/transparency-dev/trillian-tessera v0.1.1-0.20250317142235-ed0b4e51d70e/go.mod h1:uvyZ7WGpaRDPY+4Lme+s1vEUOluYevTYzrDg9j05cYU=
-github.com/transparency-dev/trillian-tessera v0.1.1-0.20250317143907-6f25ba6ca3a6 h1:QRFg1XDm9MM1SRfMdUFonaU7NIMQgRjQpqke8UcGNmY=
-github.com/transparency-dev/trillian-tessera v0.1.1-0.20250317143907-6f25ba6ca3a6/go.mod h1:uvyZ7WGpaRDPY+4Lme+s1vEUOluYevTYzrDg9j05cYU=
 github.com/transparency-dev/trillian-tessera v0.1.1-0.20250317151915-e61e2d86f685 h1:Cu1sKlj37BnhBybTQ5V1/zgqPQHlBEXIyLiAK+rVlvA=
 github.com/transparency-dev/trillian-tessera v0.1.1-0.20250317151915-e61e2d86f685/go.mod h1:uvyZ7WGpaRDPY+4Lme+s1vEUOluYevTYzrDg9j05cYU=
 github.com/yuin/goldmark v1.1.25/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=

@@ -29,10 +29,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/google/certificate-transparency-go/tls"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/transparency-dev/static-ct/internal/types"
+	"github.com/transparency-dev/static-ct/internal/types/tls"
 	"github.com/transparency-dev/static-ct/internal/x509util"
 	"github.com/transparency-dev/static-ct/modules/dedup"
 	tessera "github.com/transparency-dev/trillian-tessera"
