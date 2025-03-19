@@ -5,7 +5,6 @@ import (
 	"crypto/x509"
 	"encoding/asn1"
 	"encoding/base64"
-	"encoding/json"
 	"fmt"
 
 	"github.com/google/certificate-transparency-go/tls"
@@ -134,36 +133,9 @@ type CTExtensions []byte // tls:"minlen:0,maxlen:65535"`
 // MerkleTreeNode represents an internal node in the CT tree.
 type MerkleTreeNode []byte
 
-// ConsistencyProof represents a CT consistency proof (see sections 2.1.2 and
-// 4.4).
-type ConsistencyProof []MerkleTreeNode
-
-// AuditPath represents a CT inclusion proof (see sections 2.1.1 and 4.5).
-type AuditPath []MerkleTreeNode
-
-// LeafInput represents a serialized MerkleTreeLeaf structure.
-type LeafInput []byte
-
 // DigitallySigned is a local alias for tls.DigitallySigned so that we can
-// attach a MarshalJSON method.
+// attach a Base64String() method.
 type DigitallySigned tls.DigitallySigned
-
-// FromBase64String populates the DigitallySigned structure from the base64 data passed in.
-// Returns an error if the base64 data is invalid.
-func (d *DigitallySigned) FromBase64String(b64 string) error {
-	raw, err := base64.StdEncoding.DecodeString(b64)
-	if err != nil {
-		return fmt.Errorf("failed to unbase64 DigitallySigned: %v", err)
-	}
-	var ds tls.DigitallySigned
-	if rest, err := tls.Unmarshal(raw, &ds); err != nil {
-		return fmt.Errorf("failed to unmarshal DigitallySigned: %v", err)
-	} else if len(rest) > 0 {
-		return fmt.Errorf("trailing data (%d bytes) after DigitallySigned", len(rest))
-	}
-	*d = DigitallySigned(ds)
-	return nil
-}
 
 // Base64String returns the base64 representation of the DigitallySigned struct.
 func (d DigitallySigned) Base64String() (string, error) {
@@ -172,24 +144,6 @@ func (d DigitallySigned) Base64String() (string, error) {
 		return "", err
 	}
 	return base64.StdEncoding.EncodeToString(b), nil
-}
-
-// MarshalJSON implements the json.Marshaller interface.
-func (d DigitallySigned) MarshalJSON() ([]byte, error) {
-	b64, err := d.Base64String()
-	if err != nil {
-		return []byte{}, err
-	}
-	return []byte(`"` + b64 + `"`), nil
-}
-
-// UnmarshalJSON implements the json.Unmarshaler interface.
-func (d *DigitallySigned) UnmarshalJSON(b []byte) error {
-	var content string
-	if err := json.Unmarshal(b, &content); err != nil {
-		return fmt.Errorf("failed to unmarshal DigitallySigned: %v", err)
-	}
-	return d.FromBase64String(content)
 }
 
 // RawLogEntry represents the (TLS-parsed) contents of an entry in a CT log.
@@ -227,34 +181,6 @@ type LogEntry struct {
 	Chain []ASN1Cert
 }
 
-// PrecertChainEntry holds an precertificate together with a validation chain
-// for it; see section 3.1.
-type PrecertChainEntry struct {
-	PreCertificate   ASN1Cert   `tls:"minlen:1,maxlen:16777215"`
-	CertificateChain []ASN1Cert `tls:"minlen:0,maxlen:16777215"`
-}
-
-// CertificateChain holds a chain of certificates, as returned as extra data
-// for get-entries (section 4.6).
-type CertificateChain struct {
-	Entries []ASN1Cert `tls:"minlen:0,maxlen:16777215"`
-}
-
-// PrecertChainEntryHash is an extended PrecertChainEntry type with the
-// IssuanceChainHash field added to store the hash of the
-// CertificateChain field of PrecertChainEntry.
-type PrecertChainEntryHash struct {
-	PreCertificate    ASN1Cert `tls:"minlen:1,maxlen:16777215"`
-	IssuanceChainHash []byte   `tls:"minlen:0,maxlen:256"`
-}
-
-// CertificateChainHash is an extended CertificateChain type with the
-// IssuanceChainHash field added to store the hash of the
-// Entries field of CertificateChain.
-type CertificateChainHash struct {
-	IssuanceChainHash []byte `tls:"minlen:0,maxlen:256"`
-}
-
 // JSONDataEntry holds arbitrary data.
 type JSONDataEntry struct {
 	Data []byte `tls:"minlen:0,maxlen:1677215"`
@@ -263,47 +189,20 @@ type JSONDataEntry struct {
 // SHA256Hash represents the output from the SHA256 hash function.
 type SHA256Hash [sha256.Size]byte
 
-// FromBase64String populates the SHA256 struct with the contents of the base64 data passed in.
-func (s *SHA256Hash) FromBase64String(b64 string) error {
-	bs, err := base64.StdEncoding.DecodeString(b64)
-	if err != nil {
-		return fmt.Errorf("failed to unbase64 LogID: %v", err)
-	}
-	if len(bs) != sha256.Size {
-		return fmt.Errorf("invalid SHA256 length, expected 32 but got %d", len(bs))
-	}
-	copy(s[:], bs)
-	return nil
-}
-
 // Base64String returns the base64 representation of this SHA256Hash.
 func (s SHA256Hash) Base64String() string {
 	return base64.StdEncoding.EncodeToString(s[:])
 }
 
-// MarshalJSON implements the json.Marshaller interface for SHA256Hash.
-func (s SHA256Hash) MarshalJSON() ([]byte, error) {
-	return []byte(`"` + s.Base64String() + `"`), nil
-}
-
-// UnmarshalJSON implements the json.Unmarshaller interface.
-func (s *SHA256Hash) UnmarshalJSON(b []byte) error {
-	var content string
-	if err := json.Unmarshal(b, &content); err != nil {
-		return fmt.Errorf("failed to unmarshal SHA256Hash: %v", err)
-	}
-	return s.FromBase64String(content)
-}
-
 // SignedTreeHead represents the structure returned by the get-sth CT method
 // after base64 decoding; see sections 3.5 and 4.3.
 type SignedTreeHead struct {
-	Version           Version         `json:"sth_version"`         // The version of the protocol to which the STH conforms
-	TreeSize          uint64          `json:"tree_size"`           // The number of entries in the new tree
-	Timestamp         uint64          `json:"timestamp"`           // The time at which the STH was created
-	SHA256RootHash    SHA256Hash      `json:"sha256_root_hash"`    // The root hash of the log's Merkle tree
-	TreeHeadSignature DigitallySigned `json:"tree_head_signature"` // Log's signature over a TLS-encoded TreeHeadSignature
-	LogID             SHA256Hash      `json:"log_id"`              // The SHA256 hash of the log's public key
+	Version           Version         // The version of the protocol to which the STH conforms
+	TreeSize          uint64          // The number of entries in the new tree
+	Timestamp         uint64          // The time at which the STH was created
+	SHA256RootHash    SHA256Hash      // The root hash of the log's Merkle tree
+	TreeHeadSignature DigitallySigned // Log's signature over a TLS-encoded TreeHeadSignature
+	LogID             SHA256Hash      // The SHA256 hash of the log's public key
 }
 
 func (s SignedTreeHead) String() string {
@@ -396,15 +295,6 @@ type Precertificate struct {
 	TBSCertificate *x509.Certificate
 }
 
-// X509Certificate returns the X.509 Certificate contained within the
-// MerkleTreeLeaf.
-func (m *MerkleTreeLeaf) X509Certificate() (*x509.Certificate, error) {
-	if m.TimestampedEntry.EntryType != X509LogEntryType {
-		return nil, fmt.Errorf("cannot call X509Certificate on a MerkleTreeLeaf that is not an X509 entry")
-	}
-	return x509.ParseCertificate(m.TimestampedEntry.X509Entry.Data)
-}
-
 // APIEndpoint is a string that represents one of the Certificate Transparency
 // Log API endpoints.
 type APIEndpoint string
@@ -413,30 +303,18 @@ type APIEndpoint string
 // WARNING: Should match the URI paths without the "/ct/v1/" prefix.  If
 // changing these constants, may need to change those too.
 const (
-	AddChainStr          APIEndpoint = "add-chain"
-	AddPreChainStr       APIEndpoint = "add-pre-chain"
-	GetSTHStr            APIEndpoint = "get-sth"
-	GetEntriesStr        APIEndpoint = "get-entries"
-	GetProofByHashStr    APIEndpoint = "get-proof-by-hash"
-	GetSTHConsistencyStr APIEndpoint = "get-sth-consistency"
-	GetRootsStr          APIEndpoint = "get-roots"
-	GetEntryAndProofStr  APIEndpoint = "get-entry-and-proof"
+	AddChainStr    APIEndpoint = "add-chain"
+	AddPreChainStr APIEndpoint = "add-pre-chain"
+	GetRootsStr    APIEndpoint = "get-roots"
 )
 
 // URI paths for Log requests; see section 4.
 // WARNING: Should match the API endpoints, with the "/ct/v1/" prefix.  If
 // changing these constants, may need to change those too.
 const (
-	AddChainPath          = "/ct/v1/add-chain"
-	AddPreChainPath       = "/ct/v1/add-pre-chain"
-	GetSTHPath            = "/ct/v1/get-sth"
-	GetEntriesPath        = "/ct/v1/get-entries"
-	GetProofByHashPath    = "/ct/v1/get-proof-by-hash"
-	GetSTHConsistencyPath = "/ct/v1/get-sth-consistency"
-	GetRootsPath          = "/ct/v1/get-roots"
-	GetEntryAndProofPath  = "/ct/v1/get-entry-and-proof"
-
-	AddJSONPath = "/ct/v1/add-json" // Experimental addition
+	AddChainPath    = "/ct/v1/add-chain"
+	AddPreChainPath = "/ct/v1/add-pre-chain"
+	GetRootsPath    = "/ct/v1/get-roots"
 )
 
 // AddChainRequest represents the JSON request body sent to the add-chain and
@@ -455,109 +333,4 @@ type AddChainResponse struct {
 	Timestamp  uint64  `json:"timestamp"`   // Timestamp of issuance
 	Extensions string  `json:"extensions"`  // Holder for any CT extensions
 	Signature  []byte  `json:"signature"`   // Log signature for this SCT
-}
-
-// ToSignedCertificateTimestamp creates a SignedCertificateTimestamp from the
-// AddChainResponse.
-func (r *AddChainResponse) ToSignedCertificateTimestamp() (*SignedCertificateTimestamp, error) {
-	sct := SignedCertificateTimestamp{
-		SCTVersion: r.SCTVersion,
-		Timestamp:  r.Timestamp,
-	}
-
-	if len(r.ID) != sha256.Size {
-		return nil, fmt.Errorf("id is invalid length, expected %d got %d", sha256.Size, len(r.ID))
-	}
-	copy(sct.LogID.KeyID[:], r.ID)
-
-	exts, err := base64.StdEncoding.DecodeString(r.Extensions)
-	if err != nil {
-		return nil, fmt.Errorf("invalid base64 data in Extensions (%q): %v", r.Extensions, err)
-	}
-	sct.Extensions = CTExtensions(exts)
-
-	var ds DigitallySigned
-	if rest, err := tls.Unmarshal(r.Signature, &ds); err != nil {
-		return nil, fmt.Errorf("tls.Unmarshal(): %s", err)
-	} else if len(rest) > 0 {
-		return nil, fmt.Errorf("trailing data (%d bytes) after DigitallySigned", len(rest))
-	}
-	sct.Signature = ds
-
-	return &sct, nil
-}
-
-// GetSTHResponse represents the JSON response to the get-sth GET method from section 4.3.
-type GetSTHResponse struct {
-	TreeSize          uint64 `json:"tree_size"`           // Number of certs in the current tree
-	Timestamp         uint64 `json:"timestamp"`           // Time that the tree was created
-	SHA256RootHash    []byte `json:"sha256_root_hash"`    // Root hash of the tree
-	TreeHeadSignature []byte `json:"tree_head_signature"` // Log signature for this STH
-}
-
-// ToSignedTreeHead creates a SignedTreeHead from the GetSTHResponse.
-func (r *GetSTHResponse) ToSignedTreeHead() (*SignedTreeHead, error) {
-	sth := SignedTreeHead{
-		TreeSize:  r.TreeSize,
-		Timestamp: r.Timestamp,
-	}
-
-	if len(r.SHA256RootHash) != sha256.Size {
-		return nil, fmt.Errorf("sha256_root_hash is invalid length, expected %d got %d", sha256.Size, len(r.SHA256RootHash))
-	}
-	copy(sth.SHA256RootHash[:], r.SHA256RootHash)
-
-	var ds DigitallySigned
-	if rest, err := tls.Unmarshal(r.TreeHeadSignature, &ds); err != nil {
-		return nil, fmt.Errorf("tls.Unmarshal(): %s", err)
-	} else if len(rest) > 0 {
-		return nil, fmt.Errorf("trailing data (%d bytes) after DigitallySigned", len(rest))
-	}
-	sth.TreeHeadSignature = ds
-
-	return &sth, nil
-}
-
-// GetSTHConsistencyResponse represents the JSON response to the get-sth-consistency
-// GET method from section 4.4.  (The corresponding GET request has parameters 'first' and
-// 'second'.)
-type GetSTHConsistencyResponse struct {
-	Consistency [][]byte `json:"consistency"`
-}
-
-// GetProofByHashResponse represents the JSON response to the get-proof-by-hash GET
-// method from section 4.5.  (The corresponding GET request has parameters 'hash'
-// and 'tree_size'.)
-type GetProofByHashResponse struct {
-	LeafIndex int64    `json:"leaf_index"` // The 0-based index of the end entity corresponding to the "hash" parameter.
-	AuditPath [][]byte `json:"audit_path"` // An array of base64-encoded Merkle Tree nodes proving the inclusion of the chosen certificate.
-}
-
-// LeafEntry represents a leaf in the Log's Merkle tree, as returned by the get-entries
-// GET method from section 4.6.
-type LeafEntry struct {
-	// LeafInput is a TLS-encoded MerkleTreeLeaf
-	LeafInput []byte `json:"leaf_input"`
-	// ExtraData holds (unsigned) extra data, normally the cert validation chain.
-	ExtraData []byte `json:"extra_data"`
-}
-
-// GetEntriesResponse represents the JSON response to the get-entries GET method
-// from section 4.6.
-type GetEntriesResponse struct {
-	Entries []LeafEntry `json:"entries"` // the list of returned entries
-}
-
-// GetRootsResponse represents the JSON response to the get-roots GET method from section 4.7.
-type GetRootsResponse struct {
-	Certificates []string `json:"certificates"`
-}
-
-// GetEntryAndProofResponse represents the JSON response to the get-entry-and-proof
-// GET method from section 4.8. (The corresponding GET request has parameters 'leaf_index'
-// and 'tree_size'.)
-type GetEntryAndProofResponse struct {
-	LeafInput []byte   `json:"leaf_input"` // the entry itself
-	ExtraData []byte   `json:"extra_data"` // any chain provided when the entry was added to the log
-	AuditPath [][]byte `json:"audit_path"` // the corresponding proof
 }
