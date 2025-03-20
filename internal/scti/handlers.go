@@ -301,7 +301,7 @@ func addChainInternal(ctx context.Context, opts *HandlerOptions, log *log, w htt
 		}
 
 		klog.V(2).Infof("%s: %s => storage.Add", log.origin, method)
-		idx, err = log.storage.Add(ctx, entry)()
+		index, err := log.storage.Add(ctx, entry)()
 		if err != nil {
 			if errors.Is(err, tessera.ErrPushback) {
 				w.Header().Add("Retry-After", "1")
@@ -309,6 +309,9 @@ func addChainInternal(ctx context.Context, opts *HandlerOptions, log *log, w htt
 			}
 			return http.StatusInternalServerError, fmt.Errorf("couldn't store the leaf: %v", err)
 		}
+		// TODO(phbnf): figure out whether to use Tessera's index.IsDup() or a separate "external" antispam impl.
+		idx = index.Index
+
 		// We store the index for this certificate in the deduplication storage immediately.
 		// It might be stored again later, if a local deduplication storage is synced, potentially
 		// with a smaller value.
