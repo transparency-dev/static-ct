@@ -4,6 +4,7 @@ locals {
   location       = get_env("GOOGLE_REGION", "us-central1")
   base_name      = path_relative_to_include()
   origin_suffix  = get_env("TESSERA_ORIGIN_SUFFIX", ".ct.transparency.dev")
+  docker_container_tag = get_env("DOCKER_CONTAINER_TAG", "latest")
 }
 
 remote_state {

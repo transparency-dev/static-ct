@@ -118,7 +118,8 @@ resource "google_cloudbuild_trigger" "build_trigger" {
         "GOOGLE_PROJECT=${var.project_id}",
         "TF_IN_AUTOMATION=1",
         "TF_INPUT=false",
-        "TF_VAR_project_id=${var.project_id}"
+        "TF_VAR_project_id=${var.project_id}",
+        "DOCKER_CONTAINER_TAG=$SHORT_SHA"
       ]
       wait_for = ["docker_push_conformance_gcp"]
     }

@@ -7,7 +7,7 @@ locals {
   docker_env          = local.env
   base_name           = include.root.locals.base_name
   origin_suffix       = include.root.locals.origin_suffix
-  server_docker_image = "us-central1-docker.pkg.dev/${include.root.locals.project_id}/docker-${local.env}/conformance-gcp:latest"
+  server_docker_image = "us-central1-docker.pkg.dev/${include.root.locals.project_id}/docker-${local.env}/conformance-gcp:${include.root.locals.docker_container_tag}"
 }
 
 include "root" {
