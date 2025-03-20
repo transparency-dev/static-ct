@@ -40,8 +40,9 @@ var (
 	spanner = flag.String("spanner", "", "Spanner resource URI ('projects/.../...')")
 
 	sourceURL          = flag.String("source_url", "", "Base URL for the source log.")
-	numWorkers         = flag.Int("num_workers", 30, "Number of migration worker goroutines.")
-	persistentAntispam = flag.Bool("antispam", false, "EXPERIMENTAL: Set to true to enable GCP-based persistent antispam storage")
+	numWorkers         = flag.Uint("num_workers", 30, "Number of migration worker goroutines.")
+	persistentAntispam = flag.Bool("antispam", false, "EXPERIMENTAL: Set to true to enable GCP-based persistent antispam storage.")
+	antispamBatchSize  = flag.Uint("antispam_batch_size", 1500, "EXPERIMENTAL: maximum number of antispam rows to insert in a batch (1500 gives good performance with 300 Spanner PU and above, smaller values may be required for smaller allocs).")
 )
 
 func main() {
@@ -88,7 +89,13 @@ func main() {
 	var antispam tessera.Antispam
 	// Persistent antispam is currently experimental, so there's no terraform or documentation yet!
 	if *persistentAntispam {
-		antispam, err = gcp_as.NewAntispam(ctx, fmt.Sprintf("%s-antispam", *spanner))
+		as_opts := gcp_as.AntispamOpts{
+			// 1500 appears to be give good performance for migrating logs, but you may need to lower it if you have
+			// less than 300 Spanner PU available. (Consider temporarily raising your Spanner CPU quota to be at least
+			// this amount for the duration of the migration.)
+			MaxBatchSize: *antispamBatchSize,
+		}
+		antispam, err = gcp_as.NewAntispam(ctx, fmt.Sprintf("%s-antispam", *spanner), as_opts)
 		if err != nil {
 			klog.Exitf("Failed to create new GCP antispam storage: %v", err)
 		}
@@ -101,7 +108,7 @@ func main() {
 	}
 
 	readEntryBundle := readCTEntryBundle(*sourceURL)
-	if err := tessera.Migrate(context.Background(), *numWorkers, sourceSize, sourceRoot, readEntryBundle, m); err != nil {
+	if err := m.Migrate(context.Background(), *numWorkers, sourceSize, sourceRoot, readEntryBundle); err != nil {
 		klog.Exitf("Migrate failed: %v", err)
 	}
 
