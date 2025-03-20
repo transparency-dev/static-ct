@@ -15,7 +15,7 @@ require (
 	github.com/rivo/tview v0.0.0-20240625185742-b0a7293b8130
 	github.com/transparency-dev/formats v0.0.0-20250127084410-134797944be6
 	github.com/transparency-dev/merkle v0.0.2
-	github.com/transparency-dev/trillian-tessera v0.1.1-0.20250317151915-e61e2d86f685
+	github.com/transparency-dev/trillian-tessera v0.1.2-0.20250320160837-ae724376e1ac
 	go.etcd.io/bbolt v1.4.0
 	golang.org/x/crypto v0.36.0
 	golang.org/x/mod v0.24.0
