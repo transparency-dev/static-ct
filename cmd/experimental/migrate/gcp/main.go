@@ -41,7 +41,8 @@ var (
 
 	sourceURL          = flag.String("source_url", "", "Base URL for the source log.")
 	numWorkers         = flag.Uint("num_workers", 30, "Number of migration worker goroutines.")
-	persistentAntispam = flag.Bool("antispam", false, "EXPERIMENTAL: Set to true to enable GCP-based persistent antispam storage")
+	persistentAntispam = flag.Bool("antispam", false, "EXPERIMENTAL: Set to true to enable GCP-based persistent antispam storage.")
+	antispamBatchSize  = flag.Uint("antispam_batch_size", 1500, "EXPERIMENTAL: maximum number of antispam rows to insert in a batch (1500 gives good performance with 300 Spanner PU and above, smaller values may be required for smaller allocs).")
 )
 
 func main() {
@@ -92,7 +93,7 @@ func main() {
 			// 1500 appears to be give good performance for migrating logs, but you may need to lower it if you have
 			// less than 300 Spanner PU available. (Consider temporarily raising your Spanner CPU quota to be at least
 			// this amount for the duration of the migration.)
-			MaxBatchSize: 1500,
+			MaxBatchSize: *antispamBatchSize,
 		}
 		antispam, err = gcp_as.NewAntispam(ctx, fmt.Sprintf("%s-antispam", *spanner), as_opts)
 		if err != nil {
