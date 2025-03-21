@@ -41,8 +41,6 @@ type IssuersStorage struct {
 //
 // The specified bucket must exist or an error will be returned.
 func NewIssuerStorage(ctx context.Context, bucket string, prefix string, contentType string) (*IssuersStorage, error) {
-	// TODO(phboneff): this should probably move somewhere else
-	// TODO(phboneff): withjsonreads?
 	sdkConfig, err := config.LoadDefaultConfig(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load default AWS configuration: %v", err)
@@ -67,7 +65,6 @@ func (s *IssuersStorage) keyToObjName(key []byte) string {
 func (s *IssuersStorage) AddIssuersIfNotExist(ctx context.Context, kv []storage.KV) error {
 	// We first try and see if this issuer cert has already been stored since reads
 	// are cheaper than writes.
-	// TODO(phboneff): add parallel operations
 	for _, kv := range kv {
 		objName := s.keyToObjName(kv.K)
 		put := &s3.PutObjectInput{
