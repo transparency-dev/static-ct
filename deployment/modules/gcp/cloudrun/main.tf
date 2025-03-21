@@ -41,6 +41,7 @@ resource "google_cloud_run_v2_service" "default" {
         "--logtostderr",
         "--v=1",
         "--http_endpoint=:6962",
+        "--metrics_endpoint=:8080",
         "--bucket=${var.bucket}",
         "--spanner_db_path=${local.spanner_log_db_path}",
         "--spanner_dedup_db_path=${local.spanner_dedup_db_path}",
@@ -69,6 +70,11 @@ resource "google_cloud_run_v2_service" "default" {
           port = 6962
         }
       }
+    }
+    containers {
+      image      = "us-docker.pkg.dev/cloud-ops-agents-artifacts/cloud-run-gmp-sidecar/cloud-run-gmp-sidecar:1.2.0"
+      name       = "collector"
+      depends_on = ["conformance"]
     }
   }
 
