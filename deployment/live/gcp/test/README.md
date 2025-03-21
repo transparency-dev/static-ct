@@ -75,9 +75,9 @@ Generate a chain manually. The password for the private key is `gently`:
 ```bash
 mkdir -p /tmp/httpschain
 openssl genrsa -out /tmp/httpschain/cert.key 2048
-openssl req -new -key /tmp/httpschain/cert.key -out /tmp/httpschain/cert.csr -config=testdata/fake-ca.cfg
-openssl x509 -req -days 3650 -in /tmp/httpschain/cert.csr -CAkey testdata/fake-ca.privkey.pem -CA testdata/fake-ca.cert -outform pem -out /tmp/httpschain/chain.pem -provider legacy -provider default
-cat testdata/fake-ca.cert >> /tmp/httpschain/chain.pem
+openssl req -new -key /tmp/httpschain/cert.key -out /tmp/httpschain/cert.csr -config=internal/testdata/fake-ca.cfg
+openssl x509 -req -days 3650 -in /tmp/httpschain/cert.csr -CAkey internal/testdata/fake-ca.privkey.pem -CA internal/testdata/fake-ca.cert -outform pem -out /tmp/httpschain/chain.pem -provider legacy -provider default
+cat internal/testdata/fake-ca.cert >> /tmp/httpschain/chain.pem
 ```
 
 Finally, submit the chain to the SCTFE:
