@@ -111,7 +111,7 @@ go run ./trillian/integration/ct_hammer/ \
   --skip_https_verify=true \
   --operations=10000 \
   --rate_limit=150 \
-  --log_config=${SCTFE_REPO}/testdata/hammer.cfg \
+  --log_config=${SCTFE_REPO}/internal/testdata/hammer.cfg \
   --testdata_dir=./trillian/testdata/
 ```
 
@@ -133,7 +133,7 @@ To do so, clone the [certificate-transparency-go](https://github.com/google/cert
 ```bash
 export CTGO_REPO=$(pwd)
 mkdir -p /tmp/hammercfg
-cp ${SCTFE_REPO}/testdata/hammer.cfg /tmp/hammercfg
+cp ${SCTFE_REPO}/internal/testdata/hammer.cfg /tmp/hammercfg
 go run ./client/ctclient get-roots --log_uri=${SRC_LOG_URI} --text=false > /tmp/hammercfg/roots.pem
 sed -i 's-""-"/tmp/hammercfg/roots.pem"-g' /tmp/hammercfg/hammer.cfg
 ```
