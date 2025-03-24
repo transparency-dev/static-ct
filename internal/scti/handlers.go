@@ -76,37 +76,37 @@ func setupMetrics() {
 	// TODO(phboneff): add metrics for deduplication and chain storage.
 	knownLogs = promauto.NewGaugeVec(
 		prometheus.GaugeOpts{
-			Name: "known_logs",
+			Name: "ct_known_logs",
 			Help: "Set to 1 for known logs",
 		},
 		[]string{"origin"})
 	lastSCTTimestamp = promauto.NewGaugeVec(
 		prometheus.GaugeOpts{
-			Name: "last_sct_timestamp",
+			Name: "ct_last_sct_timestamp_ms",
 			Help: "Time of last SCT in ms since epoch",
 		},
 		[]string{"origin"})
 	lastSCTIndex = promauto.NewGaugeVec(
 		prometheus.GaugeOpts{
-			Name: "last_sct_index",
+			Name: "ct_last_sct_index",
 			Help: "Index of last SCT",
 		},
 		[]string{"origin"})
 	reqsCounter = promauto.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "http_reqs",
+			Name: "ct_http_reqs",
 			Help: "Number of requests",
 		},
 		[]string{"origin", "ep"})
 	rspsCounter = promauto.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "http_rsps",
+			Name: "ct_http_rsps",
 			Help: "Number of responses",
 		},
 		[]string{"origin", "op", "code"})
 	rspLatency = promauto.NewHistogramVec(
 		prometheus.HistogramOpts{
-			Name: "http_latency",
+			Name: "ct_http_latency",
 			Help: "Latency of responses in seconds",
 		},
 		[]string{"origin", "op", "code"})
