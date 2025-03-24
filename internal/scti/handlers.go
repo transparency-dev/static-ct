@@ -97,19 +97,19 @@ func setupMetrics() {
 			Name: "ct_http_requests_total",
 			Help: "Number of requests",
 		},
-		[]string{"origin", "ep"})
+		[]string{"origin", "operation"})
 	rspsCounter = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "ct_http_responses_total",
 			Help: "Number of responses",
 		},
-		[]string{"origin", "op", "code"})
+		[]string{"origin", "operation", "code"})
 	rspDuration = promauto.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Name: "ct_http_request_duration_seconds",
 			Help: "Latency of responses in seconds",
 		},
-		[]string{"origin", "op", "code"})
+		[]string{"origin", "operation", "code"})
 }
 
 // entrypoints is a list of entrypoint names as exposed in statistics/logging.
