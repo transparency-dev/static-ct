@@ -155,9 +155,9 @@ resource "google_cloudbuild_trigger" "build_trigger" {
 	        --target_bearer_token="$(cat /workspace/cb_identity)" \
           --source_log_uri=https://ct.googleapis.com/logs/us1/argon2025h1 \
 	        --start_index=$START_INDEX \
-          --num_workers=10 \
-          --parallel_fetch=10 \
-          --parallel_submit=10
+          --num_workers=20 \
+          --parallel_fetch=20 \
+          --parallel_submit=20
       EOT
       wait_for = ["bearer_token"]
       timeout = "3000s" // 50 minutes
