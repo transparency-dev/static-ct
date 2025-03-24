@@ -14,7 +14,7 @@ installed, and your favourite terminal multiplexer.
 ## Overview
 
 This config uses the [aws/tesseract/test](/deployment/modules/aws/tesseract/test) module to
-define a test environment to run the TesseraCT, backed by Trillian Tessera.
+define a test environment to run TesseraCT, backed by Trillian Tessera.
 
 At a high level, this environment consists of:
 - One RDS Aurora MySQL database
@@ -64,7 +64,7 @@ export AWS_PROFILE=AdministratorAccess-<REDACTED>
 ```
 
 Terraforming the account can be done by:
-  1. `cd` to the [/deployment/live/aws/test/](/deployment/live/aws/test/) to deploy/change.
+  1. `cd` to [/deployment/live/aws/test/](/deployment/live/aws/test/) to deploy/change.
   2. Run `terragrunt apply`.
 
 Store the Aurora RDS database and S3 bucket information into the environment variables:
