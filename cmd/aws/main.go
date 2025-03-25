@@ -17,8 +17,6 @@ package main
 
 import (
 	"context"
-	"crypto/x509"
-	"encoding/pem"
 	"flag"
 	"fmt"
 	"net/http"
@@ -32,7 +30,6 @@ import (
 	"github.com/go-sql-driver/mysql"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	sctfe "github.com/transparency-dev/static-ct"
-	"github.com/transparency-dev/static-ct/internal/testdata"
 	"github.com/transparency-dev/static-ct/storage"
 	awsSCTFE "github.com/transparency-dev/static-ct/storage/aws"
 	"github.com/transparency-dev/static-ct/storage/bbolt"
@@ -52,25 +49,27 @@ var (
 	notAfterStart timestampFlag
 	notAfterLimit timestampFlag
 
-	httpEndpoint       = flag.String("http_endpoint", "localhost:6962", "Endpoint for HTTP (host:port).")
-	metricsEndpoint    = flag.String("metrics_endpoint", "", "Endpoint for serving metrics; if left empty, metrics will be visible on --http_endpoint.")
-	httpDeadline       = flag.Duration("http_deadline", time.Second*10, "Deadline for HTTP requests.")
-	maskInternalErrors = flag.Bool("mask_internal_errors", false, "Don't return error strings with Internal Server Error HTTP responses.")
-	origin             = flag.String("origin", "", "Origin of the log, for checkpoints and the monitoring prefix.")
-	bucket             = flag.String("bucket", "", "Name of the bucket to store the log in.")
-	dbName             = flag.String("db_name", "", "AuroraDB name")
-	dbHost             = flag.String("db_host", "", "AuroraDB host")
-	dbPort             = flag.Int("db_port", 3306, "AuroraDB port")
-	dbUser             = flag.String("db_user", "", "AuroraDB user")
-	dbPassword         = flag.String("db_password", "", "AuroraDB password")
-	dbMaxConns         = flag.Int("db_max_conns", 0, "Maximum connections to the database, defaults to 0, i.e unlimited")
-	dbMaxIdle          = flag.Int("db_max_idle_conns", 2, "Maximum idle database connections in the connection pool, defaults to 2")
-	dedupPath          = flag.String("dedup_path", "", "Path to the deduplication database.")
-	rootsPemFile       = flag.String("roots_pem_file", "", "Path to the file containing root certificates that are acceptable to the log. The certs are served through get-roots endpoint.")
-	rejectExpired      = flag.Bool("reject_expired", false, "If true then the certificate validity period will be checked against the current time during the validation of submissions. This will cause expired certificates to be rejected.")
-	rejectUnexpired    = flag.Bool("reject_unexpired", false, "If true then CTFE rejects certificates that are either currently valid or not yet valid.")
-	extKeyUsages       = flag.String("ext_key_usages", "", "If set, will restrict the set of such usages that the server will accept. By default all are accepted. The values specified must be ones known to the x509 package.")
-	rejectExtensions   = flag.String("reject_extension", "", "A list of X.509 extension OIDs, in dotted string form (e.g. '2.3.4.5') which, if present, should cause submissions to be rejected.")
+	httpEndpoint               = flag.String("http_endpoint", "localhost:6962", "Endpoint for HTTP (host:port).")
+	metricsEndpoint            = flag.String("metrics_endpoint", "", "Endpoint for serving metrics; if left empty, metrics will be visible on --http_endpoint.")
+	httpDeadline               = flag.Duration("http_deadline", time.Second*10, "Deadline for HTTP requests.")
+	maskInternalErrors         = flag.Bool("mask_internal_errors", false, "Don't return error strings with Internal Server Error HTTP responses.")
+	origin                     = flag.String("origin", "", "Origin of the log, for checkpoints and the monitoring prefix.")
+	bucket                     = flag.String("bucket", "", "Name of the bucket to store the log in.")
+	dbName                     = flag.String("db_name", "", "AuroraDB name")
+	dbHost                     = flag.String("db_host", "", "AuroraDB host")
+	dbPort                     = flag.Int("db_port", 3306, "AuroraDB port")
+	dbUser                     = flag.String("db_user", "", "AuroraDB user")
+	dbPassword                 = flag.String("db_password", "", "AuroraDB password")
+	dbMaxConns                 = flag.Int("db_max_conns", 0, "Maximum connections to the database, defaults to 0, i.e unlimited")
+	dbMaxIdle                  = flag.Int("db_max_idle_conns", 2, "Maximum idle database connections in the connection pool, defaults to 2")
+	dedupPath                  = flag.String("dedup_path", "", "Path to the deduplication database.")
+	rootsPemFile               = flag.String("roots_pem_file", "", "Path to the file containing root certificates that are acceptable to the log. The certs are served through get-roots endpoint.")
+	rejectExpired              = flag.Bool("reject_expired", false, "If true then the certificate validity period will be checked against the current time during the validation of submissions. This will cause expired certificates to be rejected.")
+	rejectUnexpired            = flag.Bool("reject_unexpired", false, "If true then CTFE rejects certificates that are either currently valid or not yet valid.")
+	extKeyUsages               = flag.String("ext_key_usages", "", "If set, will restrict the set of such usages that the server will accept. By default all are accepted. The values specified must be ones known to the x509 package.")
+	rejectExtensions           = flag.String("reject_extension", "", "A list of X.509 extension OIDs, in dotted string form (e.g. '2.3.4.5') which, if present, should cause submissions to be rejected.")
+	signerPublicKeySecretName  = flag.String("signer_public_key_secret_name", "", "Public key secret name for checkpoints and SCTs signer")
+	signerPrivateKeySecretName = flag.String("signer_private_key_secret_name", "", "Private key secret name for checkpoints and SCTs signer")
 )
 
 // nolint:staticcheck
@@ -79,13 +78,10 @@ func main() {
 	flag.Parse()
 	ctx := context.Background()
 
-	// TODO: Replace the fake signer with AWS Secrets Manager Signer.
-	block, _ := pem.Decode([]byte(testdata.DemoPublicKey))
-	key, err := x509.ParsePKIXPublicKey(block.Bytes)
+	signer, err := NewSecretsManagerSigner(ctx, *signerPublicKeySecretName, *signerPrivateKeySecretName)
 	if err != nil {
-		klog.Exitf("Can't parse public key: %v", err)
+		klog.Exitf("Can't create secrets manager signer: %v", err)
 	}
-	fakeSigner := testdata.NewSignerWithFixedSig(key, []byte("sig"))
 
 	chainValidationConfig := sctfe.ChainValidationConfig{
 		RootsPEMFile:     *rootsPemFile,
@@ -97,7 +93,7 @@ func main() {
 		NotAfterLimit:    notAfterLimit.t,
 	}
 
-	logHandler, err := sctfe.NewLogHandler(ctx, *origin, fakeSigner, chainValidationConfig, newAWSStorage, *httpDeadline, *maskInternalErrors)
+	logHandler, err := sctfe.NewLogHandler(ctx, *origin, signer, chainValidationConfig, newAWSStorage, *httpDeadline, *maskInternalErrors)
 	if err != nil {
 		klog.Exitf("Can't initialize CT HTTP Server: %v", err)
 	}

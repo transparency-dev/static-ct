@@ -10,3 +10,10 @@ module "storage" {
   region      = var.region
   ephemeral   = var.ephemeral
 }
+
+module "secretsmanager" {
+  source = "../../secretsmanager"
+
+  base_name = var.base_name
+  region    = var.region
+}
