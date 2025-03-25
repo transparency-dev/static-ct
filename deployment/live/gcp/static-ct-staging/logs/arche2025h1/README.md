@@ -3,7 +3,7 @@
 ## Overview
 
 This config uses the [gcp/tesseract/conformance](/deployment/modules/gcp/tesseract/conformance) module to
-define a Tesseract log Cloud Run, backed by Trillian Tessera and preloaded with argon2025h1 entries.
+run TesseraCT on Cloud Run, backed by Trillian Tessera and preloaded with argon2025h1 entries.
 
 ### Update the roots
 Run the following command from the root of the repository.
@@ -28,7 +28,7 @@ awk \
 This GCP SCTFE preloaded staging environment is designed to be deployed by the Cloud Build ([Terraform module](/deployment/modules/gcp/cloudbuild/preloaded/), [Terragrunt configuration](/deployment/live/gcp/static-ct-staging/cloudbuild/staging/)).
 
 ### Manual Deployment
-TODO(phboneff): come back to this, CloudRun doesn't trigger a deployment if the tag value change value.
+TODO(phboneff): come back to this, Cloud Run doesn't trigger a deployment if the tag does not change value.
 
 First authenticate via `gcloud` as a principle with sufficient ACLs for
 the project:
@@ -58,5 +58,5 @@ docker push ${GOOGLE_REGION}-docker.pkg.dev/${GOOGLE_PROJECT}/docker-staging/con
 ```
 
 Terraforming the project can be done by:
-  1. `cd` to the relevant directory (deployment/live/gcp/static-ct-staging/logs/arche2025h1/) for the log to deploy/change.
+  1. `cd` to [/deployment/live/gcp/static-ct-staging/logs/arche2025h1/](/deployment/live/gcp/static-ct-staging/logs/arche2025h1/).
   2. Run `terragrunt apply`.

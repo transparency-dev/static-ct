@@ -102,7 +102,7 @@ resource "google_cloudbuild_trigger" "build_trigger" {
     }
 
     ## Apply the deployment/live/gcp/static-staging/logs/arche2025h1 terragrunt config.
-    ## This will bring up the conformance infrastructure, including a service
+    ## This will bring up or update the conformance infrastructure, including a service
     ## running the conformance server docker image built above.
     step {
       id     = "terraform_apply_conformance_staging"

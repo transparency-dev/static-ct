@@ -47,5 +47,5 @@ docker push ${GOOGLE_REGION}-docker.pkg.dev/${GOOGLE_PROJECT}/docker-ci/conforma
 ```
 
 Terraforming the project can be done by:
-  1. `cd` to the relevant directory (deployment/live/gcp/static-ct/ci/logs/) for the environment to deploy/change.
+  1. `cd` to [/deployment/live/gcp/static-ct/logs/ci/](/deployment/live/gcp/static-ct/logs/ci/).
   2. Run `terragrunt apply`.

@@ -3,12 +3,12 @@
 This directory contains terragrunt files to configure our Cloud Build pipeline(s).
 
 The Cloud Build pipeline is triggered when a commit in the repo is tagged with
-`deploy-staging-XX` and is responsible for:
+`^staging-deploy-(.+)$` and is responsible for:
 
-1. Building the `cmd/gcp` and `cmd/gcp/staging` docker images from the last commit with a `deploy-staging-XX` tag,
+1. Building the `cmd/gcp` and `cmd/gcp/staging` docker images from the last commit with a `^staging-deploy-(.+)$` tag,
 1. Deploying the `cmd/gcp/staging` image to Cloud Run,
-1. Update [arche2025h1](/deployment/live/gcp/static-ct-staging/logs/arche2025h1/)CloudRun service with the latest docker image,
-1. Update [arche2025h1](/deployment/live/gcp/static-ct-staging/logs/arche2025h1/)infrastructure with the latest Terraform config.
+1. Update [arche2025h1](/deployment/live/gcp/static-ct-staging/logs/arche2025h1/) Cloud Run service with the latest docker image,
+1. Update [arche2025h1](/deployment/live/gcp/static-ct-staging/logs/arche2025h1/) infrastructure with the latest Terraform config.
 
 ## Initial setup
 
