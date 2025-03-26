@@ -80,7 +80,7 @@ func main() {
 
 	signer, err := NewSecretsManagerSigner(ctx, *signerPublicKeySecretName, *signerPrivateKeySecretName)
 	if err != nil {
-		klog.Exitf("Can't create secrets manager signer: %v", err)
+		klog.Exitf("Can't create AWS Secrets Manager signer: %v", err)
 	}
 
 	chainValidationConfig := sctfe.ChainValidationConfig{
