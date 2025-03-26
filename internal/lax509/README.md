@@ -20,3 +20,10 @@ The fork in this directory implements chain verification requirements from [RFC6
   - **Chain length**: this check is confused by chains including preissuer intermediates.
   - **Extended Key Usage**: this would ensure that all the EKU of a child certificate are also held by its parents. However, the EKU identifying preissuer intermediate certs in [RFC6962 S3.1](https://www.rfc-editor.org/rfc/rfc6962#section-3.1) does not need to be set in the issuing certificate, so this check would not pass for chains using a preissuer intermediate. Also, see https://github.com/golang/go/issues/24590.
   - **Policy graph validation**: chains that violate policy validation should be discoverable through CT logs.
+
+Disabling additional checks:
+
+   - Negative serial numbers are not allowed starting from go1.23. To allow
+   them, set `x509negativeserial=1` in the GODBUG environment variable, either
+   in your terminal at build time or with `//go:debug x509negativeserial=1` at
+   the top of your main file.
