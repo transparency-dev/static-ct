@@ -19,3 +19,13 @@ output "rds_aurora_cluster_master_user_secret" {
   value     = module.storage.rds_aurora_cluster_master_user_secret
   sensitive = true
 }
+
+output "ecdsa_p256_public_key_id" {
+  description = "Signer public key (P256_SHA256)"
+  value       = module.secretsmanager.ecdsa_p256_public_key_id
+}
+
+output "ecdsa_p256_private_key_id" {
+  description = "Signer private key (P256_SHA256)"
+  value       = module.secretsmanager.ecdsa_p256_private_key_id
+}

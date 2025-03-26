@@ -1,10 +1,10 @@
-// Copyright 2024 Google LLC. All Rights Reserved.
+// Copyright 2025 The Tessera authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//	http://www.apache.org/licenses/LICENSE-2.0
+//     http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -22,15 +22,15 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
-	"hash/crc32"
 	"io"
 
-	secretmanager "cloud.google.com/go/secretmanager/apiv1"
-	"cloud.google.com/go/secretmanager/apiv1/secretmanagerpb"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/secretsmanager"
 )
 
 // TODO: Move ECDSAWithSHA256Signer to internal signer package.
-// ECDSAWithSHA256Signer implements crypto.Signer using Google Cloud Secret Manager.
+// ECDSAWithSHA256Signer implements crypto.Signer using AWS Secrets Manager.
 // Only crypto.SHA256 and ECDSA are supported.
 type ECDSAWithSHA256Signer struct {
 	publicKey  *ecdsa.PublicKey
@@ -42,7 +42,7 @@ func (s *ECDSAWithSHA256Signer) Public() crypto.PublicKey {
 	return s.publicKey
 }
 
-// Sign signs digest with the private key stored in Google Cloud Secret Manager.
+// Sign signs digest with the private key stored in AWS Secrets Manager.
 func (s *ECDSAWithSHA256Signer) Sign(rand io.Reader, digest []byte, opts crypto.SignerOpts) ([]byte, error) {
 	// Verify hash function and digest bytes length.
 	if opts == nil {
@@ -58,14 +58,16 @@ func (s *ECDSAWithSHA256Signer) Sign(rand io.Reader, digest []byte, opts crypto.
 	return ecdsa.SignASN1(rand, s.privateKey, digest)
 }
 
-// NewSecretManagerSigner creates a new signer that uses the ECDSA P-256 key pair in
-// Google Cloud Secret Manager for signing digests.
-func NewSecretManagerSigner(ctx context.Context, publicKeySecretName, privateKeySecretName string) (*ECDSAWithSHA256Signer, error) {
-	client, err := secretmanager.NewClient(ctx)
+// NewSecretsManagerSigner creates a new signer that uses the ECDSA P-256 key pair in
+// AWS Secrets Manager for signing digests.
+func NewSecretsManagerSigner(ctx context.Context, publicKeySecretName, privateKeySecretName string) (*ECDSAWithSHA256Signer, error) {
+	sdkConfig, err := config.LoadDefaultConfig(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create secret manager client: %w", err)
+		return nil, fmt.Errorf("failed to load default AWS configuration: %v", err)
 	}
-	defer client.Close()
+
+	// Create Secrets Manager client
+	client := secretsmanager.NewFromConfig(sdkConfig)
 
 	// Public Key
 	var publicKey crypto.PublicKey
@@ -115,24 +117,24 @@ func NewSecretManagerSigner(ctx context.Context, publicKeySecretName, privateKey
 	}, nil
 }
 
-func secretPEM(ctx context.Context, client *secretmanager.Client, secretName string) (*pem.Block, error) {
-	resp, err := client.AccessSecretVersion(ctx, &secretmanagerpb.AccessSecretVersionRequest{
-		Name: secretName,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to access secret version: %w", err)
-	}
-	if resp.Name != secretName {
-		return nil, errors.New("request corrupted in-transit")
-	}
-	// Verify the data checksum.
-	crc32c := crc32.MakeTable(crc32.Castagnoli)
-	checksum := int64(crc32.Checksum(resp.Payload.Data, crc32c))
-	if checksum != *resp.Payload.DataCrc32C {
-		return nil, errors.New("Data corruption detected.")
+func secretPEM(ctx context.Context, client *secretsmanager.Client, secretName string) (*pem.Block, error) {
+	input := &secretsmanager.GetSecretValueInput{
+		SecretId: aws.String(secretName),
 	}
 
-	pemBlock, rest := pem.Decode([]byte(resp.Payload.Data))
+	result, err := client.GetSecretValue(ctx, input)
+	if err != nil {
+		// For a list of exceptions thrown, see
+		// https://<<{{DocsDomain}}>>/secretsmanager/latest/apireference/API_GetSecretValue.html
+		return nil, fmt.Errorf("failed to get secret value: %w", err)
+	}
+	if result.SecretString == nil {
+		return nil, fmt.Errorf("secretString is nil for secret %s", secretName)
+	}
+
+	var secretString string = *result.SecretString
+
+	pemBlock, rest := pem.Decode([]byte(secretString))
 	if pemBlock == nil {
 		return nil, errors.New("failed to decode PEM")
 	}
