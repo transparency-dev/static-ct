@@ -44,7 +44,7 @@ resource "aws_secretsmanager_secret" "sctfe_ecdsa_p256_private_key" {
   name = "${var.base_name}-ecdsa-p256-private-key"
 
   tags = {
-    label = "sctfe-private-key"
+    label = "tesseract-private-key"
   }
 }
 
