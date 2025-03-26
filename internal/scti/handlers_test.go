@@ -147,7 +147,7 @@ func (info handlerTestInfo) postHandlers(t *testing.T) pathHandlers {
 }
 
 func TestPostHandlersRejectGet(t *testing.T) {
-	info := setupTest(t, []string{testdata.FakeCACertPEM}, nil)
+	info := setupTest(t, []string{testdata.CACertPEM}, nil)
 	defer info.mockCtrl.Finish()
 
 	// Anything in the post handler list should reject GET
@@ -168,7 +168,7 @@ func TestPostHandlersRejectGet(t *testing.T) {
 }
 
 func TestGetHandlersRejectPost(t *testing.T) {
-	info := setupTest(t, []string{testdata.FakeCACertPEM}, nil)
+	info := setupTest(t, []string{testdata.CACertPEM}, nil)
 	defer info.mockCtrl.Finish()
 
 	// Anything in the get handler list should reject POST.
@@ -201,7 +201,7 @@ func TestPostHandlersFailure(t *testing.T) {
 		{"wrong-chain", strings.NewReader(`{ "chain": [ "test" ] }`), http.StatusBadRequest},
 	}
 
-	info := setupTest(t, []string{testdata.FakeCACertPEM}, nil)
+	info := setupTest(t, []string{testdata.CACertPEM}, nil)
 	defer info.mockCtrl.Finish()
 	for path, handler := range info.postHandlers(t) {
 		t.Run(path, func(t *testing.T) {
@@ -366,30 +366,30 @@ func TestAddChain(t *testing.T) {
 	}{
 		{
 			descr: "leaf-only",
-			chain: []string{testdata.LeafSignedByFakeIntermediateCertPEM},
+			chain: []string{testdata.CertFromIntermediate},
 			want:  http.StatusBadRequest,
 		},
 		{
 			descr: "wrong-entry-type",
-			chain: []string{testdata.PrecertPEMValid},
+			chain: []string{testdata.PreCertFromIntermediate},
 			want:  http.StatusBadRequest,
 		},
 		{
 			descr:  "backend-storage-fail",
-			chain:  []string{testdata.LeafSignedByFakeIntermediateCertPEM, testdata.FakeIntermediateCertPEM},
+			chain:  []string{testdata.CertFromIntermediate, testdata.IntermediateFromRoot},
 			toSign: "1337d72a403b6539f58896decba416d5d4b3603bfa03e1f94bb9b4e898af897d",
 			want:   http.StatusInternalServerError,
 			err:    status.Errorf(codes.Internal, "error"),
 		},
 		{
 			descr:  "success-without-root",
-			chain:  []string{testdata.LeafSignedByFakeIntermediateCertPEM, testdata.FakeIntermediateCertPEM},
+			chain:  []string{testdata.CertFromIntermediate, testdata.IntermediateFromRoot},
 			toSign: "1337d72a403b6539f58896decba416d5d4b3603bfa03e1f94bb9b4e898af897d",
 			want:   http.StatusOK,
 		},
 		{
 			descr:  "success",
-			chain:  []string{testdata.LeafSignedByFakeIntermediateCertPEM, testdata.FakeIntermediateCertPEM, testdata.FakeCACertPEM},
+			chain:  []string{testdata.CertFromIntermediate, testdata.IntermediateFromRoot, testdata.CACertPEM},
 			toSign: "1337d72a403b6539f58896decba416d5d4b3603bfa03e1f94bb9b4e898af897d",
 			want:   http.StatusOK,
 		},
@@ -400,7 +400,7 @@ func TestAddChain(t *testing.T) {
 		t.Fatalf("Failed to create test signer: %v", err)
 	}
 
-	info := setupTest(t, []string{testdata.FakeCACertPEM}, signer)
+	info := setupTest(t, []string{testdata.CACertPEM}, signer)
 	defer info.mockCtrl.Finish()
 
 	for _, test := range tests {
