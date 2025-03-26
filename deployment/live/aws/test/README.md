@@ -19,6 +19,7 @@ define a test environment to run TesseraCT, backed by Trillian Tessera.
 At a high level, this environment consists of:
 - One RDS Aurora MySQL database
 - One S3 Bucket
+- Two secrets (log public key and private key for signing digests) in AWS Secrets Manager
 
 ## Manual deployment 
 
