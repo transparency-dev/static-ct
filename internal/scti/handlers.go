@@ -68,7 +68,7 @@ var (
 	lastSCTTimestamp *prometheus.GaugeVec     // origin => value
 	reqsCounter      *prometheus.CounterVec   // origin, op => value
 	rspsCounter      *prometheus.CounterVec   // origin, op, code => value
-	rspDuration      *prometheus.HistogramVec // origin, op, code => value
+	reqsDuration     *prometheus.HistogramVec // origin, op, code => value
 )
 
 // setupMetrics initializes all the exported metrics.
@@ -98,16 +98,16 @@ func setupMetrics() {
 			Help: "Number of requests",
 		},
 		[]string{"origin", "operation"})
+	reqsDuration = promauto.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name: "ct_http_request_duration_seconds",
+			Help: "Latency of responses in seconds",
+		},
+		[]string{"origin", "operation", "code"})
 	rspsCounter = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "ct_http_responses_total",
 			Help: "Number of responses",
-		},
-		[]string{"origin", "operation", "code"})
-	rspDuration = promauto.NewHistogramVec(
-		prometheus.HistogramOpts{
-			Name: "ct_http_request_duration_seconds",
-			Help: "Latency of responses in seconds",
 		},
 		[]string{"origin", "operation", "code"})
 }
@@ -140,7 +140,7 @@ func (a appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	a.opts.RequestLog.origin(logCtx, a.log.origin)
 	defer func() {
 		latency := a.opts.TimeSource.Now().Sub(startTime).Seconds()
-		rspDuration.WithLabelValues(label0, label1, strconv.Itoa(statusCode)).Observe(latency)
+		reqsDuration.WithLabelValues(label0, label1, strconv.Itoa(statusCode)).Observe(latency)
 	}()
 	klog.V(2).Infof("%s: request %v %q => %s", a.log.origin, r.Method, r.URL, a.name)
 	// TODO(phboneff): add a.Method directly on the handler path and remove this test.
