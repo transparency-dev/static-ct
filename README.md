@@ -3,7 +3,7 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/transparency-dev/static-ct)](https://goreportcard.com/report/github.com/transparency-dev/static-ct)
 [![Slack Status](https://img.shields.io/badge/Slack-Chat-blue.svg)](https://transparency-dev.slack.com/)
 
-This personality implements [CT Static API](https://c2sp.org/static-ct-api) 
+This personality implements [Static CT API](https://c2sp.org/static-ct-api) 
 using [Trillian Tessera](https://github.com/transparency-dev/trillian-tessera) 
 to store data. It is based on 
 [Trillian's CTFE](https://github.com/google/certificate-transparency-go/tree/master/trillian/ctfe).
