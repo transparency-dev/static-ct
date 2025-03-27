@@ -16,7 +16,7 @@ package testdata
 
 import _ "embed"
 
-// This file holds test certificates. It contain five issuance chains.
+// This file holds test certificates. It contains six issuance chains.
 // TODO(phboneff): clean this and make use of a single chain if possible.
 
 // Issuance chain 1
@@ -286,6 +286,160 @@ var PreIntermediateFromRoot string
 var PreCertFromPreIntermediate string
 
 // Issuance chain 3
+// ================
+// The next section holds:
+//   - an intermediate signed with the root above.
+//   - a pre-cert issued by this intermediate
+//   - a cert issued by this intermediate
+//
+// IntermediateFromRoot is an intermedidate cert signed by the root above.
+//
+// Certificate:
+//
+//	Data:
+//	    Version: 3 (0x2)
+//	    Serial Number: 2 (0x2)
+//	    Signature Algorithm: ecdsa-with-SHA384
+//	    Issuer: C=GB, O=TrustFabric Transparency.dev Test Root Test CA, CN=TrustFabric Transparency.dev Test Root Test CA
+//	    Validity
+//	        Not Before: Dec  5 18:05:50 2024 GMT
+//	        Not After : Dec  5 18:05:50 2029 GMT
+//	    Subject: C=GB, O=TrustFabric Transparency.dev Test Intermediate Test CA, CN=TrustFabric Transparency.dev Test Intermediate Test CA
+//	    Subject Public Key Info:
+//	        Public Key Algorithm: id-ecPublicKey
+//	            Public-Key: (384 bit)
+//	            pub:
+//	                04:c6:3b:93:72:73:76:1b:f6:16:f6:93:2b:22:c0:
+//	                1d:8e:e3:c9:1a:64:b8:42:58:0e:72:0a:38:49:84:
+//	                d2:d3:e7:23:52:ee:9d:8a:28:65:73:2e:2e:7e:05:
+//	                1c:d5:4f:5b:42:37:e3:bb:8f:54:3d:68:a9:c3:07:
+//	                31:aa:4a:cc:8b:93:d6:a4:31:b2:8e:d0:aa:56:3b:
+//	                49:ed:07:d3:36:ff:17:50:ad:6d:65:d7:5d:76:70:
+//	                d5:08:f2:95:e0:11:0c
+//	            ASN1 OID: secp384r1
+//	            NIST CURVE: P-384
+//	    X509v3 extensions:
+//	        X509v3 Key Usage: critical
+//	            Certificate Sign, CRL Sign
+//	        X509v3 Basic Constraints: critical
+//	            CA:TRUE
+//	        X509v3 Subject Key Identifier:
+//	            A0:D7:2B:CF:08:6F:C0:07:39:9B:C5:A9:87:1D:F7:CC:7D:6B:6F:29
+//	        X509v3 Authority Key Identifier:
+//	            77:1D:7C:21:61:2D:C2:05:7D:AA:30:1E:6B:7F:8F:9B:DC:61:20:68
+//	Signature Algorithm: ecdsa-with-SHA384
+//	Signature Value:
+//	    30:65:02:30:13:7b:99:45:f5:f5:c2:8b:bf:b4:83:8c:10:27:
+//	    5e:50:a7:05:c0:61:8a:50:3f:76:2e:ec:88:71:d7:a7:a1:46:
+//	    56:3b:3a:bc:e7:74:22:94:56:91:95:80:a5:a1:43:08:02:31:
+//	    00:81:a0:12:84:45:6f:35:b3:3d:9b:98:ca:28:33:d2:b9:bf:
+//	    8b:82:f7:a9:77:ee:2e:9f:90:0f:36:00:3e:c8:63:4c:1c:6c:
+//	    de:e8:79:1a:32:44:4a:4e:47:6e:af:a3:24
+//
+//go:embed test_intermediate_ca_cert.pem
+var IntermediateFromRoot string
+
+// CertFromIntermediate is a leaf cert signed by the intermediate above.
+//
+// Certificate:
+//
+//	Data:
+//	Version: 3 (0x2)
+//	Serial Number: 100 (0x64)
+//	Signature Algorithm: ecdsa-with-SHA384
+//	Issuer: C=GB, O=TrustFabric Transparency.dev Test Intermediate Test CA, CN=TrustFabric Transparency.dev Test Intermediate Test CA
+//	Validity
+//		Not Before: Dec  5 18:05:50 2024 GMT
+//		Not After : Dec  5 18:05:50 2025 GMT
+//	Subject: C=GB, ST=London, L=London, O=TrustFabric Transparency.dev Test, OU=TrustFabric, CN=test.transparency.dev
+//	Subject Public Key Info:
+//		Public Key Algorithm: id-ecPublicKey
+//			Public-Key: (384 bit)
+//			pub:
+//				04:f4:15:a1:50:6c:d3:96:ad:9c:a0:f6:c0:90:4f:
+//				05:13:64:2d:bf:2f:7a:86:4e:c8:25:c3:7d:9e:6f:
+//				c3:44:b6:29:98:01:f4:d5:06:58:c9:cc:82:21:79:
+//				97:88:3f:af:4c:bd:93:92:39:08:18:5f:81:c4:0b:
+//				a0:ea:83:f8:6d:81:9a:68:20:bf:ad:2c:9b:1f:02:
+//				08:cc:c2:16:a3:18:92:62:fa:b5:b0:da:ba:8b:98:
+//				89:0a:d1:8c:65:3f:62
+//			ASN1 OID: secp384r1
+//			NIST CURVE: P-384
+//	X509v3 extensions:
+//		X509v3 Key Usage: critical
+//			Digital Signature, Key Encipherment
+//		X509v3 Extended Key Usage:
+//			TLS Web Server Authentication
+//		X509v3 Basic Constraints: critical
+//			CA:FALSE
+//		X509v3 Authority Key Identifier:
+//			A0:D7:2B:CF:08:6F:C0:07:39:9B:C5:A9:87:1D:F7:CC:7D:6B:6F:29
+//		X509v3 Subject Alternative Name:
+//			DNS:test.transparency.dev
+//	Signature Algorithm: ecdsa-with-SHA384
+//	Signature Value:
+//	30:66:02:31:00:fd:08:f9:21:b5:a6:e0:32:aa:d0:aa:e2:07:
+//	9c:fd:cc:26:b5:9a:bc:27:60:4f:ea:52:76:9f:cd:5c:23:b0:
+//	fd:9e:5d:e9:73:a4:8a:1a:b5:b7:12:c2:69:e7:f1:bd:eb:02:
+//	31:00:af:09:6b:61:78:6c:14:a3:9d:bd:e4:bf:91:43:a2:98:
+//	a2:50:27:5d:2c:df:12:38:cd:b7:3d:d6:73:69:3a:5d:54:9c:
+//	58:63:35:3c:39:78:26:37:08:75:3f:4b:fb:68
+//
+//go:embed test_leaf_cert_signed_by_intermediate.pem
+var CertFromIntermediate string
+
+// PreCertFromIntrmediate is a pre-cert signed by the intermediate above.
+//
+// Certificate:
+//
+//	Data:
+//	    Version: 3 (0x2)
+//	    Serial Number: 200 (0xc8)
+//	    Signature Algorithm: ecdsa-with-SHA384
+//	    Issuer: C=GB, O=TrustFabric Transparency.dev Test Intermediate Test CA, CN=TrustFabric Transparency.dev Test Intermediate Test CA
+//	    Validity
+//	        Not Before: Dec  5 18:05:50 2024 GMT
+//	        Not After : Dec  5 18:05:50 2025 GMT
+//	    Subject: C=GB, ST=London, L=London, O=TrustFabric Transparency.dev Test, OU=TrustFabric, CN=test.transparency.dev
+//	    Subject Public Key Info:
+//	        Public Key Algorithm: id-ecPublicKey
+//	            Public-Key: (384 bit)
+//	            pub:
+//	                04:f4:15:a1:50:6c:d3:96:ad:9c:a0:f6:c0:90:4f:
+//	                05:13:64:2d:bf:2f:7a:86:4e:c8:25:c3:7d:9e:6f:
+//	                c3:44:b6:29:98:01:f4:d5:06:58:c9:cc:82:21:79:
+//	                97:88:3f:af:4c:bd:93:92:39:08:18:5f:81:c4:0b:
+//	                a0:ea:83:f8:6d:81:9a:68:20:bf:ad:2c:9b:1f:02:
+//	                08:cc:c2:16:a3:18:92:62:fa:b5:b0:da:ba:8b:98:
+//	                89:0a:d1:8c:65:3f:62
+//	            ASN1 OID: secp384r1
+//	            NIST CURVE: P-384
+//	    X509v3 extensions:
+//	        X509v3 Key Usage: critical
+//	            Digital Signature, Key Encipherment
+//	        X509v3 Extended Key Usage:
+//	            TLS Web Server Authentication
+//	        X509v3 Basic Constraints: critical
+//	            CA:FALSE
+//	        X509v3 Authority Key Identifier:
+//	            A0:D7:2B:CF:08:6F:C0:07:39:9B:C5:A9:87:1D:F7:CC:7D:6B:6F:29
+//	        X509v3 Subject Alternative Name:
+//	            DNS:test.transparency.dev
+//	        CT Precertificate Poison: critical
+//	            NULL
+//	Signature Algorithm: ecdsa-with-SHA384
+//	Signature Value:
+//	    30:64:02:30:51:d4:2e:f7:e0:50:06:e5:a5:97:1c:d2:f9:4f:
+//	    6e:c2:3b:e0:db:59:16:db:8d:1b:a8:c4:c6:b8:0a:4f:a3:0d:
+//	    38:43:72:d7:f8:e6:60:e3:b8:44:f2:1f:37:56:30:cb:02:30:
+//	    13:62:9c:60:c9:57:d1:b9:e0:43:f7:cf:2c:99:eb:04:84:f7:
+//	    de:af:fd:d6:1a:63:90:14:4c:53:40:dd:28:0b:aa:69:59:87:
+//	    78:8b:65:9e:00:63:75:7a:4c:a0:9f:ca
+//
+//go:embed test_leaf_pre_cert_signed_by_intermediate.pem
+var PreCertFromIntermediate string
+
+// Issuance chain 4
 // ================
 // The next section holds a self signed root, an intermediate, and a leaf cert.
 //
@@ -574,7 +728,7 @@ D0XUxs5PIdZZGInfeqymk5feReWHBuPHpPIUObKxmQt+hcw6YsHE+0B84Xtx9BMe
 INV6z0j7hKQ6MPpE
 -----END CERTIFICATE-----`
 
-// Issuance chain 4
+// Issuance chain 5
 // ================
 // The next section holds a self signed root, intermediate certs
 // with various policy constraints, and a leaf cert.
@@ -864,7 +1018,7 @@ Brd3sq2ogxuDOGReOiVR6VcfAFNy2wgRZT30AiEAoU5dtZqLEG4Voyq92YCRlnwa
 T4+R3ESfE/9X8F7OMjQ=
 -----END CERTIFICATE-----`
 
-// Issuance chain 5
+// Issuance chain 6
 // ================
 // The next section holds a real world intermediate and leaf cert.
 
