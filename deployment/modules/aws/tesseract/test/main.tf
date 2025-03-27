@@ -11,6 +11,9 @@ module "storage" {
   ephemeral   = var.ephemeral
 }
 
+# [WARNING]
+# Using secrets manager does NOT guarantee the security of the signing keys. 
+# There are significant security risks if the secrets are mismanaged.
 module "secretsmanager" {
   source = "../../secretsmanager"
 
