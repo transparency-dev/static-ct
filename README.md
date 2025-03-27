@@ -16,7 +16,7 @@ Each Tessera storage backend needs its own SCTFE binary.
 At the moment, these storage backends are supported:
 
  - [GCP](./cmd/gcp/): [deployment instructions](./deployment/live/gcp/test/)
- - [AWS](./cmd/aws/)
+ - [AWS](./cmd/aws/): [deployment instructions](./deployment/live/aws/test/)
  - more to come soon!
 
 ## Working on the Code
