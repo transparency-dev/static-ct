@@ -288,7 +288,7 @@ var PreCertFromPreIntermediate string
 // Issuance chain 3
 // ================
 // The next section holds:
-//   - an intermediate with signed with the root above.
+//   - an intermediate signed with the root above.
 //   - a pre-cert issued by this intermediate
 //   - a cert issued by this intermediate
 //

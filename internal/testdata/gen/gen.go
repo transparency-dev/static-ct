@@ -175,10 +175,10 @@ func genIntermediateAndLeaves(rootCert *x509.Certificate, rootPrivKey *ecdsa.Pri
 	}
 	leafPreCert, err := chainGenerator.certificate(200, true, notBefore)
 	if err != nil {
-		klog.Fatalf("Failed to generate leaf certificate: %v", err)
+		klog.Fatalf("Failed to generate leaf pre-certificate: %v", err)
 	}
 	if err := saveCertificatePEM(leafPreCert, path.Join(*outputPath, "test_leaf_pre_cert_signed_by_intermediate.pem")); err != nil {
-		klog.Fatalf("Failed to save leaf cert: %v", err)
+		klog.Fatalf("Failed to save leaf pre-cert: %v", err)
 	}
 }
 
