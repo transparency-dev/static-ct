@@ -68,7 +68,7 @@ var (
 	lastSCTTimestamp *prometheus.GaugeVec     // origin => value
 	reqsCounter      *prometheus.CounterVec   // origin, op => value
 	rspsCounter      *prometheus.CounterVec   // origin, op, code => value
-	rspLatency       *prometheus.HistogramVec // origin, op, code => value
+	reqsDuration     *prometheus.HistogramVec // origin, op, code => value
 )
 
 // setupMetrics initializes all the exported metrics.
@@ -76,40 +76,40 @@ func setupMetrics() {
 	// TODO(phboneff): add metrics for deduplication and chain storage.
 	knownLogs = promauto.NewGaugeVec(
 		prometheus.GaugeOpts{
-			Name: "known_logs",
+			Name: "ct_known_logs_info",
 			Help: "Set to 1 for known logs",
 		},
 		[]string{"origin"})
 	lastSCTTimestamp = promauto.NewGaugeVec(
 		prometheus.GaugeOpts{
-			Name: "last_sct_timestamp",
-			Help: "Time of last SCT in ms since epoch",
+			Name: "ct_sct_last_timestamp_seconds",
+			Help: "Time of last SCT in seconds since epoch",
 		},
 		[]string{"origin"})
 	lastSCTIndex = promauto.NewGaugeVec(
 		prometheus.GaugeOpts{
-			Name: "last_sct_index",
+			Name: "ct_sct_last_index",
 			Help: "Index of last SCT",
 		},
 		[]string{"origin"})
 	reqsCounter = promauto.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "http_reqs",
+			Name: "ct_http_requests_total",
 			Help: "Number of requests",
 		},
-		[]string{"origin", "ep"})
-	rspsCounter = promauto.NewCounterVec(
-		prometheus.CounterOpts{
-			Name: "http_rsps",
-			Help: "Number of responses",
-		},
-		[]string{"origin", "op", "code"})
-	rspLatency = promauto.NewHistogramVec(
+		[]string{"origin", "operation"})
+	reqsDuration = promauto.NewHistogramVec(
 		prometheus.HistogramOpts{
-			Name: "http_latency",
+			Name: "ct_http_request_duration_seconds",
 			Help: "Latency of responses in seconds",
 		},
-		[]string{"origin", "op", "code"})
+		[]string{"origin", "operation", "code"})
+	rspsCounter = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "ct_http_responses_total",
+			Help: "Number of responses",
+		},
+		[]string{"origin", "operation", "code"})
 }
 
 // entrypoints is a list of entrypoint names as exposed in statistics/logging.
@@ -140,7 +140,7 @@ func (a appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	a.opts.RequestLog.origin(logCtx, a.log.origin)
 	defer func() {
 		latency := a.opts.TimeSource.Now().Sub(startTime).Seconds()
-		rspLatency.WithLabelValues(label0, label1, strconv.Itoa(statusCode)).Observe(latency)
+		reqsDuration.WithLabelValues(label0, label1, strconv.Itoa(statusCode)).Observe(latency)
 	}()
 	klog.V(2).Infof("%s: request %v %q => %s", a.log.origin, r.Method, r.URL, a.name)
 	// TODO(phboneff): add a.Method directly on the handler path and remove this test.
@@ -352,7 +352,7 @@ func addChainInternal(ctx context.Context, opts *HandlerOptions, log *log, w htt
 	}
 	klog.V(3).Infof("%s: %s <= SCT", log.origin, method)
 	if sct.Timestamp == timeMillis {
-		lastSCTTimestamp.WithLabelValues(log.origin).Set(float64(sct.Timestamp))
+		lastSCTTimestamp.WithLabelValues(log.origin).Set(float64(sct.Timestamp) / 1000)
 		lastSCTIndex.WithLabelValues(log.origin).Set(float64(idx))
 	}
 
