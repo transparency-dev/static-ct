@@ -1120,10 +1120,11 @@ func genCertEdge(t *testing.T, subject string, key crypto.Signer, mutateTmpl fun
 		NotBefore:    time.Now().Add(-time.Hour),
 		NotAfter:     time.Now().Add(time.Hour),
 	}
-	if certType == rootCertificate || certType == intermediateCertificate {
+	switch certType {
+	case rootCertificate, intermediateCertificate:
 		tmpl.IsCA, tmpl.BasicConstraintsValid = true, true
 		tmpl.KeyUsage = x509.KeyUsageCertSign
-	} else if certType == leafCertificate {
+	case leafCertificate:
 		tmpl.DNSNames = []string{"localhost"}
 	}
 	if mutateTmpl != nil {

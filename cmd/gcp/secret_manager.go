@@ -27,6 +27,7 @@ import (
 
 	secretmanager "cloud.google.com/go/secretmanager/apiv1"
 	"cloud.google.com/go/secretmanager/apiv1/secretmanagerpb"
+	"k8s.io/klog/v2"
 )
 
 // TODO: Move ECDSAWithSHA256Signer to internal signer package.
@@ -65,7 +66,11 @@ func NewSecretManagerSigner(ctx context.Context, publicKeySecretName, privateKey
 	if err != nil {
 		return nil, fmt.Errorf("failed to create secret manager client: %w", err)
 	}
-	defer client.Close()
+	defer func() {
+		if err := client.Close(); err != nil {
+			klog.Warningf("Failed to close secret manager client: %v", err)
+		}
+	}()
 
 	// Public Key
 	var publicKey crypto.PublicKey
@@ -129,7 +134,7 @@ func secretPEM(ctx context.Context, client *secretmanager.Client, secretName str
 	crc32c := crc32.MakeTable(crc32.Castagnoli)
 	checksum := int64(crc32.Checksum(resp.Payload.Data, crc32c))
 	if checksum != *resp.Payload.DataCrc32C {
-		return nil, errors.New("Data corruption detected.")
+		return nil, errors.New("data corruption detected")
 	}
 
 	pemBlock, rest := pem.Decode([]byte(resp.Payload.Data))

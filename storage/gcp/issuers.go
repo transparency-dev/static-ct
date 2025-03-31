@@ -66,7 +66,7 @@ func (s *IssuersStorage) AddIssuersIfNotExist(ctx context.Context, kv []storage.
 		obj := s.bucket.Object(objName)
 
 		w := obj.If(gcs.Conditions{DoesNotExist: true}).NewWriter(ctx)
-		w.ObjectAttrs.ContentType = s.contentType
+		w.ContentType = s.contentType
 
 		if _, err := w.Write(kv.V); err != nil {
 			return fmt.Errorf("failed to write object %q to bucket %q: %w", objName, s.bucket.BucketName(), err)

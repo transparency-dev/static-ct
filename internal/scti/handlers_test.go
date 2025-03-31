@@ -594,7 +594,7 @@ func (d dlMatcher) Matches(x any) bool {
 		return false // we never make calls without a deadline set
 	}
 
-	return deadlineTime == fakeDeadlineTime
+	return deadlineTime.Equal(fakeDeadlineTime)
 }
 
 func (d dlMatcher) String() string {

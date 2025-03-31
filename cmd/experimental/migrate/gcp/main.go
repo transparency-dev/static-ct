@@ -148,7 +148,11 @@ func readCTEntryBundle(srcURL string) func(ctx context.Context, i uint64, p uint
 		if err != nil {
 			return nil, err
 		}
-		defer rsp.Body.Close()
+		defer func() {
+			if err := rsp.Body.Close(); err != nil {
+				klog.Warningf("Failed to close response body: %v", err)
+			}
+		}()
 		if rsp.StatusCode != http.StatusOK {
 			return nil, fmt.Errorf("GET %q: %v", req.URL.Path, rsp.Status)
 		}
