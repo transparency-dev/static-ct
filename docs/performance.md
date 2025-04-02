@@ -2,7 +2,7 @@
 
 TesseraCT is designed to meet current CT issuance load in a cost-effective manner.
 
-The indicative figures below were measured using the [CT hammer tool](/internal/hammer/) as of [commit `2872ea2`](https://github.com/transparency-dev/static-ct/commit/2872ea2387b2d3077eb832112277eb19a7a907bd). The performance tests were conducted in a controlled environment with deterministic synthetic certificates for a limited amount of time. QPS was measured using the average values collected over the test period.
+The performance tests were conducted in a controlled environment with deterministic synthetic certificates for a limited amount of time. QPS was measured using the average values collected over the test period.
 
 > [!NOTE]
 > These are not definitive numbers, and that more tests are to come with an improved codebase.
@@ -10,6 +10,8 @@ The indicative figures below were measured using the [CT hammer tool](/internal/
 ## Backends
 
 ### GCP
+
+The indicative figures below were measured using the [CT hammer tool](/internal/hammer/) as of [commit `2872ea2`](https://github.com/transparency-dev/static-ct/commit/2872ea2387b2d3077eb832112277eb19a7a907bd). 
 
 The table below shows the measured performance over 12 hours in each instance type:
 
@@ -129,4 +131,50 @@ MiB Swap:      0.0 total,      0.0 free,      0.0 used.   2989.2 avail Mem
 
 ### AWS
 
-Coming soon.
+The indicative figures below were measured using the [CT hammer tool](/internal/hammer/) as of [commit `2940bba`](https://github.com/transparency-dev/static-ct/commit/2940bba60a49bad1b78ae8f2ded2c893b1b133ad). 
+
+#### t3a.small EC2 Instance + Aurora MySQL db.r5.large
+
+- t3a.small (2 vCPUs, 2 GB Memory)
+  - General Purpose SSD (gp3)
+    - IOPS: 3,000 (3 KiB I/O)
+    - Throughput: 125 MiB/s
+
+The write QPS is around 400. The bottleneck is the high I/O wait at the EBS volume. The "Volume IOPS exceed check" monitoring metrics goes up to 0.8 unit. This is because the AWS deduplication makes use of the [on-disk bbolt key/value store](/storage/bbolt/dedup.go). The Aurora MySQL CPU utilization is around 10%. The EC2 CPU utilization is around 40%.
+
+```
+┌────────────────────────────────────────────────────────────────────────┐
+│Read (8 workers): Current max: 0/s. Oversupply in last second: 0        │
+│Write (1024 workers): Current max: 475/s. Oversupply in last second: 65 │
+│TreeSize: 19930533 (Δ 404qps over 30s)                                  │
+│Time-in-queue: 1ms/1727ms/2786ms (min/avg/max)                          │
+│Observed-time-to-integrate: 1520ms/3357ms/8605ms (min/avg/max)          │
+└────────────────────────────────────────────────────────────────────────┘
+```
+
+```
+top - 14:32:00 up 5 days, 21:42,  1 user,  load average: 1.79, 1.87, 1.42
+Tasks: 107 total,   1 running, 106 sleeping,   0 stopped,   0 zombie
+%Cpu(s): 20.6 us,  7.6 sy,  0.0 ni, 27.6 id, 32.9 wa,  0.0 hi,  2.5 si,  8.8 st
+MiB Mem :   1907.4 total,     84.0 free,    474.9 used,   1348.5 buff/cache
+MiB Swap:      0.0 total,      0.0 free,      0.0 used.   1277.0 avail Mem 
+
+    PID USER      PR  NI    VIRT    RES    SHR S  %CPU  %MEM     TIME+ COMMAND                                                                                                                
+ 293567 ec2-user  20   0 4096540   1.2g   1.1g S  62.8  65.4  32:18.02 aws  
+```
+
+```
+avg-cpu:  %user   %nice %system %iowait  %steal   %idle
+          21.11    0.00    8.05   36.89    7.73   26.23
+```
+
+```
+Total DISK READ:      1094.42 K/s | Total DISK WRITE:        14.55 M/s
+Current DISK READ:    1899.47 K/s | Current DISK WRITE:      14.88 M/s
+    TID  PRIO  USER     DISK READ  DISK WRITE  SWAPIN     IO>    COMMAND                                                                                                                      
+   3307 be/4 ec2-user  207.75 K/s    3.91 M/s  ?unavailable?  aws --http_endpoint=172.31.24.203:6962 --roots_pem_file=./inter~er_private_key_secret_name=test-static-ct-ecdsa-p256-private-key
+   3310 be/4 ec2-user  285.66 K/s    3.26 M/s  ?unavailable?  aws --http_endpoint=172.31.24.203:6962 --roots_pem_file=./inter~er_private_key_secret_name=test-static-ct-ecdsa-p256-private-key
+   3313 be/4 ec2-user  241.14 K/s    3.69 M/s  ?unavailable?  aws --http_endpoint=172.31.24.203:6962 --roots_pem_file=./inter~er_private_key_secret_name=test-static-ct-ecdsa-p256-private-key
+   3314 be/4 ec2-user  118.72 K/s    2.16 M/s  ?unavailable?  aws --http_endpoint=172.31.24.203:6962 --roots_pem_file=./inter~er_private_key_secret_name=test-static-ct-ecdsa-p256-private-key
+   3316 be/4 ec2-user  107.59 K/s 1313.31 K/s  ?unavailable?  aws --http_endpoint=172.31.24.203:6962 --roots_pem_file=./inter~er_private_key_secret_name=test-static-ct-ecdsa-p256-private-key
+```
