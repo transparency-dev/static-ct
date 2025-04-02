@@ -20,9 +20,11 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"encoding/pem"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"path"
+	"strings"
 	"testing"
 	"time"
 
@@ -150,6 +152,130 @@ func newPosixStorageFunc(t *testing.T) storage.CreateStorage {
 			klog.Fatalf("Failed to initialize CTStorage: %v", err)
 		}
 		return s, nil
+	}
+}
+
+func getHandlers(t *testing.T, handlers pathHandlers) pathHandlers {
+	t.Helper()
+	path := path.Join(prefix, types.GetRootsPath)
+	handler, ok := handlers[path]
+	if !ok {
+		t.Fatalf("%q path not registered", types.GetRootsPath)
+	}
+	return pathHandlers{path: handler}
+}
+
+func postHandlers(t *testing.T, handlers pathHandlers) pathHandlers {
+	t.Helper()
+	addChainPath := path.Join(prefix, types.AddChainPath)
+	addPreChainPath := path.Join(prefix, types.AddPreChainPath)
+
+	addChainHandler, ok := handlers[addChainPath]
+	if !ok {
+		t.Fatalf("%q path not registered", types.AddPreChainStr)
+	}
+	addPreChainHandler, ok := handlers[addPreChainPath]
+	if !ok {
+		t.Fatalf("%q path not registered", types.AddPreChainStr)
+	}
+
+	return map[string]appHandler{
+		addChainPath:    addChainHandler,
+		addPreChainPath: addPreChainHandler,
+	}
+}
+
+func TestPostHandlersRejectGet(t *testing.T) {
+	log := setupTestLog(t)
+	opts := &HandlerOptions{
+		Deadline:           time.Millisecond * 500,
+		RequestLog:         &DefaultRequestLog{},
+		MaskInternalErrors: false,
+		TimeSource:         newFixedTimeSource(fakeTime),
+	}
+	handlers := NewPathHandlers(opts, log)
+
+	// Anything in the post handler list should reject GET
+	for path, handler := range postHandlers(t, handlers) {
+		t.Run(path, func(t *testing.T) {
+			s := httptest.NewServer(handler)
+			defer s.Close()
+
+			resp, err := http.Get(s.URL + path)
+			if err != nil {
+				t.Fatalf("http.Get(%s)=(_,%q); want (_,nil)", path, err)
+			}
+			if got, want := resp.StatusCode, http.StatusMethodNotAllowed; got != want {
+				t.Errorf("http.Get(%s)=(%d,nil); want (%d,nil)", path, got, want)
+			}
+		})
+	}
+}
+
+func TestGetHandlersRejectPost(t *testing.T) {
+	log := setupTestLog(t)
+	opts := &HandlerOptions{
+		Deadline:           time.Millisecond * 500,
+		RequestLog:         &DefaultRequestLog{},
+		MaskInternalErrors: false,
+		TimeSource:         newFixedTimeSource(fakeTime),
+	}
+	handlers := NewPathHandlers(opts, log)
+
+	// Anything in the get handler list should reject POST.
+	for path, handler := range getHandlers(t, handlers) {
+		t.Run(path, func(t *testing.T) {
+			s := httptest.NewServer(handler)
+			defer s.Close()
+
+			resp, err := http.Post(s.URL+path, "application/json", nil)
+			if err != nil {
+				t.Fatalf("http.Post(%s)=(_,%q); want (_,nil)", path, err)
+			}
+			if got, want := resp.StatusCode, http.StatusMethodNotAllowed; got != want {
+				t.Errorf("http.Post(%s)=(%d,nil); want (%d,nil)", path, got, want)
+			}
+		})
+	}
+}
+
+func TestPostHandlersFailure(t *testing.T) {
+	var tests = []struct {
+		descr string
+		body  io.Reader
+		want  int
+	}{
+		{"nil", nil, http.StatusBadRequest},
+		{"''", strings.NewReader(""), http.StatusBadRequest},
+		{"malformed-json", strings.NewReader("{ !$%^& not valid json "), http.StatusBadRequest},
+		{"empty-chain", strings.NewReader(`{ "chain": [] }`), http.StatusBadRequest},
+		{"wrong-chain", strings.NewReader(`{ "chain": [ "test" ] }`), http.StatusBadRequest},
+	}
+
+	log := setupTestLog(t)
+	opts := &HandlerOptions{
+		Deadline:           time.Millisecond * 500,
+		RequestLog:         &DefaultRequestLog{},
+		MaskInternalErrors: false,
+		TimeSource:         newFixedTimeSource(fakeTime),
+	}
+	handlers := NewPathHandlers(opts, log)
+
+	for path, handler := range postHandlers(t, handlers) {
+		t.Run(path, func(t *testing.T) {
+			s := httptest.NewServer(handler)
+
+			for _, test := range tests {
+				resp, err := http.Post(s.URL+path, "application/json", test.body)
+				if err != nil {
+					t.Errorf("http.Post(%s,%s)=(_,%q); want (_,nil)", path, test.descr, err)
+					continue
+				}
+				if resp.StatusCode != test.want {
+					t.Errorf("http.Post(%s,%s)=(%d,nil); want (%d,nil)", path, test.descr, resp.StatusCode, test.want)
+				}
+			}
+		})
 	}
 }
 
