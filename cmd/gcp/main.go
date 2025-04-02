@@ -171,7 +171,7 @@ func newGCPStorage(ctx context.Context, signer note.Signer) (*storage.CTStorage,
 
 	driver, err := gcpTessera.New(ctx, gcpCfg)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to initialize GCP Tessera storage driver: %v", err)
+		return nil, fmt.Errorf("failed to initialize GCP Tessera storage driver: %v", err)
 	}
 
 	opts := tessera.NewAppendOptions().
@@ -182,12 +182,12 @@ func newGCPStorage(ctx context.Context, signer note.Signer) (*storage.CTStorage,
 	// when it's time to exit.
 	appender, _, _, err := tessera.NewAppender(ctx, driver, opts)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to initialize GCP Tessera appender: %v", err)
+		return nil, fmt.Errorf("failed to initialize GCP Tessera appender: %v", err)
 	}
 
 	issuerStorage, err := gcpSCTFE.NewIssuerStorage(ctx, *bucket, "fingerprints/", "application/pkix-cert")
 	if err != nil {
-		return nil, fmt.Errorf("Failed to initialize GCP issuer storage: %v", err)
+		return nil, fmt.Errorf("failed to initialize GCP issuer storage: %v", err)
 	}
 
 	beDedupStorage, err := gcpSCTFE.NewDedupeStorage(ctx, *spannerDedupDB)

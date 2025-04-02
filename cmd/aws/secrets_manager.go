@@ -132,7 +132,7 @@ func secretPEM(ctx context.Context, client *secretsmanager.Client, secretName st
 		return nil, fmt.Errorf("secretString is nil for secret %s", secretName)
 	}
 
-	var secretString string = *result.SecretString
+	var secretString = *result.SecretString
 
 	pemBlock, rest := pem.Decode([]byte(secretString))
 	if pemBlock == nil {

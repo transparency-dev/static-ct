@@ -305,7 +305,7 @@ func addChainInternal(ctx context.Context, opts *HandlerOptions, log *log, w htt
 		if err != nil {
 			if errors.Is(err, tessera.ErrPushback) {
 				w.Header().Add("Retry-After", "1")
-				return http.StatusServiceUnavailable, fmt.Errorf("Tessera sequencer pushed back: %v", err)
+				return http.StatusServiceUnavailable, fmt.Errorf("received pushback from Tessera sequencer: %v", err)
 			}
 			return http.StatusInternalServerError, fmt.Errorf("couldn't store the leaf: %v", err)
 		}
