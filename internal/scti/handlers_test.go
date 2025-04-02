@@ -63,8 +63,8 @@ func (f *fixedTimeSource) Now() time.Time {
 	return f.fakeTime
 }
 
-// setupTestServer creates a test TesseraCT server with a single endpoint at path.
-func setupTestServer(t *testing.T, path string) *httptest.Server {
+// setupTestLog creates test TesseraCT log using a POSIX backend.
+func setupTestLog(t *testing.T) *log {
 	t.Helper()
 
 	signer, err := setupSigner(fakeSignature)
@@ -76,16 +76,24 @@ func setupTestServer(t *testing.T, path string) *httptest.Server {
 	if err := roots.AppendCertsFromPEMFile(testRootPath); err != nil {
 		t.Fatalf("failed to read trusted roots: %v", err)
 	}
+
 	cvOpts := ChainValidationOpts{
 		trustedRoots:    roots,
 		rejectExpired:   false,
 		rejectUnexpired: false,
 	}
+
 	log, err := NewLog(t.Context(), origin, signer, cvOpts, newPosixStorageFunc(t), newFixedTimeSource(fakeTime))
 	if err != nil {
 		t.Fatalf("newLog(): %v", err)
 	}
 
+	return log
+}
+
+// setupTestServer creates a test TesseraCT server with a single endpoint at path.
+func setupTestServer(t *testing.T, log *log, path string) *httptest.Server {
+	t.Helper()
 	opts := &HandlerOptions{
 		Deadline:           time.Millisecond * 500,
 		RequestLog:         &DefaultRequestLog{},
@@ -144,24 +152,30 @@ func newPosixStorageFunc(t *testing.T) storage.CreateStorage {
 }
 
 func TestGetRoots(t *testing.T) {
+	log := setupTestLog(t)
+	server := setupTestServer(t, log, path.Join(prefix, "ct/v1/get-roots"))
+	defer server.Close()
+
 	t.Run("get-roots", func(t *testing.T) {
-		server := setupTestServer(t, path.Join(prefix, "ct/v1/get-roots"))
-		defer server.Close()
 		resp, err := http.Get(server.URL + path.Join(prefix, "ct/v1/get-roots"))
 		if err != nil {
 			t.Fatalf("Failed to get roots: %v", err)
 		}
+
 		if resp.StatusCode != http.StatusOK {
 			t.Errorf("Unexpected status code: %v", resp.StatusCode)
 		}
+
 		var roots types.GetRootsResponse
 		err = json.NewDecoder(resp.Body).Decode(&roots)
 		if err != nil {
 			t.Errorf("Failed to decode response: %v", err)
 		}
+
 		if got, want := len(roots.Certificates), 1; got != want {
 			t.Errorf("Unexpected number of certificates: got %d, want %d", got, want)
 		}
+
 		got, err := base64.StdEncoding.DecodeString(roots.Certificates[0])
 		if err != nil {
 			t.Errorf("Failed to decode certificate: %v", err)
