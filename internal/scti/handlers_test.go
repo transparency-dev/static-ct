@@ -15,9 +15,11 @@
 package scti
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"encoding/pem"
 	"io"
@@ -345,4 +347,262 @@ func TestGetRoots(t *testing.T) {
 			t.Errorf("Unexpected root: got %s, want %s", roots.Certificates[0], base64.StdEncoding.EncodeToString(want.Bytes))
 		}
 	})
+}
+
+// TODO(phboneff): this could just be a parseBodyJSONChain test
+func TestAddChainWhitespace(t *testing.T) {
+	// Throughout we use variants of a hard-coded POST body derived from a chain of:
+	// testdata.LeafSignedByFakeIntermediateCertPEM, testdata.FakeIntermediateCertPEM
+	cert, rest := pem.Decode([]byte(testdata.CertFromIntermediate))
+	if len(rest) > 0 {
+		t.Fatalf("got %d bytes remaining after decoding cert, want 0", len(rest))
+	}
+	certB64 := base64.StdEncoding.EncodeToString(cert.Bytes)
+	intermediate, rest := pem.Decode([]byte(testdata.IntermediateFromRoot))
+	if len(rest) > 0 {
+		t.Fatalf("got %d bytes remaining after decoding intermediate, want 0", len(rest))
+	}
+	intermediateB64 := base64.StdEncoding.EncodeToString(intermediate.Bytes)
+
+	// Break the JSON into chunks:
+	intro := "{\"chain\""
+	// followed by colon then the first line of the PEM file
+	chunk1a := "[\"" + certB64[:64]
+	// straight into rest of first entry
+	chunk1b := certB64[64:] + "\""
+	// followed by comma then
+	chunk2 := "\"" + intermediateB64 + "\""
+	epilog := "]}\n"
+
+	var tests = []struct {
+		descr string
+		body  string
+		want  int
+	}{
+		{
+			descr: "valid",
+			body:  intro + ":" + chunk1a + chunk1b + "," + chunk2 + epilog,
+			want:  http.StatusOK,
+		},
+		{
+			descr: "valid-space-between",
+			body:  intro + " : " + chunk1a + chunk1b + " , " + chunk2 + epilog,
+			want:  http.StatusOK,
+		},
+		{
+			descr: "valid-newline-between",
+			body:  intro + " : " + chunk1a + chunk1b + ",\n" + chunk2 + epilog,
+			want:  http.StatusOK,
+		},
+		{
+			descr: "invalid-raw-newline-in-string",
+			body:  intro + ":" + chunk1a + "\n" + chunk1b + "," + chunk2 + epilog,
+			want:  http.StatusBadRequest,
+		},
+		{
+			descr: "valid-escaped-newline-in-string",
+			body:  intro + ":" + chunk1a + "\\n" + chunk1b + "," + chunk2 + epilog,
+			want:  http.StatusOK,
+		},
+	}
+
+	log := setupTestLog(t)
+	server := setupTestServer(t, log, path.Join(prefix, "ct/v1/add-chain"))
+	defer server.Close()
+
+	for _, test := range tests {
+		t.Run(test.descr, func(t *testing.T) {
+			resp, err := http.Post(server.URL+"/ct/v1/add-chain", "application/json", strings.NewReader(test.body))
+			if err != nil {
+				t.Fatalf("http.Post(%s)=(_,%q); want (_,nil)", types.AddChainPath, err)
+			}
+			if got, want := resp.StatusCode, test.want; got != want {
+				t.Errorf("http.Post(%s)=(%d,nil); want (%d,nil)", types.AddChainPath, got, want)
+			}
+		})
+	}
+}
+
+func TestAddChain(t *testing.T) {
+	var tests = []struct {
+		descr string
+		chain []string
+		want  int
+		err   error
+	}{
+		{
+			descr: "leaf-only",
+			chain: []string{testdata.CertFromIntermediate},
+			want:  http.StatusBadRequest,
+		},
+		{
+			descr: "wrong-entry-type",
+			chain: []string{testdata.PreCertFromIntermediate},
+			want:  http.StatusBadRequest,
+		},
+		{
+			descr: "success-without-root",
+			chain: []string{testdata.CertFromIntermediate, testdata.IntermediateFromRoot},
+			want:  http.StatusOK,
+		},
+		{
+			descr: "success",
+			chain: []string{testdata.CertFromIntermediate, testdata.IntermediateFromRoot, testdata.CACertPEM},
+			want:  http.StatusOK,
+		},
+	}
+
+	log := setupTestLog(t)
+	server := setupTestServer(t, log, path.Join(prefix, "ct/v1/add-chain"))
+	defer server.Close()
+
+	for _, test := range tests {
+		t.Run(test.descr, func(t *testing.T) {
+			pool := loadCertsIntoPoolOrDie(t, test.chain)
+			chain := createJSONChain(t, *pool)
+
+			resp, err := http.Post(server.URL+"/ct/v1/add-chain", "application/json", chain)
+			if err != nil {
+				t.Fatalf("http.Post(%s)=(_,%q); want (_,nil)", types.AddChainPath, err)
+			}
+			if got, want := resp.StatusCode, test.want; got != want {
+				t.Errorf("http.Post(%s)=(%d,nil); want (%d,nil)", types.AddChainPath, got, want)
+			}
+			if test.want == http.StatusOK {
+				var gotRsp types.AddChainResponse
+				if err := json.NewDecoder(resp.Body).Decode(&gotRsp); err != nil {
+					t.Fatalf("json.Decode()=%v; want nil", err)
+				}
+				if got, want := types.Version(gotRsp.SCTVersion), types.V1; got != want {
+					t.Errorf("resp.SCTVersion=%v; want %v", got, want)
+				}
+				if got, want := gotRsp.ID, demoLogID[:]; !bytes.Equal(got, want) {
+					t.Errorf("resp.ID=%v; want %v", got, want)
+				}
+				if got, want := gotRsp.Timestamp, fakeTimeMillis; got != want {
+					t.Errorf("resp.Timestamp=%d; want %d", got, want)
+				}
+				if got, want := hex.EncodeToString(gotRsp.Signature), "040300067369676e6564"; got != want {
+					t.Errorf("resp.Signature=%s; want %s", got, want)
+				}
+				// TODO(phboneff): read from the log and compare values
+				// TODO(phboneff): add a test with a backend write failure
+				// TODO(phboneff): check that the index is in the SCT
+				// TODO(phboneff): add a test with a not after range
+				// TODO(phboneff): add a test with a start date only
+				// TODO(phboneff): add duplicate tests
+			}
+		})
+	}
+}
+
+func TestAddPreChain(t *testing.T) {
+	var tests = []struct {
+		descr string
+		chain []string
+		want  int
+		err   error
+	}{
+		{
+			descr: "leaf-signed-by-different",
+			chain: []string{testdata.PrecertPEMValid, testdata.FakeIntermediateCertPEM},
+			want:  http.StatusBadRequest,
+		},
+		{
+			descr: "wrong-entry-type",
+			chain: []string{testdata.TestCertPEM},
+			want:  http.StatusBadRequest,
+		},
+		{
+			descr: "success",
+			chain: []string{testdata.PrecertPEMValid, testdata.CACertPEM},
+			want:  http.StatusOK,
+		},
+		{
+			descr: "success-with-intermediate",
+			chain: []string{testdata.PreCertFromIntermediate, testdata.IntermediateFromRoot, testdata.CACertPEM},
+			want:  http.StatusOK,
+		},
+		{
+			descr: "success-without-root",
+			chain: []string{testdata.PrecertPEMValid},
+			want:  http.StatusOK,
+		},
+	}
+
+	log := setupTestLog(t)
+	server := setupTestServer(t, log, path.Join(prefix, "ct/v1/add-pre-chain"))
+	defer server.Close()
+
+	for _, test := range tests {
+		t.Run(test.descr, func(t *testing.T) {
+			pool := loadCertsIntoPoolOrDie(t, test.chain)
+			chain := createJSONChain(t, *pool)
+
+			resp, err := http.Post(server.URL+"/ct/v1/add-pre-chain", "application/json", chain)
+			if err != nil {
+				t.Fatalf("http.Post(%s)=(_,%q); want (_,nil)", types.AddPreChainPath, err)
+			}
+			if got, want := resp.StatusCode, test.want; got != want {
+				t.Errorf("http.Post(%s)=(%d,nil); want (%d,nil)", types.AddPreChainPath, got, want)
+			}
+			if test.want == http.StatusOK {
+				var gotRsp types.AddChainResponse
+				if err := json.NewDecoder(resp.Body).Decode(&gotRsp); err != nil {
+					t.Fatalf("json.Decode()=%v; want nil", err)
+				}
+				if got, want := types.Version(gotRsp.SCTVersion), types.V1; got != want {
+					t.Errorf("resp.SCTVersion=%v; want %v", got, want)
+				}
+				if got, want := gotRsp.ID, demoLogID[:]; !bytes.Equal(got, want) {
+					t.Errorf("resp.ID=%v; want %v", got, want)
+				}
+				if got, want := gotRsp.Timestamp, fakeTimeMillis; got != want {
+					t.Errorf("resp.Timestamp=%d; want %d", got, want)
+				}
+				if got, want := hex.EncodeToString(gotRsp.Signature), "040300067369676e6564"; got != want {
+					t.Errorf("resp.Signature=%s; want %s", got, want)
+				}
+				// TODO(phboneff): read from the log and compare values
+				// TODO(phboneff): add a test with a backend write failure
+				// TODO(phboneff): check that the index is in the SCT
+				// TODO(phboneff): add a test with a not after range
+				// TODO(phboneff): add a test with a start date only
+				// TODO(phboneff): add duplicate tests
+			}
+		})
+	}
+}
+
+func createJSONChain(t *testing.T, p x509util.PEMCertPool) io.Reader {
+	t.Helper()
+	var req types.AddChainRequest
+	for _, rawCert := range p.RawCertificates() {
+		req.Chain = append(req.Chain, rawCert.Raw)
+	}
+
+	var buffer bytes.Buffer
+	// It's tempting to avoid creating and flushing the intermediate writer but it doesn't work
+	writer := bufio.NewWriter(&buffer)
+	err := json.NewEncoder(writer).Encode(&req)
+	if err := writer.Flush(); err != nil {
+		t.Error(err)
+	}
+
+	if err != nil {
+		t.Fatalf("Failed to create test json: %v", err)
+	}
+
+	return bufio.NewReader(&buffer)
+}
+
+func loadCertsIntoPoolOrDie(t *testing.T, certs []string) *x509util.PEMCertPool {
+	t.Helper()
+	pool := x509util.NewPEMCertPool()
+	for _, cert := range certs {
+		if !pool.AppendCertsFromPEM([]byte(cert)) {
+			t.Fatalf("couldn't parse test certs: %v", certs)
+		}
+	}
+	return pool
 }
