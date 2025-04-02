@@ -137,8 +137,8 @@ The indicative figures below were measured using the [CT hammer tool](/internal/
 
 - t3a.small (2 vCPUs, 2 GB Memory)
   - General Purpose SSD (gp3)
-    - IOPS: 3000
-    - Throughput: 125
+    - IOPS: 3,000 (3 KiB I/O)
+    - Throughput: 125 MiB/s
 
 The write QPS is around 400. The bottleneck is the high I/O wait at the EBS volume. The "Volume IOPS exceed check" monitoring metrics goes up to 0.8 unit. This is because the AWS deduplication makes use of the [on-disk bbolt key/value store](/storage/bbolt/dedup.go). The Aurora MySQL CPU utilization is around 10%. The EC2 CPU utilization is around 40%.
 
