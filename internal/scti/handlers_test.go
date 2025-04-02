@@ -26,6 +26,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/transparency-dev/static-ct/internal/testdata"
 	"github.com/transparency-dev/static-ct/internal/testonly/storage/posix"
 	"github.com/transparency-dev/static-ct/internal/types"
@@ -149,6 +151,38 @@ func newPosixStorageFunc(t *testing.T) storage.CreateStorage {
 		}
 		return s, nil
 	}
+}
+
+func TestNewPathHandlers(t *testing.T) {
+	log := setupTestLog(t)
+	t.Run("Handlers", func(t *testing.T) {
+		handlers := NewPathHandlers(&HandlerOptions{}, log)
+		// Check each entrypoint has a handler
+		if got, want := len(handlers), len(entrypoints); got != want {
+			t.Fatalf("len(info.handler)=%d; want %d", got, want)
+		}
+
+		// We want to see the same set of handler names and paths that we think we registered.
+		var hNames []entrypointName
+		var hPaths []string
+		for p, v := range handlers {
+			hNames = append(hNames, v.name)
+			hPaths = append(hPaths, p)
+		}
+
+		if !cmp.Equal(entrypoints, hNames, cmpopts.SortSlices(func(n1, n2 entrypointName) bool {
+			return n1 < n2
+		})) {
+			t.Errorf("Handler names mismatch got: %v, want: %v", hNames, entrypoints)
+		}
+
+		entrypaths := []string{prefix + types.AddChainPath, prefix + types.AddPreChainPath, prefix + types.GetRootsPath}
+		if !cmp.Equal(entrypaths, hPaths, cmpopts.SortSlices(func(n1, n2 string) bool {
+			return n1 < n2
+		})) {
+			t.Errorf("Handler paths mismatch got: %v, want: %v", hPaths, entrypaths)
+		}
+	})
 }
 
 func TestGetRoots(t *testing.T) {
