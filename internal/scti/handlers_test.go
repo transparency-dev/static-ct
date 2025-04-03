@@ -313,6 +313,26 @@ func TestNewPathHandlers(t *testing.T) {
 	})
 }
 
+// TODO(phboneff): use this in followup PR. Leaving here for now to make
+// diffs easier to digest in PRs.
+// func parseChain(t *testing.T, isPrecert bool, pemChain []string, root *x509.Certificate) (*ctonly.Entry, []*x509.Certificate) {
+// 	t.Helper()
+// 	pool := loadCertsIntoPoolOrDie(t, pemChain)
+// 	leafChain := pool.RawCertificates()
+// 	if !leafChain[len(leafChain)-1].Equal(root) {
+// 		// The submitted chain may not include a root, but the generated LogLeaf will
+// 		fullChain := make([]*x509.Certificate, len(leafChain)+1)
+// 		copy(fullChain, leafChain)
+// 		fullChain[len(leafChain)] = root
+// 		leafChain = fullChain
+// 	}
+// 	entry, err := entryFromChain(leafChain, isPrecert, fakeTimeMillis)
+// 	if err != nil {
+// 		t.Fatalf("failed to create entry")
+// 	}
+// 	return entry, leafChain
+// }
+
 func TestGetRoots(t *testing.T) {
 	log := setupTestLog(t)
 	server := setupTestServer(t, log, path.Join(prefix, "ct/v1/get-roots"))
