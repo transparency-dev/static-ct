@@ -31,7 +31,7 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
-	"github.com/transparency-dev/static-ct/internal/types/types"
+	"github.com/transparency-dev/static-ct/internal/types/rfc6962"
 	"github.com/transparency-dev/static-ct/internal/types/tls"
 	"github.com/transparency-dev/static-ct/internal/x509util"
 	"github.com/transparency-dev/static-ct/modules/dedup"
@@ -209,9 +209,9 @@ func NewPathHandlers(opts *HandlerOptions, log *log) pathHandlers {
 	// Bind each endpoint to an appHandler instance.
 	// TODO(phboneff): try and get rid of PathHandlers and appHandler
 	ph := pathHandlers{
-		prefix + types.AddChainPath:    appHandler{opts: opts, log: log, handler: addChain, name: addChainName, method: http.MethodPost},
-		prefix + types.AddPreChainPath: appHandler{opts: opts, log: log, handler: addPreChain, name: addPreChainName, method: http.MethodPost},
-		prefix + types.GetRootsPath:    appHandler{opts: opts, log: log, handler: getRoots, name: getRootsName, method: http.MethodGet},
+		prefix + rfc6962.AddChainPath:    appHandler{opts: opts, log: log, handler: addChain, name: addChainName, method: http.MethodPost},
+		prefix + rfc6962.AddPreChainPath: appHandler{opts: opts, log: log, handler: addPreChain, name: addPreChainName, method: http.MethodPost},
+		prefix + rfc6962.GetRootsPath:    appHandler{opts: opts, log: log, handler: getRoots, name: getRootsName, method: http.MethodGet},
 	}
 
 	return ph
@@ -227,23 +227,23 @@ func (opts *HandlerOptions) sendHTTPError(w http.ResponseWriter, statusCode int,
 }
 
 // parseBodyAsJSONChain tries to extract cert-chain out of request.
-func parseBodyAsJSONChain(r *http.Request) (types.AddChainRequest, error) {
+func parseBodyAsJSONChain(r *http.Request) (rfc6962.AddChainRequest, error) {
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		klog.V(1).Infof("Failed to read request body: %v", err)
-		return types.AddChainRequest{}, err
+		return rfc6962.AddChainRequest{}, err
 	}
 
-	var req types.AddChainRequest
+	var req rfc6962.AddChainRequest
 	if err := json.Unmarshal(body, &req); err != nil {
 		klog.V(1).Infof("Failed to parse request body: %v", err)
-		return types.AddChainRequest{}, err
+		return rfc6962.AddChainRequest{}, err
 	}
 
 	// The cert chain is not allowed to be empty. We'll defer other validation for later
 	if len(req.Chain) == 0 {
 		klog.V(1).Infof("Request chain is empty: %q", body)
-		return types.AddChainRequest{}, errors.New("cert chain was empty")
+		return rfc6962.AddChainRequest{}, errors.New("cert chain was empty")
 	}
 
 	return req, nil
@@ -324,7 +324,7 @@ func addChainInternal(ctx context.Context, opts *HandlerOptions, log *log, w htt
 	}
 
 	// Always use the returned leaf as the basis for an SCT.
-	var loggedLeaf types.MerkleTreeLeaf
+	var loggedLeaf rfc6962.MerkleTreeLeaf
 	leafValue := entry.MerkleTreeLeaf(idx)
 	if rest, err := tls.Unmarshal(leafValue, &loggedLeaf); err != nil {
 		return http.StatusInternalServerError, fmt.Errorf("failed to reconstruct MerkleTreeLeaf: %s", err)
@@ -393,7 +393,7 @@ func deadlineTime(opts *HandlerOptions) time.Time {
 
 // verifyAddChain is used by add-chain and add-pre-chain. It does the checks that the supplied
 // cert is of the correct type and chains to a trusted root.
-func verifyAddChain(log *log, req types.AddChainRequest, expectingPrecert bool) ([]*x509.Certificate, error) {
+func verifyAddChain(log *log, req rfc6962.AddChainRequest, expectingPrecert bool) ([]*x509.Certificate, error) {
 	// We already checked that the chain is not empty so can move on to verification
 	validPath, err := validateChain(req.Chain, log.chainValidationOpts)
 	if err != nil {
@@ -422,13 +422,13 @@ func verifyAddChain(log *log, req types.AddChainRequest, expectingPrecert bool) 
 
 // marshalAndWriteAddChainResponse is used by add-chain and add-pre-chain to create and write
 // the JSON response to the client
-func marshalAndWriteAddChainResponse(sct *types.SignedCertificateTimestamp, w http.ResponseWriter) error {
+func marshalAndWriteAddChainResponse(sct *rfc6962.SignedCertificateTimestamp, w http.ResponseWriter) error {
 	sig, err := tls.Marshal(sct.Signature)
 	if err != nil {
 		return fmt.Errorf("failed to marshal signature: %s", err)
 	}
 
-	rsp := types.AddChainResponse{
+	rsp := rfc6962.AddChainResponse{
 		SCTVersion: sct.SCTVersion,
 		Timestamp:  sct.Timestamp,
 		ID:         sct.LogID.KeyID[:],
@@ -516,7 +516,7 @@ func isPreIssuer(cert *x509.Certificate) bool {
 	// Look for the extension in the Extensions field and not ExtKeyUsage
 	// since crypto/x509 does not recognize this extension as an ExtKeyUsage.
 	for _, ext := range cert.Extensions {
-		if types.OIDExtKeyUsageCertificateTransparency.Equal(ext.Id) {
+		if rfc6962.OIDExtKeyUsageCertificateTransparency.Equal(ext.Id) {
 			return true
 		}
 	}

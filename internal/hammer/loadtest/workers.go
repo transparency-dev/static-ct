@@ -29,7 +29,7 @@ import (
 	"github.com/transparency-dev/merkle/proof"
 	"github.com/transparency-dev/merkle/rfc6962"
 	"github.com/transparency-dev/static-ct/internal/client"
-	"github.com/transparency-dev/static-ct/internal/types/types"
+	rfc69621 "github.com/transparency-dev/static-ct/internal/types/rfc6962"
 	"github.com/transparency-dev/static-ct/internal/x509util"
 	"github.com/transparency-dev/trillian-tessera/api/layout"
 	"github.com/transparency-dev/trillian-tessera/ctonly"
@@ -246,7 +246,7 @@ func (w *LogWriter) Run(ctx context.Context) {
 
 		// TODO: Remove the json.Unmarshal by generating the chain and
 		// marshaling the add chain request from w.gen() at a later stage.
-		var req types.AddChainRequest
+		var req rfc69621.AddChainRequest
 		if err := json.Unmarshal(newLeaf, &req); err != nil {
 			klog.Warningf("Failed to unmarshal add-chain request: %v", err)
 		}
@@ -449,7 +449,7 @@ func isPreIssuer(cert *x509.Certificate) bool {
 	// Look for the extension in the Extensions field and not ExtKeyUsage
 	// since crypto/x509 does not recognize this extension as an ExtKeyUsage.
 	for _, ext := range cert.Extensions {
-		if types.OIDExtKeyUsageCertificateTransparency.Equal(ext.Id) {
+		if rfc69621.OIDExtKeyUsageCertificateTransparency.Equal(ext.Id) {
 			return true
 		}
 	}

@@ -22,7 +22,7 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/transparency-dev/static-ct/internal/types/types"
+	"github.com/transparency-dev/static-ct/internal/types/rfc6962"
 	"k8s.io/klog/v2"
 )
 
@@ -85,7 +85,7 @@ func (g *chainGenerator) certificate(serialNumber int64) []byte {
 
 // addChainRequestBody generates the add-chain request body for submission.
 func (g *chainGenerator) addChainRequestBody(serialNumber int64) []byte {
-	var req types.AddChainRequest
+	var req rfc6962.AddChainRequest
 
 	req.Chain = append(req.Chain, g.certificate(serialNumber))
 	req.Chain = append(req.Chain, g.intermediateCert.Raw)

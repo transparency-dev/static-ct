@@ -24,7 +24,7 @@ import (
 	"time"
 
 	"github.com/transparency-dev/static-ct/internal/testdata"
-	"github.com/transparency-dev/static-ct/internal/types/types"
+	"github.com/transparency-dev/static-ct/internal/types/rfc6962"
 	"github.com/transparency-dev/static-ct/internal/x509util"
 )
 
@@ -169,13 +169,13 @@ func wipeExtensions(cert *x509.Certificate) *x509.Certificate {
 
 func makePoisonNonCritical(cert *x509.Certificate) *x509.Certificate {
 	// Invalid as a pre-cert because poison extension needs to be marked as critical.
-	cert.Extensions = []pkix.Extension{{Id: types.OIDExtensionCTPoison, Critical: false, Value: asn1.NullBytes}}
+	cert.Extensions = []pkix.Extension{{Id: rfc6962.OIDExtensionCTPoison, Critical: false, Value: asn1.NullBytes}}
 	return cert
 }
 
 func makePoisonNonNull(cert *x509.Certificate) *x509.Certificate {
 	// Invalid as a pre-cert because poison extension is not ASN.1 NULL value.
-	cert.Extensions = []pkix.Extension{{Id: types.OIDExtensionCTPoison, Critical: false, Value: []byte{0x42, 0x42, 0x42}}}
+	cert.Extensions = []pkix.Extension{{Id: rfc6962.OIDExtensionCTPoison, Critical: false, Value: []byte{0x42, 0x42, 0x42}}}
 	return cert
 }
 
