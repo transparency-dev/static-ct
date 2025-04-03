@@ -19,20 +19,6 @@ At the moment, these storage backends are supported:
  - [AWS](./cmd/aws/): [deployment instructions](./deployment/live/aws/test/)
  - more to come soon!
 
-## Working on the Code
-The following files are auto-generated:
- - [`mock_ct_storage.go`](./mockstorage/mock_ct_storage.go): a mock CT storage implementation for tests
-
-To re-generate these files, first install the right tools:
- - [mockgen](https://github.com/golang/mock?tab=readme-ov-file#installation)
-
-Then, generate the files:
-
-```bash
-cd $(go list -f '{{ .Dir }}' github.com/transparency-dev/static-ct); \
-go generate -x ./...  # hunts for //go:generate comments and runs them
-```
-
 ### Contact
 
 - Slack: https://transparency-dev.slack.com/ ([invitation](https://join.slack.com/t/transparency-dev/shared_invite/zt-27pkqo21d-okUFhur7YZ0rFoJVIOPznQ))
