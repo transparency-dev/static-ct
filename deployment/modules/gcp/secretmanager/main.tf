@@ -48,7 +48,7 @@ resource "google_secret_manager_secret" "sctfe_ecdsa_p256_private_key" {
   depends_on = [google_project_service.secretmanager_googleapis_com]
 }
 
-ephemeral "google_secret_manager_secret_version" "sctfe_ecdsa_p256_private_key" {
+resource "google_secret_manager_secret_version" "sctfe_ecdsa_p256_private_key" {
   secret                 = google_secret_manager_secret.sctfe_ecdsa_p256_private_key.id
   secret_data_wo_version = 1
   secret_data_wo         = var.tls_private_key_ecdsa_p256_private_key_pem
