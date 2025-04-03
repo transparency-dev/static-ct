@@ -8,7 +8,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/transparency-dev/static-ct/internal/types"
+	"github.com/transparency-dev/static-ct/internal/types/types"
 	"github.com/transparency-dev/static-ct/modules/dedup"
 	"github.com/transparency-dev/static-ct/storage"
 	tessera "github.com/transparency-dev/trillian-tessera"

@@ -30,7 +30,7 @@ import (
 	"time"
 
 	"github.com/transparency-dev/static-ct/internal/client"
-	"github.com/transparency-dev/static-ct/internal/types"
+	"github.com/transparency-dev/static-ct/internal/types/types"
 	"golang.org/x/crypto/cryptobyte"
 	"k8s.io/klog/v2"
 )

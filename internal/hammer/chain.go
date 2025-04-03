@@ -22,7 +22,7 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/transparency-dev/static-ct/internal/types"
+	"github.com/transparency-dev/static-ct/internal/types/types"
 	"k8s.io/klog/v2"
 )
 

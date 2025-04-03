@@ -25,7 +25,7 @@ import (
 	"time"
 
 	"github.com/transparency-dev/static-ct/internal/lax509"
-	"github.com/transparency-dev/static-ct/internal/types"
+	"github.com/transparency-dev/static-ct/internal/types/types"
 	"github.com/transparency-dev/static-ct/internal/x509util"
 	"k8s.io/klog/v2"
 )
