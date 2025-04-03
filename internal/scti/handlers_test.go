@@ -494,8 +494,6 @@ func TestAddChain(t *testing.T) {
 				// TODO(phboneff): read from the log and compare values
 				// TODO(phboneff): add a test with a backend write failure
 				// TODO(phboneff): check that the index is in the SCT
-				// TODO(phboneff): add a test with a not after range
-				// TODO(phboneff): add a test with a start date only
 				// TODO(phboneff): add duplicate tests
 			}
 		})
@@ -572,8 +570,6 @@ func TestAddPreChain(t *testing.T) {
 				// TODO(phboneff): read from the log and compare values
 				// TODO(phboneff): add a test with a backend write failure
 				// TODO(phboneff): check that the index is in the SCT
-				// TODO(phboneff): add a test with a not after range
-				// TODO(phboneff): add a test with a start date only
 				// TODO(phboneff): add duplicate tests
 			}
 		})
