@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// package posix implements a test issuer storage system on a local filesystem.
+// It is not fit for production use.
 package posix
 
 import (
@@ -36,7 +38,7 @@ type IssuersStorage string
 func NewIssuerStorage(path string) (IssuersStorage, error) {
 	// Does nothing if the dictory already exists.
 	if err := os.MkdirAll(path, 0755); err != nil {
-		return "", fmt.Errorf("failed to create path %q: %w", path, err)
+		return "", fmt.Errorf("failed to create path %q: %v", path, err)
 	}
 	return IssuersStorage(path), nil
 }
@@ -44,7 +46,8 @@ func NewIssuerStorage(path string) (IssuersStorage, error) {
 // keyToObjName converts bytes to filesystem path.
 //
 // empty keys, and keys including a '/' character are not allowed to avoid
-// confusion with directory names.
+// confusion with directory names. This list of exclusions is not exhaustive,
+// and does not guarantee that it will fit all filesystems.
 func (s IssuersStorage) keyToObjName(key []byte) (string, error) {
 	if string(key) == "" {
 		return "", fmt.Errorf("key cannot be empty")
@@ -66,15 +69,14 @@ func (s IssuersStorage) AddIssuersIfNotExist(_ context.Context, kv []storage.KV)
 		if f, err := os.ReadFile(objName); err != nil {
 			if errors.Is(err, os.ErrNotExist) {
 				if err := os.WriteFile(objName, kv.V, 0644); err != nil {
-					return fmt.Errorf("failed to write object %q: %w", objName, err)
+					return fmt.Errorf("failed to write object %q: %v", objName, err)
 				}
 				klog.V(2).Infof("AddIssuersIfNotExist: added %q", objName)
 				continue
-			} else {
-				return fmt.Errorf("failed to read object %q: %w", objName, err)
 			}
+			return fmt.Errorf("failed to read object %q: %v", objName, err)
 		} else if bytes.Equal(f, kv.V) {
-			klog.V(2).Infof("AddIssuersIfNotExist: object %q already exists, continuing", objName)
+			klog.V(2).Infof("AddIssuersIfNotExist: object %q already exists with identical contents, continuing", objName)
 			continue
 		}
 		return fmt.Errorf("object %q already exists with different content", objName)

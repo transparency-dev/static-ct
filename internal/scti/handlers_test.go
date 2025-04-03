@@ -321,38 +321,36 @@ func TestNewPathHandlers(t *testing.T) {
 
 func TestGetRoots(t *testing.T) {
 	log := setupTestLog(t)
-	server := setupTestServer(t, log, path.Join(prefix, "ct/v1/get-roots"))
+	server := setupTestServer(t, log, path.Join(prefix, types.GetRootsPath))
 	defer server.Close()
 
-	t.Run("get-roots", func(t *testing.T) {
-		resp, err := http.Get(server.URL + path.Join(prefix, "ct/v1/get-roots"))
-		if err != nil {
-			t.Fatalf("Failed to get roots: %v", err)
-		}
+	resp, err := http.Get(server.URL + path.Join(prefix, types.GetRootsPath))
+	if err != nil {
+		t.Fatalf("Failed to get roots: %v", err)
+	}
 
-		if resp.StatusCode != http.StatusOK {
-			t.Errorf("Unexpected status code: %v", resp.StatusCode)
-		}
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("Unexpected status code: %v", resp.StatusCode)
+	}
 
-		var roots types.GetRootsResponse
-		err = json.NewDecoder(resp.Body).Decode(&roots)
-		if err != nil {
-			t.Errorf("Failed to decode response: %v", err)
-		}
+	var roots types.GetRootsResponse
+	err = json.NewDecoder(resp.Body).Decode(&roots)
+	if err != nil {
+		t.Errorf("Failed to decode response: %v", err)
+	}
 
-		if got, want := len(roots.Certificates), 1; got != want {
-			t.Errorf("Unexpected number of certificates: got %d, want %d", got, want)
-		}
+	if got, want := len(roots.Certificates), 1; got != want {
+		t.Errorf("Unexpected number of certificates: got %d, want %d", got, want)
+	}
 
-		got, err := base64.StdEncoding.DecodeString(roots.Certificates[0])
-		if err != nil {
-			t.Errorf("Failed to decode certificate: %v", err)
-		}
-		want, _ := pem.Decode([]byte(testdata.CACertPEM))
-		if !bytes.Equal(got, want.Bytes) {
-			t.Errorf("Unexpected root: got %s, want %s", roots.Certificates[0], base64.StdEncoding.EncodeToString(want.Bytes))
-		}
-	})
+	got, err := base64.StdEncoding.DecodeString(roots.Certificates[0])
+	if err != nil {
+		t.Errorf("Failed to decode certificate: %v", err)
+	}
+	want, _ := pem.Decode([]byte(testdata.CACertPEM))
+	if !bytes.Equal(got, want.Bytes) {
+		t.Errorf("Unexpected root: got %s, want %s", roots.Certificates[0], base64.StdEncoding.EncodeToString(want.Bytes))
+	}
 }
 
 // TODO(phboneff): this could just be a parseBodyJSONChain test
@@ -413,12 +411,12 @@ func TestAddChainWhitespace(t *testing.T) {
 	}
 
 	log := setupTestLog(t)
-	server := setupTestServer(t, log, path.Join(prefix, "ct/v1/add-chain"))
+	server := setupTestServer(t, log, path.Join(prefix, types.AddChainPath))
 	defer server.Close()
 
 	for _, test := range tests {
 		t.Run(test.descr, func(t *testing.T) {
-			resp, err := http.Post(server.URL+"/ct/v1/add-chain", "application/json", strings.NewReader(test.body))
+			resp, err := http.Post(server.URL+types.AddChainPath, "application/json", strings.NewReader(test.body))
 			if err != nil {
 				t.Fatalf("http.Post(%s)=(_,%q); want (_,nil)", types.AddChainPath, err)
 			}
@@ -459,7 +457,7 @@ func TestAddChain(t *testing.T) {
 	}
 
 	log := setupTestLog(t)
-	server := setupTestServer(t, log, path.Join(prefix, "ct/v1/add-chain"))
+	server := setupTestServer(t, log, path.Join(prefix, types.AddChainPath))
 	defer server.Close()
 
 	for _, test := range tests {
@@ -467,7 +465,7 @@ func TestAddChain(t *testing.T) {
 			pool := loadCertsIntoPoolOrDie(t, test.chain)
 			chain := createJSONChain(t, *pool)
 
-			resp, err := http.Post(server.URL+"/ct/v1/add-chain", "application/json", chain)
+			resp, err := http.Post(server.URL+types.AddChainPath, "application/json", chain)
 			if err != nil {
 				t.Fatalf("http.Post(%s)=(_,%q); want (_,nil)", types.AddChainPath, err)
 			}
@@ -535,7 +533,7 @@ func TestAddPreChain(t *testing.T) {
 	}
 
 	log := setupTestLog(t)
-	server := setupTestServer(t, log, path.Join(prefix, "ct/v1/add-pre-chain"))
+	server := setupTestServer(t, log, path.Join(prefix, types.AddPreChainPath))
 	defer server.Close()
 
 	for _, test := range tests {
@@ -543,7 +541,7 @@ func TestAddPreChain(t *testing.T) {
 			pool := loadCertsIntoPoolOrDie(t, test.chain)
 			chain := createJSONChain(t, *pool)
 
-			resp, err := http.Post(server.URL+"/ct/v1/add-pre-chain", "application/json", chain)
+			resp, err := http.Post(server.URL+types.AddPreChainPath, "application/json", chain)
 			if err != nil {
 				t.Fatalf("http.Post(%s)=(_,%q); want (_,nil)", types.AddPreChainPath, err)
 			}
