@@ -127,40 +127,25 @@ resource "google_cloudbuild_trigger" "build_trigger" {
       wait_for = ["docker_push_conformance_gcp"]
     }
 
-    ## Since the conformance infrastructure is not publicly accessible, we need to use 
-    ## bearer tokens for the test to access them.
-    ## This step creates those, and stores them for later use.
+    ## Apply the deployment/live/gcp/static-staging/cloudbuild/preloader terragrunt config.
+    ## This will bring up the preloader agaist the conformance infrastructure.
     step {
-      id       = "bearer_token"
-      name     = "gcr.io/cloud-builders/gcloud"
-      script   = <<EOT
-        gcloud auth print-access-token > /workspace/cb_access
-        curl -H "Metadata-Flavor: Google" "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/${local.cloudbuild_service_account}/identity?audience=$(cat /workspace/conformance_url)" > /workspace/cb_identity
+      id     = "terraform_apply_preloader"
+      name   = "alpine/terragrunt"
+      script = <<EOT
+        terragrunt --terragrunt-non-interactive --terragrunt-no-color apply -auto-approve -no-color -var="submission_url=$(cat /workspace/conformance_url)/arche2025h1.ct.transparency.dev/" -var="monitoring_url=$(cat /workspace/conformance_bucket_name)" 2>&1
       EOT
+      dir    = "deployment/live/gcp/static-ct-staging/cloudbuild/preloader"
+      env = [
+        "GOOGLE_PROJECT=${var.project_id}",
+        "TF_IN_AUTOMATION=1",
+        "TF_INPUT=false",
+        "TF_VAR_project_id=${var.project_id}",
+        "TF_VAR_location=${var.location}",
+        "TF_VAR_env=${var.env}",
+        "TF_VAR_github_owner=${var.github_owner}",
+      ]
       wait_for = ["terraform_apply_conformance_staging"]
-    }
-
-    ## TODO(phboneff): move to its own container.
-    ## Test against the conformance server with CT Preloader.
-    ## Leave enough time for the preloader to run, until the token expires.
-    timeout = "3600s" // 60 minutes
-    step {
-      id       = "ct_preloader"
-      name     = "golang"
-      script   = <<EOT
-	      START_INDEX=$(curl -H "Authorization: Bearer $(cat /workspace/cb_access)" https://storage.googleapis.com/$(cat /workspace/conformance_bucket_name)/checkpoint | head -2 | tail -1)
-	      echo "Will start preloader at index $START_INDEX"
-        go run github.com/google/certificate-transparency-go/preload/preloader@master \
-          --target_log_uri=$(cat /workspace/conformance_url)/arche2025h1.ct.transparency.dev \
-	        --target_bearer_token="$(cat /workspace/cb_identity)" \
-          --source_log_uri=https://ct.googleapis.com/logs/us1/argon2025h1 \
-	        --start_index=$START_INDEX \
-          --num_workers=20 \
-          --parallel_fetch=20 \
-          --parallel_submit=20
-      EOT
-      wait_for = ["bearer_token"]
-      timeout = "3000s" // 50 minutes
     }
 
     options {
@@ -172,34 +157,4 @@ resource "google_cloudbuild_trigger" "build_trigger" {
   depends_on = [
     module.artifactregistry
   ]
-}
-
-resource "google_cloud_scheduler_job" "deploy_cron" {
-  paused = false
-  project = var.project_id
-  region  = var.location
-  name    = "deploy-cron"
-
-  schedule  = "*/50 * * * *"
-  time_zone = "America/Los_Angeles"
-
-  attempt_deadline = "120s"
-
-  // TODO(phboneff): use a batch job instead maybe
-  http_target {
-    http_method = "POST"
-    uri         = "https://cloudbuild.googleapis.com/v1/projects/${var.project_id}/locations/${var.location}/triggers/${google_cloudbuild_trigger.build_trigger.trigger_id}:run"
-    body        = base64encode(jsonencode({
-      source = {
-        branchName = "preloader"
-      }
-    }))
-    headers = {
-      "Content-Type" = "application/json"
-    }
-
-    oauth_token {
-      service_account_email = local.scheduler_service_account
-    }
-  }
 }
