@@ -18,56 +18,52 @@ import (
 	"bufio"
 	"bytes"
 	"context"
-	"crypto"
-	"crypto/x509"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"encoding/pem"
-	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"path"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/golang/mock/gomock"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/transparency-dev/static-ct/internal/testdata"
+	"github.com/transparency-dev/static-ct/internal/testonly/storage/posix"
 	"github.com/transparency-dev/static-ct/internal/types"
 	"github.com/transparency-dev/static-ct/internal/x509util"
-	"github.com/transparency-dev/static-ct/mockstorage"
-	"github.com/transparency-dev/static-ct/modules/dedup"
+	"github.com/transparency-dev/static-ct/storage"
+	"github.com/transparency-dev/static-ct/storage/bbolt"
 	tessera "github.com/transparency-dev/trillian-tessera"
-	"github.com/transparency-dev/trillian-tessera/ctonly"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
-	"google.golang.org/protobuf/proto"
+	posixTessera "github.com/transparency-dev/trillian-tessera/storage/posix"
+	"golang.org/x/mod/sumdb/note"
 	"k8s.io/klog/v2"
 )
 
-// Arbitrary time for use in tests
-var fakeTime = time.Date(2016, 7, 22, 11, 01, 13, 0, time.UTC)
-var fakeTimeMillis = uint64(fakeTime.UnixNano() / nanosPerMilli)
+var (
+	// Test root
+	testRootPath = "../testdata/test_root_ca_cert.pem"
 
-// Arbitrary origin for tests
-var origin = "example.com"
-var prefix = "/" + origin
+	// Arbitrary time for use in tests
+	fakeTime       = time.Date(2016, 7, 22, 11, 01, 13, 0, time.UTC)
+	fakeTimeMillis = uint64(fakeTime.UnixNano() / nanosPerMilli)
 
-// The deadline should be the above bumped by 500ms
-var fakeDeadlineTime = time.Date(2016, 7, 22, 11, 01, 13, 500*1000*1000, time.UTC)
-var fakeTimeSource = newFixedTimeSource(fakeTime)
+	// Arbitrary origin for tests
+	origin = "example.com"
+	prefix = "/" + origin
 
-var entrypaths = []string{prefix + types.AddChainPath, prefix + types.AddPreChainPath, prefix + types.GetRootsPath}
-
-type handlerTestInfo struct {
-	mockCtrl *gomock.Controller
-	roots    *x509util.PEMCertPool
-	storage  *mockstorage.MockStorage
-	handlers map[string]appHandler
-}
+	// Default handler options for tests
+	hOpts = HandlerOptions{
+		Deadline:           time.Millisecond * 500,
+		RequestLog:         &DefaultRequestLog{},
+		MaskInternalErrors: false,
+		TimeSource:         newFixedTimeSource(fakeTime),
+	}
+)
 
 type fixedTimeSource struct {
 	fakeTime time.Time
@@ -83,82 +79,129 @@ func (f *fixedTimeSource) Now() time.Time {
 	return f.fakeTime
 }
 
-// setupTest creates mock objects and contexts.  Caller should invoke info.mockCtrl.Finish().
-func setupTest(t *testing.T, pemRoots []string, signer crypto.Signer) handlerTestInfo {
+// setupTestLog creates a test TesseraCT log using a POSIX backend.
+func setupTestLog(t *testing.T) *log {
 	t.Helper()
-	info := handlerTestInfo{
-		mockCtrl: gomock.NewController(t),
-		roots:    x509util.NewPEMCertPool(),
+
+	signer, err := setupSigner(fakeSignature)
+	if err != nil {
+		t.Fatalf("Failed to create test signer: %v", err)
 	}
 
-	info.storage = mockstorage.NewMockStorage(info.mockCtrl)
-	vOpts := ChainValidationOpts{
-		trustedRoots:  info.roots,
-		rejectExpired: false,
+	roots := x509util.NewPEMCertPool()
+	if err := roots.AppendCertsFromPEMFile(testRootPath); err != nil {
+		t.Fatalf("Failed to read trusted roots: %v", err)
 	}
 
-	hOpts := HandlerOptions{
-		Deadline:   time.Millisecond * 500,
-		RequestLog: new(DefaultRequestLog),
-		TimeSource: fakeTimeSource,
-	}
-	signSCT := func(leaf *types.MerkleTreeLeaf) (*types.SignedCertificateTimestamp, error) {
-		return buildV1SCT(signer, leaf)
-	}
-	log := log{
-		storage:             info.storage,
-		signSCT:             signSCT,
-		origin:              origin,
-		chainValidationOpts: vOpts,
-	}
-	info.handlers = NewPathHandlers(&hOpts, &log)
-
-	for _, pemRoot := range pemRoots {
-		if !info.roots.AppendCertsFromPEM([]byte(pemRoot)) {
-			klog.Fatal("failed to load cert pool")
-		}
+	cvOpts := ChainValidationOpts{
+		trustedRoots:    roots,
+		rejectExpired:   false,
+		rejectUnexpired: false,
 	}
 
-	return info
+	log, err := NewLog(t.Context(), origin, signer, cvOpts, newPosixStorageFunc(t), newFixedTimeSource(fakeTime))
+	if err != nil {
+		t.Fatalf("newLog(): %v", err)
+	}
+
+	return log
 }
 
-func (info handlerTestInfo) getHandlers(t *testing.T) pathHandlers {
+// setupTestServer creates a test TesseraCT server with a single endpoint at path.
+func setupTestServer(t *testing.T, log *log, path string) *httptest.Server {
 	t.Helper()
-	handler, ok := info.handlers[prefix+types.GetRootsPath]
+
+	handlers := NewPathHandlers(&hOpts, log)
+	handler, ok := handlers[path]
+	if !ok {
+		t.Fatalf("Handler not found: %s", path)
+	}
+
+	return httptest.NewServer(handler)
+}
+
+// newPosixStorageFunc returns a function to create a new storage.CTStorage instance with:
+//   - a POSIX Tessera storage driver
+//   - a POSIX issuer storage system
+//   - a BBolt deduplication database
+func newPosixStorageFunc(t *testing.T) storage.CreateStorage {
+	t.Helper()
+	return func(ctx context.Context, signer note.Signer) (*storage.CTStorage, error) {
+		driver, err := posixTessera.New(ctx, path.Join(t.TempDir(), "log"))
+		if err != nil {
+			klog.Fatalf("Failed to initialize POSIX Tessera storage driver: %v", err)
+		}
+
+		opts := tessera.NewAppendOptions().
+			WithCheckpointSigner(signer).
+			WithCTLayout()
+			// TODO(phboneff): add other options like MaxBatchSize of 1 when implementing
+			// additional tests
+
+		appender, _, _, err := tessera.NewAppender(ctx, driver, opts)
+		if err != nil {
+			klog.Fatalf("Failed to initialize POSIX Tessera appender: %v", err)
+		}
+
+		issuerStorage, err := posix.NewIssuerStorage(t.TempDir())
+		if err != nil {
+			klog.Fatalf("failed to initialize InMemory issuer storage: %v", err)
+		}
+
+		beDedupStorage, err := bbolt.NewStorage(path.Join(t.TempDir(), "dedup.db"))
+		if err != nil {
+			klog.Fatalf("Failed to initialize BBolt deduplication database: %v", err)
+		}
+
+		s, err := storage.NewCTStorage(appender, issuerStorage, beDedupStorage)
+		if err != nil {
+			klog.Fatalf("Failed to initialize CTStorage: %v", err)
+		}
+		return s, nil
+	}
+}
+
+func getHandlers(t *testing.T, handlers pathHandlers) pathHandlers {
+	t.Helper()
+	path := path.Join(prefix, types.GetRootsPath)
+	handler, ok := handlers[path]
 	if !ok {
 		t.Fatalf("%q path not registered", types.GetRootsPath)
 	}
-	return pathHandlers{prefix + types.GetRootsPath: handler}
+	return pathHandlers{path: handler}
 }
 
-func (info handlerTestInfo) postHandlers(t *testing.T) pathHandlers {
+func postHandlers(t *testing.T, handlers pathHandlers) pathHandlers {
 	t.Helper()
-	addChainHandler, ok := info.handlers[prefix+types.AddChainPath]
+	addChainPath := path.Join(prefix, types.AddChainPath)
+	addPreChainPath := path.Join(prefix, types.AddPreChainPath)
+
+	addChainHandler, ok := handlers[addChainPath]
 	if !ok {
 		t.Fatalf("%q path not registered", types.AddPreChainStr)
 	}
-	addPreChainHandler, ok := info.handlers[prefix+types.AddPreChainPath]
+	addPreChainHandler, ok := handlers[addPreChainPath]
 	if !ok {
 		t.Fatalf("%q path not registered", types.AddPreChainStr)
 	}
 
 	return map[string]appHandler{
-		prefix + types.AddChainPath:    addChainHandler,
-		prefix + types.AddPreChainPath: addPreChainHandler,
+		addChainPath:    addChainHandler,
+		addPreChainPath: addPreChainHandler,
 	}
 }
 
 func TestPostHandlersRejectGet(t *testing.T) {
-	info := setupTest(t, []string{testdata.CACertPEM}, nil)
-	defer info.mockCtrl.Finish()
+	log := setupTestLog(t)
+	handlers := NewPathHandlers(&hOpts, log)
 
 	// Anything in the post handler list should reject GET
-	for path, handler := range info.postHandlers(t) {
+	for path, handler := range postHandlers(t, handlers) {
 		t.Run(path, func(t *testing.T) {
 			s := httptest.NewServer(handler)
 			defer s.Close()
 
-			resp, err := http.Get(s.URL + "/ct/v1/" + path)
+			resp, err := http.Get(s.URL + path)
 			if err != nil {
 				t.Fatalf("http.Get(%s)=(_,%q); want (_,nil)", path, err)
 			}
@@ -170,16 +213,16 @@ func TestPostHandlersRejectGet(t *testing.T) {
 }
 
 func TestGetHandlersRejectPost(t *testing.T) {
-	info := setupTest(t, []string{testdata.CACertPEM}, nil)
-	defer info.mockCtrl.Finish()
+	log := setupTestLog(t)
+	handlers := NewPathHandlers(&hOpts, log)
 
 	// Anything in the get handler list should reject POST.
-	for path, handler := range info.getHandlers(t) {
+	for path, handler := range getHandlers(t, handlers) {
 		t.Run(path, func(t *testing.T) {
 			s := httptest.NewServer(handler)
 			defer s.Close()
 
-			resp, err := http.Post(s.URL+"/ct/v1/"+path, "application/json", nil)
+			resp, err := http.Post(s.URL+path, "application/json", nil)
 			if err != nil {
 				t.Fatalf("http.Post(%s)=(_,%q); want (_,nil)", path, err)
 			}
@@ -203,14 +246,15 @@ func TestPostHandlersFailure(t *testing.T) {
 		{"wrong-chain", strings.NewReader(`{ "chain": [ "test" ] }`), http.StatusBadRequest},
 	}
 
-	info := setupTest(t, []string{testdata.CACertPEM}, nil)
-	defer info.mockCtrl.Finish()
-	for path, handler := range info.postHandlers(t) {
+	log := setupTestLog(t)
+	handlers := NewPathHandlers(&hOpts, log)
+
+	for path, handler := range postHandlers(t, handlers) {
 		t.Run(path, func(t *testing.T) {
 			s := httptest.NewServer(handler)
 
 			for _, test := range tests {
-				resp, err := http.Post(s.URL+"/ct/v1/"+path, "application/json", test.body)
+				resp, err := http.Post(s.URL+path, "application/json", test.body)
 				if err != nil {
 					t.Errorf("http.Post(%s,%s)=(_,%q); want (_,nil)", path, test.descr, err)
 					continue
@@ -223,11 +267,10 @@ func TestPostHandlersFailure(t *testing.T) {
 	}
 }
 
-func TestHandlers(t *testing.T) {
-	info := setupTest(t, nil, nil)
-	defer info.mockCtrl.Finish()
+func TestNewPathHandlers(t *testing.T) {
+	log := setupTestLog(t)
 	t.Run("Handlers", func(t *testing.T) {
-		handlers := info.handlers
+		handlers := NewPathHandlers(&HandlerOptions{}, log)
 		// Check each entrypoint has a handler
 		if got, want := len(handlers), len(entrypoints); got != want {
 			t.Fatalf("len(info.handler)=%d; want %d", got, want)
@@ -247,6 +290,7 @@ func TestHandlers(t *testing.T) {
 			t.Errorf("Handler names mismatch got: %v, want: %v", hNames, entrypoints)
 		}
 
+		entrypaths := []string{prefix + types.AddChainPath, prefix + types.AddPreChainPath, prefix + types.GetRootsPath}
 		if !cmp.Equal(entrypaths, hPaths, cmpopts.SortSlices(func(n1, n2 string) bool {
 			return n1 < n2
 		})) {
@@ -255,35 +299,64 @@ func TestHandlers(t *testing.T) {
 	})
 }
 
-func parseChain(t *testing.T, isPrecert bool, pemChain []string, root *x509.Certificate) (*ctonly.Entry, []*x509.Certificate) {
-	t.Helper()
-	pool := loadCertsIntoPoolOrDie(t, pemChain)
-	leafChain := pool.RawCertificates()
-	if !leafChain[len(leafChain)-1].Equal(root) {
-		// The submitted chain may not include a root, but the generated LogLeaf will
-		fullChain := make([]*x509.Certificate, len(leafChain)+1)
-		copy(fullChain, leafChain)
-		fullChain[len(leafChain)] = root
-		leafChain = fullChain
-	}
-	entry, err := entryFromChain(leafChain, isPrecert, fakeTimeMillis)
+// TODO(phboneff): use this in followup PR. Leaving here for now to make
+// diffs easier to digest in PRs.
+// func parseChain(t *testing.T, isPrecert bool, pemChain []string, root *x509.Certificate) (*ctonly.Entry, []*x509.Certificate) {
+// 	t.Helper()
+// 	pool := loadCertsIntoPoolOrDie(t, pemChain)
+// 	leafChain := pool.RawCertificates()
+// 	if !leafChain[len(leafChain)-1].Equal(root) {
+// 		// The submitted chain may not include a root, but the generated LogLeaf will
+// 		fullChain := make([]*x509.Certificate, len(leafChain)+1)
+// 		copy(fullChain, leafChain)
+// 		fullChain[len(leafChain)] = root
+// 		leafChain = fullChain
+// 	}
+// 	entry, err := entryFromChain(leafChain, isPrecert, fakeTimeMillis)
+// 	if err != nil {
+// 		t.Fatalf("failed to create entry")
+// 	}
+// 	return entry, leafChain
+// }
+
+func TestGetRoots(t *testing.T) {
+	log := setupTestLog(t)
+	server := setupTestServer(t, log, path.Join(prefix, types.GetRootsPath))
+	defer server.Close()
+
+	resp, err := http.Get(server.URL + path.Join(prefix, types.GetRootsPath))
 	if err != nil {
-		t.Fatalf("failed to create entry")
+		t.Fatalf("Failed to get roots: %v", err)
 	}
-	return entry, leafChain
+
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("Unexpected status code: %v", resp.StatusCode)
+	}
+
+	var roots types.GetRootsResponse
+	err = json.NewDecoder(resp.Body).Decode(&roots)
+	if err != nil {
+		t.Errorf("Failed to decode response: %v", err)
+	}
+
+	if got, want := len(roots.Certificates), 1; got != want {
+		t.Errorf("Unexpected number of certificates: got %d, want %d", got, want)
+	}
+
+	got, err := base64.StdEncoding.DecodeString(roots.Certificates[0])
+	if err != nil {
+		t.Errorf("Failed to decode certificate: %v", err)
+	}
+	want, _ := pem.Decode([]byte(testdata.CACertPEM))
+	if !bytes.Equal(got, want.Bytes) {
+		t.Errorf("Unexpected root: got %s, want %s", roots.Certificates[0], base64.StdEncoding.EncodeToString(want.Bytes))
+	}
 }
 
+// TODO(phboneff): this could just be a parseBodyJSONChain test
 func TestAddChainWhitespace(t *testing.T) {
-	signer, err := setupSigner(fakeSignature)
-	if err != nil {
-		t.Fatalf("Failed to create test signer: %v", err)
-	}
-
-	info := setupTest(t, []string{testdata.CACertPEM}, signer)
-	defer info.mockCtrl.Finish()
-
 	// Throughout we use variants of a hard-coded POST body derived from a chain of:
-	pemChain := []string{testdata.CertFromIntermediate, testdata.IntermediateFromRoot}
+	// testdata.LeafSignedByFakeIntermediateCertPEM, testdata.FakeIntermediateCertPEM
 	cert, rest := pem.Decode([]byte(testdata.CertFromIntermediate))
 	if len(rest) > 0 {
 		t.Fatalf("got %d bytes remaining after decoding cert, want 0", len(rest))
@@ -304,9 +377,6 @@ func TestAddChainWhitespace(t *testing.T) {
 	// followed by comma then
 	chunk2 := "\"" + intermediateB64 + "\""
 	epilog := "]}\n"
-
-	req, leafChain := parseChain(t, false, pemChain, info.roots.RawCertificates()[0])
-	rsp := tessera.Index{Index: 0}
 
 	var tests = []struct {
 		descr string
@@ -340,28 +410,18 @@ func TestAddChainWhitespace(t *testing.T) {
 		},
 	}
 
+	log := setupTestLog(t)
+	server := setupTestServer(t, log, path.Join(prefix, types.AddChainPath))
+	defer server.Close()
+
 	for _, test := range tests {
 		t.Run(test.descr, func(t *testing.T) {
-			if test.want == http.StatusOK {
-				info.storage.EXPECT().GetCertDedupInfo(deadlineMatcher(), cmpMatcher{leafChain[0]}).Return(dedup.SCTDedupInfo{Idx: uint64(0), Timestamp: fakeTimeMillis}, false, nil)
-				info.storage.EXPECT().AddIssuerChain(deadlineMatcher(), cmpMatcher{leafChain[1:]}).Return(nil)
-				info.storage.EXPECT().Add(deadlineMatcher(), cmpMatcher{req}).Return(func() (tessera.Index, error) { return rsp, nil })
-				info.storage.EXPECT().AddCertDedupInfo(deadlineMatcher(), cmpMatcher{leafChain[0]}, dedup.SCTDedupInfo{Idx: uint64(0), Timestamp: fakeTimeMillis}).Return(nil)
-			}
-
-			recorder := httptest.NewRecorder()
-			handler, ok := info.handlers["/example.com/ct/v1/add-chain"]
-			if !ok {
-				t.Fatalf("%q path not registered", types.AddChainStr)
-			}
-			req, err := http.NewRequest(http.MethodPost, "http://example.com/ct/v1/add-chain", strings.NewReader(test.body))
+			resp, err := http.Post(server.URL+types.AddChainPath, "application/json", strings.NewReader(test.body))
 			if err != nil {
-				t.Fatalf("Failed to create POST request: %v", err)
+				t.Fatalf("http.Post(%s)=(_,%q); want (_,nil)", types.AddChainPath, err)
 			}
-			handler.ServeHTTP(recorder, req)
-
-			if recorder.Code != test.want {
-				t.Fatalf("addChain()=%d (body:%v); want %dv", recorder.Code, recorder.Body, test.want)
+			if got, want := resp.StatusCode, test.want; got != want {
+				t.Errorf("http.Post(%s)=(%d,nil); want (%d,nil)", types.AddChainPath, got, want)
 			}
 		})
 	}
@@ -371,10 +431,8 @@ func TestAddChain(t *testing.T) {
 	var tests = []struct {
 		descr string
 		chain []string
-		// TODO(phboneff): can this be removed?
-		toSign string // hex-encoded
-		want   int
-		err    error
+		want  int
+		err   error
 	}{
 		{
 			descr: "leaf-only",
@@ -387,87 +445,65 @@ func TestAddChain(t *testing.T) {
 			want:  http.StatusBadRequest,
 		},
 		{
-			descr:  "backend-storage-fail",
-			chain:  []string{testdata.CertFromIntermediate, testdata.IntermediateFromRoot},
-			toSign: "1337d72a403b6539f58896decba416d5d4b3603bfa03e1f94bb9b4e898af897d",
-			want:   http.StatusInternalServerError,
-			err:    status.Errorf(codes.Internal, "error"),
+			descr: "success-without-root",
+			chain: []string{testdata.CertFromIntermediate, testdata.IntermediateFromRoot},
+			want:  http.StatusOK,
 		},
 		{
-			descr:  "success-without-root",
-			chain:  []string{testdata.CertFromIntermediate, testdata.IntermediateFromRoot},
-			toSign: "1337d72a403b6539f58896decba416d5d4b3603bfa03e1f94bb9b4e898af897d",
-			want:   http.StatusOK,
-		},
-		{
-			descr:  "success",
-			chain:  []string{testdata.CertFromIntermediate, testdata.IntermediateFromRoot, testdata.CACertPEM},
-			toSign: "1337d72a403b6539f58896decba416d5d4b3603bfa03e1f94bb9b4e898af897d",
-			want:   http.StatusOK,
+			descr: "success",
+			chain: []string{testdata.CertFromIntermediate, testdata.IntermediateFromRoot, testdata.CACertPEM},
+			want:  http.StatusOK,
 		},
 	}
 
-	signer, err := setupSigner(fakeSignature)
-	if err != nil {
-		t.Fatalf("Failed to create test signer: %v", err)
-	}
-
-	info := setupTest(t, []string{testdata.CACertPEM}, signer)
-	defer info.mockCtrl.Finish()
+	log := setupTestLog(t)
+	server := setupTestServer(t, log, path.Join(prefix, types.AddChainPath))
+	defer server.Close()
 
 	for _, test := range tests {
 		t.Run(test.descr, func(t *testing.T) {
 			pool := loadCertsIntoPoolOrDie(t, test.chain)
 			chain := createJSONChain(t, *pool)
-			if len(test.toSign) > 0 {
-				req, leafChain := parseChain(t, false, test.chain, info.roots.RawCertificates()[0])
-				rsp := tessera.Index{Index: 0}
-				info.storage.EXPECT().GetCertDedupInfo(deadlineMatcher(), cmpMatcher{leafChain[0]}).Return(dedup.SCTDedupInfo{Idx: uint64(0), Timestamp: fakeTimeMillis}, false, nil)
-				info.storage.EXPECT().AddIssuerChain(deadlineMatcher(), cmpMatcher{leafChain[1:]}).Return(nil)
-				info.storage.EXPECT().Add(deadlineMatcher(), cmpMatcher{req}).Return(func() (tessera.Index, error) { return rsp, test.err })
-				if test.want == http.StatusOK {
-					info.storage.EXPECT().AddCertDedupInfo(deadlineMatcher(), cmpMatcher{leafChain[0]}, dedup.SCTDedupInfo{Idx: uint64(0), Timestamp: fakeTimeMillis}).Return(nil)
-				}
-			}
 
-			recorder := makeAddChainRequest(t, info.handlers, chain)
-			if recorder.Code != test.want {
-				t.Fatalf("addChain()=%d (body:%v); want %dv", recorder.Code, recorder.Body, test.want)
+			resp, err := http.Post(server.URL+types.AddChainPath, "application/json", chain)
+			if err != nil {
+				t.Fatalf("http.Post(%s)=(_,%q); want (_,nil)", types.AddChainPath, err)
+			}
+			if got, want := resp.StatusCode, test.want; got != want {
+				t.Errorf("http.Post(%s)=(%d,nil); want (%d,nil)", types.AddChainPath, got, want)
 			}
 			if test.want == http.StatusOK {
-				var resp types.AddChainResponse
-				if err := json.NewDecoder(recorder.Body).Decode(&resp); err != nil {
-					t.Fatalf("json.Decode(%s)=%v; want nil", recorder.Body.Bytes(), err)
+				var gotRsp types.AddChainResponse
+				if err := json.NewDecoder(resp.Body).Decode(&gotRsp); err != nil {
+					t.Fatalf("json.Decode()=%v; want nil", err)
 				}
-
-				if got, want := types.Version(resp.SCTVersion), types.V1; got != want {
+				if got, want := types.Version(gotRsp.SCTVersion), types.V1; got != want {
 					t.Errorf("resp.SCTVersion=%v; want %v", got, want)
 				}
-				if got, want := resp.ID, demoLogID[:]; !bytes.Equal(got, want) {
+				if got, want := gotRsp.ID, demoLogID[:]; !bytes.Equal(got, want) {
 					t.Errorf("resp.ID=%v; want %v", got, want)
 				}
-				if got, want := resp.Timestamp, uint64(1469185273000); got != want {
+				if got, want := gotRsp.Timestamp, fakeTimeMillis; got != want {
 					t.Errorf("resp.Timestamp=%d; want %d", got, want)
 				}
-				if got, want := hex.EncodeToString(resp.Signature), "040300067369676e6564"; got != want {
+				if got, want := hex.EncodeToString(gotRsp.Signature), "040300067369676e6564"; got != want {
 					t.Errorf("resp.Signature=%s; want %s", got, want)
 				}
+				// TODO(phboneff): read from the log and compare values
+				// TODO(phboneff): add a test with a backend write failure
 				// TODO(phboneff): check that the index is in the SCT
-				// TODO(phboneff): add a test with a not after range
-				// TODO(phboneff): add a test with a start date only
+				// TODO(phboneff): add duplicate tests
 			}
 		})
 	}
 }
 
-func TestAddPrechain(t *testing.T) {
+func TestAddPreChain(t *testing.T) {
 	var tests = []struct {
-		descr  string
-		chain  []string
-		root   string
-		toSign string // hex-encoded
-		err    error
-		want   int
+		descr string
+		chain []string
+		want  int
+		err   error
 	}{
 		{
 			descr: "leaf-signed-by-different",
@@ -480,75 +516,59 @@ func TestAddPrechain(t *testing.T) {
 			want:  http.StatusBadRequest,
 		},
 		{
-			descr:  "backend-storage-fail",
-			chain:  []string{testdata.PrecertPEMValid, testdata.CACertPEM},
-			toSign: "92ecae1a2dc67a6c5f9c96fa5cab4c2faf27c48505b696dad926f161b0ca675a",
-			err:    status.Errorf(codes.Internal, "error"),
-			want:   http.StatusInternalServerError,
+			descr: "success",
+			chain: []string{testdata.PrecertPEMValid, testdata.CACertPEM},
+			want:  http.StatusOK,
 		},
 		{
-			descr:  "success",
-			chain:  []string{testdata.PrecertPEMValid, testdata.CACertPEM},
-			toSign: "92ecae1a2dc67a6c5f9c96fa5cab4c2faf27c48505b696dad926f161b0ca675a",
-			want:   http.StatusOK,
+			descr: "success-with-intermediate",
+			chain: []string{testdata.PreCertFromIntermediate, testdata.IntermediateFromRoot, testdata.CACertPEM},
+			want:  http.StatusOK,
 		},
 		{
-			descr:  "success-without-root",
-			chain:  []string{testdata.PrecertPEMValid},
-			toSign: "92ecae1a2dc67a6c5f9c96fa5cab4c2faf27c48505b696dad926f161b0ca675a",
-			want:   http.StatusOK,
+			descr: "success-without-root",
+			chain: []string{testdata.PrecertPEMValid},
+			want:  http.StatusOK,
 		},
-		// TODO(phboneff): add a test with an intermediate
-		// TODO(phboneff): add a test with a pre-issuer intermediate cert
-		// TODO(phboneff): add a test with a not after range
-		// TODO(phboneff): add a test with a start date only
 	}
 
-	signer, err := setupSigner(fakeSignature)
-	if err != nil {
-		t.Fatalf("Failed to create test signer: %v", err)
-	}
-
-	info := setupTest(t, []string{testdata.CACertPEM}, signer)
-	defer info.mockCtrl.Finish()
+	log := setupTestLog(t)
+	server := setupTestServer(t, log, path.Join(prefix, types.AddPreChainPath))
+	defer server.Close()
 
 	for _, test := range tests {
 		t.Run(test.descr, func(t *testing.T) {
 			pool := loadCertsIntoPoolOrDie(t, test.chain)
 			chain := createJSONChain(t, *pool)
-			if len(test.toSign) > 0 {
-				req, leafChain := parseChain(t, true, test.chain, info.roots.RawCertificates()[0])
-				rsp := tessera.Index{Index: 0}
-				info.storage.EXPECT().GetCertDedupInfo(deadlineMatcher(), cmpMatcher{leafChain[0]}).Return(dedup.SCTDedupInfo{Idx: uint64(0), Timestamp: fakeTimeMillis}, false, nil)
-				info.storage.EXPECT().AddIssuerChain(deadlineMatcher(), cmpMatcher{leafChain[1:]}).Return(nil)
-				info.storage.EXPECT().Add(deadlineMatcher(), cmpMatcher{req}).Return(func() (tessera.Index, error) { return rsp, test.err })
-				if test.want == http.StatusOK {
-					info.storage.EXPECT().AddCertDedupInfo(deadlineMatcher(), cmpMatcher{leafChain[0]}, dedup.SCTDedupInfo{Idx: uint64(0), Timestamp: fakeTimeMillis}).Return(nil)
-				}
-			}
 
-			recorder := makeAddPrechainRequest(t, info.handlers, chain)
-			if recorder.Code != test.want {
-				t.Fatalf("addPrechain()=%d (body:%v); want %d", recorder.Code, recorder.Body, test.want)
+			resp, err := http.Post(server.URL+types.AddPreChainPath, "application/json", chain)
+			if err != nil {
+				t.Fatalf("http.Post(%s)=(_,%q); want (_,nil)", types.AddPreChainPath, err)
+			}
+			if got, want := resp.StatusCode, test.want; got != want {
+				t.Errorf("http.Post(%s)=(%d,nil); want (%d,nil)", types.AddPreChainPath, got, want)
 			}
 			if test.want == http.StatusOK {
-				var resp types.AddChainResponse
-				if err := json.NewDecoder(recorder.Body).Decode(&resp); err != nil {
-					t.Fatalf("json.Decode(%s)=%v; want nil", recorder.Body.Bytes(), err)
+				var gotRsp types.AddChainResponse
+				if err := json.NewDecoder(resp.Body).Decode(&gotRsp); err != nil {
+					t.Fatalf("json.Decode()=%v; want nil", err)
 				}
-
-				if got, want := types.Version(resp.SCTVersion), types.V1; got != want {
+				if got, want := types.Version(gotRsp.SCTVersion), types.V1; got != want {
 					t.Errorf("resp.SCTVersion=%v; want %v", got, want)
 				}
-				if got, want := resp.ID, demoLogID[:]; !bytes.Equal(got, want) {
-					t.Errorf("resp.ID=%x; want %x", got, want)
+				if got, want := gotRsp.ID, demoLogID[:]; !bytes.Equal(got, want) {
+					t.Errorf("resp.ID=%v; want %v", got, want)
 				}
-				if got, want := resp.Timestamp, fakeTimeMillis; got != want {
+				if got, want := gotRsp.Timestamp, fakeTimeMillis; got != want {
 					t.Errorf("resp.Timestamp=%d; want %d", got, want)
 				}
-				if got, want := hex.EncodeToString(resp.Signature), "040300067369676e6564"; got != want {
+				if got, want := hex.EncodeToString(gotRsp.Signature), "040300067369676e6564"; got != want {
 					t.Errorf("resp.Signature=%s; want %s", got, want)
 				}
+				// TODO(phboneff): read from the log and compare values
+				// TODO(phboneff): add a test with a backend write failure
+				// TODO(phboneff): check that the index is in the SCT
+				// TODO(phboneff): add duplicate tests
 			}
 		})
 	}
@@ -576,62 +596,6 @@ func createJSONChain(t *testing.T, p x509util.PEMCertPool) io.Reader {
 	return bufio.NewReader(&buffer)
 }
 
-type dlMatcher struct {
-}
-
-func deadlineMatcher() gomock.Matcher {
-	return dlMatcher{}
-}
-
-func (d dlMatcher) Matches(x any) bool {
-	ctx, ok := x.(context.Context)
-	if !ok {
-		return false
-	}
-
-	deadlineTime, ok := ctx.Deadline()
-	if !ok {
-		return false // we never make calls without a deadline set
-	}
-
-	return deadlineTime.Equal(fakeDeadlineTime)
-}
-
-func (d dlMatcher) String() string {
-	return fmt.Sprintf("deadline is %v", fakeDeadlineTime)
-}
-
-func makeAddPrechainRequest(t *testing.T, handlers pathHandlers, body io.Reader) *httptest.ResponseRecorder {
-	t.Helper()
-	handler, ok := handlers[prefix+types.AddPreChainPath]
-	if !ok {
-		t.Fatalf("%q path not registered", types.AddPreChainStr)
-	}
-	return makeAddChainRequestInternal(t, handler, "add-pre-chain", body)
-}
-
-func makeAddChainRequest(t *testing.T, handlers pathHandlers, body io.Reader) *httptest.ResponseRecorder {
-	t.Helper()
-	handler, ok := handlers[prefix+types.AddChainPath]
-	if !ok {
-		t.Fatalf("%q path not registered", types.AddChainStr)
-	}
-	return makeAddChainRequestInternal(t, handler, "add-chain", body)
-}
-
-func makeAddChainRequestInternal(t *testing.T, handler appHandler, path string, body io.Reader) *httptest.ResponseRecorder {
-	t.Helper()
-	req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("http://example.com/ct/v1/%s", path), body)
-	if err != nil {
-		t.Fatalf("Failed to create POST request: %v", err)
-	}
-
-	w := httptest.NewRecorder()
-	handler.ServeHTTP(w, req)
-
-	return w
-}
-
 func loadCertsIntoPoolOrDie(t *testing.T, certs []string) *x509util.PEMCertPool {
 	t.Helper()
 	pool := x509util.NewPEMCertPool()
@@ -641,15 +605,4 @@ func loadCertsIntoPoolOrDie(t *testing.T, certs []string) *x509util.PEMCertPool 
 		}
 	}
 	return pool
-}
-
-// cmpMatcher is a custom gomock.Matcher that uses cmp.Equal combined with a
-// cmp.Comparer that knows how to properly compare proto.Message types.
-type cmpMatcher struct{ want any }
-
-func (m cmpMatcher) Matches(got any) bool {
-	return cmp.Equal(got, m.want, cmp.Comparer(proto.Equal))
-}
-func (m cmpMatcher) String() string {
-	return fmt.Sprintf("equals %v", m.want)
 }

@@ -334,3 +334,8 @@ type AddChainResponse struct {
 	Extensions string  `json:"extensions"`  // Holder for any CT extensions
 	Signature  []byte  `json:"signature"`   // Log signature for this SCT
 }
+
+// GetRootsResponse represents the JSON response to the get-roots GET method from section 4.7.
+type GetRootsResponse struct {
+	Certificates []string `json:"certificates"`
+}
