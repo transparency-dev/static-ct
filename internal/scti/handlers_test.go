@@ -34,7 +34,7 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/transparency-dev/static-ct/internal/testdata"
 	"github.com/transparency-dev/static-ct/internal/testonly/storage/posix"
-	"github.com/transparency-dev/static-ct/internal/types"
+	"github.com/transparency-dev/static-ct/internal/types/rfc6962"
 	"github.com/transparency-dev/static-ct/internal/x509util"
 	"github.com/transparency-dev/static-ct/storage"
 	"github.com/transparency-dev/static-ct/storage/bbolt"
@@ -163,26 +163,26 @@ func newPosixStorageFunc(t *testing.T) storage.CreateStorage {
 
 func getHandlers(t *testing.T, handlers pathHandlers) pathHandlers {
 	t.Helper()
-	path := path.Join(prefix, types.GetRootsPath)
+	path := path.Join(prefix, rfc6962.GetRootsPath)
 	handler, ok := handlers[path]
 	if !ok {
-		t.Fatalf("%q path not registered", types.GetRootsPath)
+		t.Fatalf("%q path not registered", rfc6962.GetRootsPath)
 	}
 	return pathHandlers{path: handler}
 }
 
 func postHandlers(t *testing.T, handlers pathHandlers) pathHandlers {
 	t.Helper()
-	addChainPath := path.Join(prefix, types.AddChainPath)
-	addPreChainPath := path.Join(prefix, types.AddPreChainPath)
+	addChainPath := path.Join(prefix, rfc6962.AddChainPath)
+	addPreChainPath := path.Join(prefix, rfc6962.AddPreChainPath)
 
 	addChainHandler, ok := handlers[addChainPath]
 	if !ok {
-		t.Fatalf("%q path not registered", types.AddPreChainStr)
+		t.Fatalf("%q path not registered", rfc6962.AddPreChainStr)
 	}
 	addPreChainHandler, ok := handlers[addPreChainPath]
 	if !ok {
-		t.Fatalf("%q path not registered", types.AddPreChainStr)
+		t.Fatalf("%q path not registered", rfc6962.AddPreChainStr)
 	}
 
 	return map[string]appHandler{
@@ -290,7 +290,7 @@ func TestNewPathHandlers(t *testing.T) {
 			t.Errorf("Handler names mismatch got: %v, want: %v", hNames, entrypoints)
 		}
 
-		entrypaths := []string{prefix + types.AddChainPath, prefix + types.AddPreChainPath, prefix + types.GetRootsPath}
+		entrypaths := []string{prefix + rfc6962.AddChainPath, prefix + rfc6962.AddPreChainPath, prefix + rfc6962.GetRootsPath}
 		if !cmp.Equal(entrypaths, hPaths, cmpopts.SortSlices(func(n1, n2 string) bool {
 			return n1 < n2
 		})) {
@@ -321,10 +321,10 @@ func TestNewPathHandlers(t *testing.T) {
 
 func TestGetRoots(t *testing.T) {
 	log := setupTestLog(t)
-	server := setupTestServer(t, log, path.Join(prefix, types.GetRootsPath))
+	server := setupTestServer(t, log, path.Join(prefix, rfc6962.GetRootsPath))
 	defer server.Close()
 
-	resp, err := http.Get(server.URL + path.Join(prefix, types.GetRootsPath))
+	resp, err := http.Get(server.URL + path.Join(prefix, rfc6962.GetRootsPath))
 	if err != nil {
 		t.Fatalf("Failed to get roots: %v", err)
 	}
@@ -333,7 +333,7 @@ func TestGetRoots(t *testing.T) {
 		t.Errorf("Unexpected status code: %v", resp.StatusCode)
 	}
 
-	var roots types.GetRootsResponse
+	var roots rfc6962.GetRootsResponse
 	err = json.NewDecoder(resp.Body).Decode(&roots)
 	if err != nil {
 		t.Errorf("Failed to decode response: %v", err)
@@ -411,17 +411,17 @@ func TestAddChainWhitespace(t *testing.T) {
 	}
 
 	log := setupTestLog(t)
-	server := setupTestServer(t, log, path.Join(prefix, types.AddChainPath))
+	server := setupTestServer(t, log, path.Join(prefix, rfc6962.AddChainPath))
 	defer server.Close()
 
 	for _, test := range tests {
 		t.Run(test.descr, func(t *testing.T) {
-			resp, err := http.Post(server.URL+types.AddChainPath, "application/json", strings.NewReader(test.body))
+			resp, err := http.Post(server.URL+rfc6962.AddChainPath, "application/json", strings.NewReader(test.body))
 			if err != nil {
-				t.Fatalf("http.Post(%s)=(_,%q); want (_,nil)", types.AddChainPath, err)
+				t.Fatalf("http.Post(%s)=(_,%q); want (_,nil)", rfc6962.AddChainPath, err)
 			}
 			if got, want := resp.StatusCode, test.want; got != want {
-				t.Errorf("http.Post(%s)=(%d,nil); want (%d,nil)", types.AddChainPath, got, want)
+				t.Errorf("http.Post(%s)=(%d,nil); want (%d,nil)", rfc6962.AddChainPath, got, want)
 			}
 		})
 	}
@@ -457,7 +457,7 @@ func TestAddChain(t *testing.T) {
 	}
 
 	log := setupTestLog(t)
-	server := setupTestServer(t, log, path.Join(prefix, types.AddChainPath))
+	server := setupTestServer(t, log, path.Join(prefix, rfc6962.AddChainPath))
 	defer server.Close()
 
 	for _, test := range tests {
@@ -465,19 +465,19 @@ func TestAddChain(t *testing.T) {
 			pool := loadCertsIntoPoolOrDie(t, test.chain)
 			chain := createJSONChain(t, *pool)
 
-			resp, err := http.Post(server.URL+types.AddChainPath, "application/json", chain)
+			resp, err := http.Post(server.URL+rfc6962.AddChainPath, "application/json", chain)
 			if err != nil {
-				t.Fatalf("http.Post(%s)=(_,%q); want (_,nil)", types.AddChainPath, err)
+				t.Fatalf("http.Post(%s)=(_,%q); want (_,nil)", rfc6962.AddChainPath, err)
 			}
 			if got, want := resp.StatusCode, test.want; got != want {
-				t.Errorf("http.Post(%s)=(%d,nil); want (%d,nil)", types.AddChainPath, got, want)
+				t.Errorf("http.Post(%s)=(%d,nil); want (%d,nil)", rfc6962.AddChainPath, got, want)
 			}
 			if test.want == http.StatusOK {
-				var gotRsp types.AddChainResponse
+				var gotRsp rfc6962.AddChainResponse
 				if err := json.NewDecoder(resp.Body).Decode(&gotRsp); err != nil {
 					t.Fatalf("json.Decode()=%v; want nil", err)
 				}
-				if got, want := types.Version(gotRsp.SCTVersion), types.V1; got != want {
+				if got, want := rfc6962.Version(gotRsp.SCTVersion), rfc6962.V1; got != want {
 					t.Errorf("resp.SCTVersion=%v; want %v", got, want)
 				}
 				if got, want := gotRsp.ID, demoLogID[:]; !bytes.Equal(got, want) {
@@ -533,7 +533,7 @@ func TestAddPreChain(t *testing.T) {
 	}
 
 	log := setupTestLog(t)
-	server := setupTestServer(t, log, path.Join(prefix, types.AddPreChainPath))
+	server := setupTestServer(t, log, path.Join(prefix, rfc6962.AddPreChainPath))
 	defer server.Close()
 
 	for _, test := range tests {
@@ -541,19 +541,19 @@ func TestAddPreChain(t *testing.T) {
 			pool := loadCertsIntoPoolOrDie(t, test.chain)
 			chain := createJSONChain(t, *pool)
 
-			resp, err := http.Post(server.URL+types.AddPreChainPath, "application/json", chain)
+			resp, err := http.Post(server.URL+rfc6962.AddPreChainPath, "application/json", chain)
 			if err != nil {
-				t.Fatalf("http.Post(%s)=(_,%q); want (_,nil)", types.AddPreChainPath, err)
+				t.Fatalf("http.Post(%s)=(_,%q); want (_,nil)", rfc6962.AddPreChainPath, err)
 			}
 			if got, want := resp.StatusCode, test.want; got != want {
-				t.Errorf("http.Post(%s)=(%d,nil); want (%d,nil)", types.AddPreChainPath, got, want)
+				t.Errorf("http.Post(%s)=(%d,nil); want (%d,nil)", rfc6962.AddPreChainPath, got, want)
 			}
 			if test.want == http.StatusOK {
-				var gotRsp types.AddChainResponse
+				var gotRsp rfc6962.AddChainResponse
 				if err := json.NewDecoder(resp.Body).Decode(&gotRsp); err != nil {
 					t.Fatalf("json.Decode()=%v; want nil", err)
 				}
-				if got, want := types.Version(gotRsp.SCTVersion), types.V1; got != want {
+				if got, want := rfc6962.Version(gotRsp.SCTVersion), rfc6962.V1; got != want {
 					t.Errorf("resp.SCTVersion=%v; want %v", got, want)
 				}
 				if got, want := gotRsp.ID, demoLogID[:]; !bytes.Equal(got, want) {
@@ -576,7 +576,7 @@ func TestAddPreChain(t *testing.T) {
 
 func createJSONChain(t *testing.T, p x509util.PEMCertPool) io.Reader {
 	t.Helper()
-	var req types.AddChainRequest
+	var req rfc6962.AddChainRequest
 	for _, rawCert := range p.RawCertificates() {
 		req.Chain = append(req.Chain, rawCert.Raw)
 	}

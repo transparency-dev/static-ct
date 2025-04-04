@@ -30,7 +30,7 @@ import (
 	"time"
 
 	"github.com/transparency-dev/static-ct/internal/client"
-	"github.com/transparency-dev/static-ct/internal/types"
+	"github.com/transparency-dev/static-ct/internal/types/rfc6962"
 	"golang.org/x/crypto/cryptobyte"
 	"k8s.io/klog/v2"
 )
@@ -235,7 +235,7 @@ func (rr *roundRobinLeafWriter) next() LeafWriter {
 // index from the extensions and timestamp from the response.
 // Code is inspired by https://github.com/FiloSottile/sunlight/blob/main/tile.go.
 func parseAddChainResponse(body []byte) (uint64, uint64, error) {
-	var resp types.AddChainResponse
+	var resp rfc6962.AddChainResponse
 	if err := json.Unmarshal(body, &resp); err != nil {
 		return 0, 0, fmt.Errorf("can't parse add-chain response: %v", err)
 	}

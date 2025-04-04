@@ -24,7 +24,7 @@ import (
 	"time"
 
 	tfl "github.com/transparency-dev/formats/log"
-	"github.com/transparency-dev/static-ct/internal/types"
+	"github.com/transparency-dev/static-ct/internal/types/rfc6962"
 	"github.com/transparency-dev/static-ct/internal/types/tls"
 	"golang.org/x/mod/sumdb/note"
 )
@@ -32,25 +32,25 @@ import (
 const nanosPerMilli int64 = int64(time.Millisecond / time.Nanosecond)
 
 // signSCT builds an SCT for a leaf.
-type signSCT func(leaf *types.MerkleTreeLeaf) (*types.SignedCertificateTimestamp, error)
+type signSCT func(leaf *rfc6962.MerkleTreeLeaf) (*rfc6962.SignedCertificateTimestamp, error)
 
 // serializeSCTSignatureInput serializes the passed in sct and log entry into
 // the correct format for signing.
-func serializeSCTSignatureInput(sct types.SignedCertificateTimestamp, entry types.LogEntry) ([]byte, error) {
+func serializeSCTSignatureInput(sct rfc6962.SignedCertificateTimestamp, entry rfc6962.LogEntry) ([]byte, error) {
 	switch sct.SCTVersion {
-	case types.V1:
-		input := types.CertificateTimestamp{
+	case rfc6962.V1:
+		input := rfc6962.CertificateTimestamp{
 			SCTVersion:    sct.SCTVersion,
-			SignatureType: types.CertificateTimestampSignatureType,
+			SignatureType: rfc6962.CertificateTimestampSignatureType,
 			Timestamp:     sct.Timestamp,
 			EntryType:     entry.Leaf.TimestampedEntry.EntryType,
 			Extensions:    sct.Extensions,
 		}
 		switch entry.Leaf.TimestampedEntry.EntryType {
-		case types.X509LogEntryType:
+		case rfc6962.X509LogEntryType:
 			input.X509Entry = entry.Leaf.TimestampedEntry.X509Entry
-		case types.PrecertLogEntryType:
-			input.PrecertEntry = &types.PreCert{
+		case rfc6962.PrecertLogEntryType:
+			input.PrecertEntry = &rfc6962.PreCert{
 				IssuerKeyHash:  entry.Leaf.TimestampedEntry.PrecertEntry.IssuerKeyHash,
 				TBSCertificate: entry.Leaf.TimestampedEntry.PrecertEntry.TBSCertificate,
 			}
@@ -65,14 +65,14 @@ func serializeSCTSignatureInput(sct types.SignedCertificateTimestamp, entry type
 
 // TODO(phboneff): create an SCTSigner object
 // TODO(phboneff): see if we can change leaf to idx and entry
-func buildV1SCT(signer crypto.Signer, leaf *types.MerkleTreeLeaf) (*types.SignedCertificateTimestamp, error) {
+func buildV1SCT(signer crypto.Signer, leaf *rfc6962.MerkleTreeLeaf) (*rfc6962.SignedCertificateTimestamp, error) {
 	// Serialize SCT signature input to get the bytes that need to be signed
-	sctInput := types.SignedCertificateTimestamp{
-		SCTVersion: types.V1,
+	sctInput := rfc6962.SignedCertificateTimestamp{
+		SCTVersion: rfc6962.V1,
 		Timestamp:  leaf.TimestampedEntry.Timestamp,
 		Extensions: leaf.TimestampedEntry.Extensions,
 	}
-	data, err := serializeSCTSignatureInput(sctInput, types.LogEntry{Leaf: *leaf})
+	data, err := serializeSCTSignatureInput(sctInput, rfc6962.LogEntry{Leaf: *leaf})
 	if err != nil {
 		return nil, fmt.Errorf("failed to serialize SCT data: %v", err)
 	}
@@ -83,7 +83,7 @@ func buildV1SCT(signer crypto.Signer, leaf *types.MerkleTreeLeaf) (*types.Signed
 		return nil, fmt.Errorf("failed to sign SCT data: %v", err)
 	}
 
-	digitallySigned := types.DigitallySigned{
+	digitallySigned := rfc6962.DigitallySigned{
 		Algorithm: tls.SignatureAndHashAlgorithm{
 			Hash:      tls.SHA256,
 			Signature: tls.SignatureAlgorithmFromPubKey(signer.Public()),
@@ -96,9 +96,9 @@ func buildV1SCT(signer crypto.Signer, leaf *types.MerkleTreeLeaf) (*types.Signed
 		return nil, fmt.Errorf("failed to get logID for signing: %v", err)
 	}
 
-	return &types.SignedCertificateTimestamp{
-		SCTVersion: types.V1,
-		LogID:      types.LogID{KeyID: logID},
+	return &rfc6962.SignedCertificateTimestamp{
+		SCTVersion: rfc6962.V1,
+		LogID:      rfc6962.LogID{KeyID: logID},
 		Timestamp:  sctInput.Timestamp,
 		Extensions: sctInput.Extensions,
 		Signature:  digitallySigned,
@@ -107,21 +107,21 @@ func buildV1SCT(signer crypto.Signer, leaf *types.MerkleTreeLeaf) (*types.Signed
 
 type rfc6962NoteSignature struct {
 	timestamp uint64
-	signature types.DigitallySigned
+	signature rfc6962.DigitallySigned
 }
 
 // serializeSTHSignatureInput serializes the passed in STH into the correct
 // format for signing.
-func serializeSTHSignatureInput(sth types.SignedTreeHead) ([]byte, error) {
+func serializeSTHSignatureInput(sth rfc6962.SignedTreeHead) ([]byte, error) {
 	switch sth.Version {
-	case types.V1:
+	case rfc6962.V1:
 		if len(sth.SHA256RootHash) != crypto.SHA256.Size() {
 			return nil, fmt.Errorf("invalid TreeHash length, got %d expected %d", len(sth.SHA256RootHash), crypto.SHA256.Size())
 		}
 
-		input := types.TreeHeadSignature{
+		input := rfc6962.TreeHeadSignature{
 			Version:        sth.Version,
-			SignatureType:  types.TreeHashSignatureType,
+			SignatureType:  rfc6962.TreeHashSignatureType,
 			Timestamp:      sth.Timestamp,
 			TreeSize:       sth.TreeSize,
 			SHA256RootHash: sth.SHA256RootHash,
@@ -135,8 +135,8 @@ func serializeSTHSignatureInput(sth types.SignedTreeHead) ([]byte, error) {
 // buildCp builds a https://c2sp.org/static-ct-api checkpoint.
 // TODO(phboneff): add tests
 func buildCp(signer crypto.Signer, size uint64, timeMilli uint64, hash []byte) ([]byte, error) {
-	sth := types.SignedTreeHead{
-		Version:   types.V1,
+	sth := rfc6962.SignedTreeHead{
+		Version:   rfc6962.V1,
 		TreeSize:  size,
 		Timestamp: timeMilli,
 	}
@@ -155,7 +155,7 @@ func buildCp(signer crypto.Signer, size uint64, timeMilli uint64, hash []byte) (
 
 	rfc6962Note := rfc6962NoteSignature{
 		timestamp: sth.Timestamp,
-		signature: types.DigitallySigned{
+		signature: rfc6962.DigitallySigned{
 			Algorithm: tls.SignatureAndHashAlgorithm{
 				Hash:      tls.SHA256,
 				Signature: tls.SignatureAlgorithmFromPubKey(signer.Public()),

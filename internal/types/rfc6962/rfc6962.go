@@ -1,4 +1,4 @@
-package types
+package rfc6962
 
 import (
 	"crypto/sha256"

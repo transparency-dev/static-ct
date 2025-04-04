@@ -26,7 +26,7 @@ import (
 
 	"github.com/kylelemons/godebug/pretty"
 	"github.com/transparency-dev/static-ct/internal/testdata"
-	"github.com/transparency-dev/static-ct/internal/types"
+	"github.com/transparency-dev/static-ct/internal/types/rfc6962"
 	"github.com/transparency-dev/static-ct/internal/types/tls"
 	"github.com/transparency-dev/static-ct/internal/x509util"
 )
@@ -100,23 +100,23 @@ const (
 		"696d757374626565786163746c7974686972747974776f62797465736c6f6e67"
 )
 
-func defaultSCTLogID() types.LogID {
-	var id types.LogID
+func defaultSCTLogID() rfc6962.LogID {
+	var id rfc6962.LogID
 	copy(id.KeyID[:], defaultSCTLogIDString)
 	return id
 }
 
-func defaultSCTSignature() types.DigitallySigned {
-	var ds types.DigitallySigned
+func defaultSCTSignature() rfc6962.DigitallySigned {
+	var ds rfc6962.DigitallySigned
 	if _, err := tls.Unmarshal([]byte(defaultSCTSignatureString), &ds); err != nil {
 		panic(err)
 	}
 	return ds
 }
 
-func defaultSCT() types.SignedCertificateTimestamp {
-	return types.SignedCertificateTimestamp{
-		SCTVersion: types.V1,
+func defaultSCT() rfc6962.SignedCertificateTimestamp {
+	return rfc6962.SignedCertificateTimestamp{
+		SCTVersion: rfc6962.V1,
 		LogID:      defaultSCTLogID(),
 		Timestamp:  defaultSCTTimestamp,
 		Extensions: []byte{},
@@ -136,16 +136,16 @@ func defaultCertificateSCTSignatureInput(t *testing.T) []byte {
 	return r
 }
 
-func defaultCertificateLogEntry() types.LogEntry {
-	return types.LogEntry{
+func defaultCertificateLogEntry() rfc6962.LogEntry {
+	return rfc6962.LogEntry{
 		Index: 1,
-		Leaf: types.MerkleTreeLeaf{
-			Version:  types.V1,
-			LeafType: types.TimestampedEntryLeafType,
-			TimestampedEntry: &types.TimestampedEntry{
+		Leaf: rfc6962.MerkleTreeLeaf{
+			Version:  rfc6962.V1,
+			LeafType: rfc6962.TimestampedEntryLeafType,
+			TimestampedEntry: &rfc6962.TimestampedEntry{
 				Timestamp: defaultSCTTimestamp,
-				EntryType: types.X509LogEntryType,
-				X509Entry: &types.ASN1Cert{Data: defaultCertificate()},
+				EntryType: rfc6962.X509LogEntryType,
+				X509Entry: &rfc6962.ASN1Cert{Data: defaultCertificate()},
 			},
 		},
 	}
@@ -170,16 +170,16 @@ func defaultPrecertIssuerHash() [32]byte {
 	return b
 }
 
-func defaultPrecertLogEntry() types.LogEntry {
-	return types.LogEntry{
+func defaultPrecertLogEntry() rfc6962.LogEntry {
+	return rfc6962.LogEntry{
 		Index: 1,
-		Leaf: types.MerkleTreeLeaf{
-			Version:  types.V1,
-			LeafType: types.TimestampedEntryLeafType,
-			TimestampedEntry: &types.TimestampedEntry{
+		Leaf: rfc6962.MerkleTreeLeaf{
+			Version:  rfc6962.V1,
+			LeafType: rfc6962.TimestampedEntryLeafType,
+			TimestampedEntry: &rfc6962.TimestampedEntry{
 				Timestamp: defaultSCTTimestamp,
-				EntryType: types.PrecertLogEntryType,
-				PrecertEntry: &types.PreCert{
+				EntryType: rfc6962.PrecertLogEntryType,
+				PrecertEntry: &rfc6962.PreCert{
 					IssuerKeyHash:  defaultPrecertIssuerHash(),
 					TBSCertificate: defaultPrecertTBS(),
 				},
@@ -188,14 +188,14 @@ func defaultPrecertLogEntry() types.LogEntry {
 	}
 }
 
-func defaultSTH() types.SignedTreeHead {
-	var root types.SHA256Hash
+func defaultSTH() rfc6962.SignedTreeHead {
+	var root rfc6962.SHA256Hash
 	copy(root[:], "imustbeexactlythirtytwobyteslong")
-	return types.SignedTreeHead{
+	return rfc6962.SignedTreeHead{
 		TreeSize:       6,
 		Timestamp:      2345,
 		SHA256RootHash: root,
-		TreeHeadSignature: types.DigitallySigned{
+		TreeHeadSignature: rfc6962.DigitallySigned{
 			Algorithm: tls.SignatureAndHashAlgorithm{
 				Hash:      tls.SHA256,
 				Signature: tls.ECDSA},
@@ -259,7 +259,7 @@ func TestBuildV1MerkleTreeLeafForCert(t *testing.T) {
 	if err != nil {
 		t.Fatalf("buildV1MerkleTreeLeafForCert()=nil,%v; want _,nil", err)
 	}
-	var leaf types.MerkleTreeLeaf
+	var leaf rfc6962.MerkleTreeLeaf
 	leafValue := entry.MerkleTreeLeaf(uint64(fakeIndex))
 	if rest, err := tls.Unmarshal(leafValue, &leaf); err != nil {
 		t.Fatalf("failed to reconstruct MerkleTreeLeaf: %s", err)
@@ -271,12 +271,12 @@ func TestBuildV1MerkleTreeLeafForCert(t *testing.T) {
 		t.Fatalf("buildV1SCT()=nil,%v; want _,nil", err)
 	}
 
-	expected := types.SignedCertificateTimestamp{
+	expected := rfc6962.SignedCertificateTimestamp{
 		SCTVersion: 0,
-		LogID:      types.LogID{KeyID: demoLogID},
+		LogID:      rfc6962.LogID{KeyID: demoLogID},
 		Timestamp:  fixedTimeMillis,
-		Extensions: types.CTExtensions(fakeExtension),
-		Signature: types.DigitallySigned{
+		Extensions: rfc6962.CTExtensions(fakeExtension),
+		Signature: rfc6962.DigitallySigned{
 			Algorithm: tls.SignatureAndHashAlgorithm{
 				Hash:      tls.SHA256,
 				Signature: tls.ECDSA},
@@ -289,13 +289,13 @@ func TestBuildV1MerkleTreeLeafForCert(t *testing.T) {
 	}
 
 	// Additional checks that the MerkleTreeLeaf we built is correct
-	if got, want := leaf.Version, types.V1; got != want {
+	if got, want := leaf.Version, rfc6962.V1; got != want {
 		t.Fatalf("Got a %v leaf, expected a %v leaf", got, want)
 	}
-	if got, want := leaf.LeafType, types.TimestampedEntryLeafType; got != want {
+	if got, want := leaf.LeafType, rfc6962.TimestampedEntryLeafType; got != want {
 		t.Fatalf("Got leaf type %v, expected %v", got, want)
 	}
-	if got, want := leaf.TimestampedEntry.EntryType, types.X509LogEntryType; got != want {
+	if got, want := leaf.TimestampedEntry.EntryType, rfc6962.X509LogEntryType; got != want {
 		t.Fatalf("Got entry type %v, expected %v", got, want)
 	}
 	if got, want := leaf.TimestampedEntry.Timestamp, got.Timestamp; got != want {
@@ -322,7 +322,7 @@ func TestSignV1SCTForPrecertificate(t *testing.T) {
 	if err != nil {
 		t.Fatalf("buildV1MerkleTreeLeafForCert()=nil,%v; want _,nil", err)
 	}
-	var leaf types.MerkleTreeLeaf
+	var leaf rfc6962.MerkleTreeLeaf
 	leafValue := entry.MerkleTreeLeaf(uint64(fakeIndex))
 	if rest, err := tls.Unmarshal(leafValue, &leaf); err != nil {
 		t.Fatalf("failed to reconstruct MerkleTreeLeaf: %s", err)
@@ -335,12 +335,12 @@ func TestSignV1SCTForPrecertificate(t *testing.T) {
 		t.Fatalf("buildV1SCT()=nil,%v; want _,nil", err)
 	}
 
-	expected := types.SignedCertificateTimestamp{
+	expected := rfc6962.SignedCertificateTimestamp{
 		SCTVersion: 0,
-		LogID:      types.LogID{KeyID: demoLogID},
+		LogID:      rfc6962.LogID{KeyID: demoLogID},
 		Timestamp:  fixedTimeMillis,
-		Extensions: types.CTExtensions(fakeExtension),
-		Signature: types.DigitallySigned{
+		Extensions: rfc6962.CTExtensions(fakeExtension),
+		Signature: rfc6962.DigitallySigned{
 			Algorithm: tls.SignatureAndHashAlgorithm{
 				Hash:      tls.SHA256,
 				Signature: tls.ECDSA},
@@ -351,13 +351,13 @@ func TestSignV1SCTForPrecertificate(t *testing.T) {
 	}
 
 	// Additional checks that the MerkleTreeLeaf we built is correct
-	if got, want := leaf.Version, types.V1; got != want {
+	if got, want := leaf.Version, rfc6962.V1; got != want {
 		t.Fatalf("Got a %v leaf, expected a %v leaf", got, want)
 	}
-	if got, want := leaf.LeafType, types.TimestampedEntryLeafType; got != want {
+	if got, want := leaf.LeafType, rfc6962.TimestampedEntryLeafType; got != want {
 		t.Fatalf("Got leaf type %v, expected %v", got, want)
 	}
-	if got, want := leaf.TimestampedEntry.EntryType, types.PrecertLogEntryType; got != want {
+	if got, want := leaf.TimestampedEntry.EntryType, rfc6962.PrecertLogEntryType; got != want {
 		t.Fatalf("Got entry type %v, expected %v", got, want)
 	}
 	if got, want := got.Timestamp, leaf.TimestampedEntry.Timestamp; got != want {
