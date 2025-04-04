@@ -17,7 +17,6 @@ package loadtest
 import (
 	"bytes"
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -31,7 +30,7 @@ import (
 
 	"github.com/transparency-dev/static-ct/internal/client"
 	"github.com/transparency-dev/static-ct/internal/types/rfc6962"
-	"golang.org/x/crypto/cryptobyte"
+	"github.com/transparency-dev/static-ct/internal/types/staticct"
 	"k8s.io/klog/v2"
 )
 
@@ -240,41 +239,9 @@ func parseAddChainResponse(body []byte) (uint64, uint64, error) {
 		return 0, 0, fmt.Errorf("can't parse add-chain response: %v", err)
 	}
 
-	extensionBytes, err := base64.StdEncoding.DecodeString(resp.Extensions)
+	leafIdx, err := staticct.ParseCTExtensions(resp.Extensions)
 	if err != nil {
-		return 0, 0, fmt.Errorf("can't decode extensions: %v", err)
-	}
-	extensions := cryptobyte.String(extensionBytes)
-	var extensionType uint8
-	var extensionData cryptobyte.String
-	var leafIdx int64
-	if !extensions.ReadUint8(&extensionType) {
-		return 0, 0, fmt.Errorf("can't read extension type")
-	}
-	if extensionType != 0 {
-		return 0, 0, fmt.Errorf("wrong extension type %d, want 0", extensionType)
-	}
-	if !extensions.ReadUint16LengthPrefixed(&extensionData) {
-		return 0, 0, fmt.Errorf("can't read extension data")
-	}
-	if !readUint40(&extensionData, &leafIdx) {
-		return 0, 0, fmt.Errorf("can't read leaf index from extension")
-	}
-	if !extensionData.Empty() ||
-		!extensions.Empty() {
-		return 0, 0, fmt.Errorf("invalid data tile extensions: %v", resp.Extensions)
+		return 0, 0, fmt.Errorf("can't parse extensions: %v", err)
 	}
 	return uint64(leafIdx), resp.Timestamp, nil
-}
-
-// readUint40 decodes a big-endian, 40-bit value into out and advances over it.
-// It reports whether the read was successful.
-// Code is copied from https://github.com/FiloSottile/sunlight/blob/main/extensions.go.
-func readUint40(s *cryptobyte.String, out *int64) bool {
-	var v []byte
-	if !s.ReadBytes(&v, 5) {
-		return false
-	}
-	*out = int64(v[0])<<32 | int64(v[1])<<24 | int64(v[2])<<16 | int64(v[3])<<8 | int64(v[4])
-	return true
 }
