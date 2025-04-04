@@ -35,6 +35,7 @@ import (
 	"github.com/transparency-dev/static-ct/internal/testdata"
 	"github.com/transparency-dev/static-ct/internal/testonly/storage/posix"
 	"github.com/transparency-dev/static-ct/internal/types/rfc6962"
+	"github.com/transparency-dev/static-ct/internal/types/staticct"
 	"github.com/transparency-dev/static-ct/internal/x509util"
 	"github.com/transparency-dev/static-ct/storage"
 	"github.com/transparency-dev/static-ct/storage/bbolt"
@@ -429,10 +430,11 @@ func TestAddChainWhitespace(t *testing.T) {
 
 func TestAddChain(t *testing.T) {
 	var tests = []struct {
-		descr string
-		chain []string
-		want  int
-		err   error
+		descr   string
+		chain   []string
+		want    int
+		wantIdx uint64
+		err     error
 	}{
 		{
 			descr: "leaf-only",
@@ -445,14 +447,28 @@ func TestAddChain(t *testing.T) {
 			want:  http.StatusBadRequest,
 		},
 		{
-			descr: "success-without-root",
-			chain: []string{testdata.CertFromIntermediate, testdata.IntermediateFromRoot},
-			want:  http.StatusOK,
+			descr:   "success",
+			chain:   []string{testdata.CertFromIntermediate, testdata.IntermediateFromRoot, testdata.CACertPEM},
+			wantIdx: 0,
+			want:    http.StatusOK,
 		},
 		{
-			descr: "success",
-			chain: []string{testdata.CertFromIntermediate, testdata.IntermediateFromRoot, testdata.CACertPEM},
-			want:  http.StatusOK,
+			descr:   "success-duplicate",
+			chain:   []string{testdata.CertFromIntermediate, testdata.IntermediateFromRoot, testdata.CACertPEM},
+			wantIdx: 0,
+			want:    http.StatusOK,
+		},
+		{
+			descr:   "success-not-duplicate",
+			chain:   []string{testdata.TestCertPEM, testdata.CACertPEM},
+			wantIdx: 1,
+			want:    http.StatusOK,
+		},
+		{
+			descr:   "success-without-root",
+			chain:   []string{testdata.CertFromIntermediate, testdata.IntermediateFromRoot},
+			wantIdx: 0,
+			want:    http.StatusOK,
 		},
 	}
 
@@ -489,10 +505,15 @@ func TestAddChain(t *testing.T) {
 				if got, want := hex.EncodeToString(gotRsp.Signature), "040300067369676e6564"; got != want {
 					t.Errorf("resp.Signature=%s; want %s", got, want)
 				}
+				idx, err := staticct.ParseCTExtensions(gotRsp.Extensions)
+				if err != nil {
+					t.Errorf("failed to parse extensions %q: %v", gotRsp.Extensions, err)
+				}
+				if got, want := idx, test.wantIdx; got != want {
+					t.Errorf("resp.Extensions.Index=%d; want %d", got, want)
+				}
 				// TODO(phboneff): read from the log and compare values
 				// TODO(phboneff): add a test with a backend write failure
-				// TODO(phboneff): check that the index is in the SCT
-				// TODO(phboneff): add duplicate tests
 			}
 		})
 	}
@@ -500,10 +521,11 @@ func TestAddChain(t *testing.T) {
 
 func TestAddPreChain(t *testing.T) {
 	var tests = []struct {
-		descr string
-		chain []string
-		want  int
-		err   error
+		descr   string
+		chain   []string
+		want    int
+		wantIdx uint64
+		err     error
 	}{
 		{
 			descr: "leaf-signed-by-different",
@@ -516,19 +538,28 @@ func TestAddPreChain(t *testing.T) {
 			want:  http.StatusBadRequest,
 		},
 		{
-			descr: "success",
-			chain: []string{testdata.PrecertPEMValid, testdata.CACertPEM},
-			want:  http.StatusOK,
+			descr:   "success",
+			chain:   []string{testdata.PrecertPEMValid, testdata.CACertPEM},
+			want:    http.StatusOK,
+			wantIdx: 0,
 		},
 		{
-			descr: "success-with-intermediate",
-			chain: []string{testdata.PreCertFromIntermediate, testdata.IntermediateFromRoot, testdata.CACertPEM},
-			want:  http.StatusOK,
+			descr:   "success-duplicate",
+			chain:   []string{testdata.PrecertPEMValid, testdata.CACertPEM},
+			want:    http.StatusOK,
+			wantIdx: 0,
 		},
 		{
-			descr: "success-without-root",
-			chain: []string{testdata.PrecertPEMValid},
-			want:  http.StatusOK,
+			descr:   "success-with-intermediate",
+			chain:   []string{testdata.PreCertFromIntermediate, testdata.IntermediateFromRoot, testdata.CACertPEM},
+			want:    http.StatusOK,
+			wantIdx: 1,
+		},
+		{
+			descr:   "success-without-root",
+			chain:   []string{testdata.PrecertPEMValid},
+			want:    http.StatusOK,
+			wantIdx: 0,
 		},
 	}
 
@@ -565,10 +596,15 @@ func TestAddPreChain(t *testing.T) {
 				if got, want := hex.EncodeToString(gotRsp.Signature), "040300067369676e6564"; got != want {
 					t.Errorf("resp.Signature=%s; want %s", got, want)
 				}
+				idx, err := staticct.ParseCTExtensions(gotRsp.Extensions)
+				if err != nil {
+					t.Errorf("failed to parse extensions %q: %v", gotRsp.Extensions, err)
+				}
+				if got, want := idx, test.wantIdx; got != want {
+					t.Errorf("resp.Extensions.Index=%d; want %d", got, want)
+				}
 				// TODO(phboneff): read from the log and compare values
 				// TODO(phboneff): add a test with a backend write failure
-				// TODO(phboneff): check that the index is in the SCT
-				// TODO(phboneff): add duplicate tests
 			}
 		})
 	}
