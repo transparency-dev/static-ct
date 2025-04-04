@@ -24,11 +24,16 @@ variable "github_owner" {
 }
 
 variable "submission_url" {
-  description = "Submission URL of the destination log"
+  description = "Submission URL of the destination static-ct-api log"
   type        = string
 }
 
 variable "monitoring_url" {
-  description = "Monitoring URL of the destination log"
+  description = "Monitoring URL of the destination static-ct-api log"
+  type        = string
+}
+
+variable "source_log_uri" {
+  description = "URL of the source RFC6962 log"
   type        = string
 }

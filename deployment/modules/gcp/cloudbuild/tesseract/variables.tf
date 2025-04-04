@@ -22,3 +22,8 @@ variable "github_owner" {
   description = "GitHub owner used in Cloud Build trigger repository mapping"
   type        = string
 }
+
+variable "source_log_uri" {
+  description = "URL of the source RFC6962 log to be preloaded."
+  type        = string
+}
