@@ -79,7 +79,7 @@ func (f *fixedTimeSource) Now() time.Time {
 	return f.fakeTime
 }
 
-// setupTestLog creates test TesseraCT log using a POSIX backend.
+// setupTestLog creates a test TesseraCT log using a POSIX backend.
 func setupTestLog(t *testing.T) *log {
 	t.Helper()
 
@@ -90,7 +90,7 @@ func setupTestLog(t *testing.T) *log {
 
 	roots := x509util.NewPEMCertPool()
 	if err := roots.AppendCertsFromPEMFile(testRootPath); err != nil {
-		t.Fatalf("failed to read trusted roots: %v", err)
+		t.Fatalf("Failed to read trusted roots: %v", err)
 	}
 
 	cvOpts := ChainValidationOpts{

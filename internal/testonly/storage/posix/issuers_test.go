@@ -16,6 +16,7 @@ package posix
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -77,14 +78,14 @@ func TestKeyToObjName(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name:    "key with slash",
-			key:     []byte("issuer/1"),
+			name:    "key with os.PathSeparator",
+			key:     []byte(fmt.Sprintf("issuer%s1", string(os.PathSeparator))),
 			want:    "",
 			wantErr: true,
 		},
 		{
 			name:    "key with multiple slashes",
-			key:     []byte("issuer/1/2"),
+			key:     []byte(fmt.Sprintf("issuer%s1%s2", string(os.PathSeparator), string(os.PathSeparator))),
 			want:    "",
 			wantErr: true,
 		},

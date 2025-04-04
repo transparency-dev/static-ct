@@ -52,7 +52,7 @@ func (s IssuersStorage) keyToObjName(key []byte) (string, error) {
 	if string(key) == "" {
 		return "", fmt.Errorf("key cannot be empty")
 	}
-	if strings.Contains(string(key), "/") {
+	if strings.Contains(string(key), string(os.PathSeparator)) {
 		return "", fmt.Errorf("key %q cannot contain '/'", string(key))
 	}
 	return path.Join(string(s), string(key)), nil
