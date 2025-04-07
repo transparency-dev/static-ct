@@ -18,6 +18,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/hex"
@@ -507,7 +508,7 @@ func TestAddChain(t *testing.T) {
 				t.Errorf("http.Post(%s)=(%d,nil); want (%d,nil)", rfc6962.AddChainPath, got, want)
 			}
 			if test.want == http.StatusOK {
-				unseqEntry, _ := parseChain(t, false, test.chain, log.chainValidationOpts.trustedRoots.RawCertificates()[0])
+				unseqEntry, wantIssChain := parseChain(t, false, test.chain, log.chainValidationOpts.trustedRoots.RawCertificates()[0])
 
 				var gotRsp rfc6962.AddChainResponse
 				if err := json.NewDecoder(resp.Body).Decode(&gotRsp); err != nil {
@@ -559,7 +560,20 @@ func TestAddChain(t *testing.T) {
 				if diff := cmp.Diff(wantEntry, gotEntry); diff != "" {
 					t.Errorf("Logged entry mismatch (-want +got):\n%s", diff)
 				}
-				// TODO(phbnf): check the issuer chain fingerprint
+
+				// Check that the issuers have been populated correctly.
+				for _, wantIss := range wantIssChain[1:] {
+					key := sha256.Sum256(wantIss.Raw)
+					issPath := path.Join(dir, issDir, hex.EncodeToString(key[:]))
+					gotIss, err := os.ReadFile(issPath)
+					if err != nil {
+						t.Errorf("Failed to read issuer at %q: %v", issPath, err)
+					}
+					if !bytes.Equal(gotIss, wantIss.Raw) {
+						t.Errorf("Issuer mismatch) got %s, want %s", gotIss, wantIss.Raw)
+					}
+				}
+
 				// TODO(phbnf): check inclusion proof
 				// TODO(phbnf): add a test with a backend write failure
 			}
@@ -633,7 +647,7 @@ func TestAddPreChain(t *testing.T) {
 				t.Errorf("http.Post(%s)=(%d,nil); want (%d,nil)", rfc6962.AddPreChainPath, got, want)
 			}
 			if test.want == http.StatusOK {
-				unseqEntry, _ := parseChain(t, true, test.chain, log.chainValidationOpts.trustedRoots.RawCertificates()[0])
+				unseqEntry, wantIssChain := parseChain(t, true, test.chain, log.chainValidationOpts.trustedRoots.RawCertificates()[0])
 
 				var gotRsp rfc6962.AddChainResponse
 				if err := json.NewDecoder(resp.Body).Decode(&gotRsp); err != nil {
@@ -685,7 +699,20 @@ func TestAddPreChain(t *testing.T) {
 				if diff := cmp.Diff(wantEntry, gotEntry); diff != "" {
 					t.Errorf("Logged entry mismatch (-want +got):\n%s", diff)
 				}
-				// TODO(phbnf): check the issuer chain fingerprint
+
+				// Check that the issuers have been populated correctly.
+				for _, wantIss := range wantIssChain[1:] {
+					key := sha256.Sum256(wantIss.Raw)
+					issPath := path.Join(dir, issDir, hex.EncodeToString(key[:]))
+					gotIss, err := os.ReadFile(issPath)
+					if err != nil {
+						t.Errorf("Failed to read issuer at %q: %v", issPath, err)
+					}
+					if !bytes.Equal(gotIss, wantIss.Raw) {
+						t.Errorf("Issuer mismatch) got %s, want %s", gotIss, wantIss.Raw)
+					}
+				}
+
 				// TODO(phbnf): check inclusion proof
 				// TODO(phboneff): add a test with a backend write failure
 			}
