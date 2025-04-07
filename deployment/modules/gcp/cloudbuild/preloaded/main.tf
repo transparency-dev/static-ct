@@ -112,6 +112,9 @@ resource "google_cloudbuild_trigger" "build_trigger" {
         terragrunt --terragrunt-no-color output --raw conformance_url -no-color > /workspace/conformance_url
         terragrunt --terragrunt-no-color output --raw conformance_bucket_name -no-color > /workspace/conformance_bucket_name
         terragrunt --terragrunt-no-color output --raw ecdsa_p256_public_key_data -no-color > /workspace/conformance_log_public_key.pem
+        cat /workspace/conformance_url
+        cat /workspace/conformance_bucket_name
+        cat /workspace/conformance_log_public_key.pem
       EOT
       dir    = "deployment/live/gcp/static-ct-staging/logs/arche2025h1"
       env = [
