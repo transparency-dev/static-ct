@@ -15,6 +15,7 @@
 package staticct
 
 import (
+	"bytes"
 	"encoding/base64"
 	"fmt"
 	"math"
@@ -144,4 +145,114 @@ func readUint40(s *cryptobyte.String, out *uint64) bool {
 	}
 	*out = uint64(v[0])<<32 | uint64(v[1])<<24 | uint64(v[2])<<16 | uint64(v[3])<<8 | uint64(v[4])
 	return true
+}
+
+// Entry represents a CT log entry.
+type Entry struct {
+	Timestamp uint64
+	IsPrecert bool
+	// Certificate holds different things depending on whether the entry represents a Certificate or a Precertificate submission:
+	//   - IsPrecert == false: the bytes here are the x509 certificate submitted for logging.
+	//   - IsPrecert == true: the bytes here are the TBS certificate extracted from the submitted precert.
+	Certificate []byte
+	// Precertificate holds the precertificate to be logged, only used when IsPrecert is true.
+	Precertificate    []byte
+	IssuerKeyHash     []byte
+	RawFingerprints   string
+	FingerprintsChain [][32]byte
+	RawExtensions     string
+	LeafIndex         uint64
+}
+
+// UnmarshalText implements encoding/TextUnmarshaler and reads EntryBundles
+// which are encoded using the Static CT API spec.
+func (t *Entry) UnmarshalText(raw []byte) error {
+	s := cryptobyte.String(raw)
+
+	entry := []byte{}
+	var entryType uint16
+	var extensions, fingerprints cryptobyte.String
+	if !s.ReadUint64(&t.Timestamp) || !s.ReadUint16(&entryType) || t.Timestamp > math.MaxInt64 {
+		return fmt.Errorf("invalid data tile")
+	}
+
+	bb := []byte{}
+	b := cryptobyte.NewBuilder(bb)
+	b.AddUint64(t.Timestamp)
+	b.AddUint16(entryType)
+
+	switch entryType {
+	case 0: // x509_entry
+		t.IsPrecert = false
+		if !s.ReadUint24LengthPrefixed((*cryptobyte.String)(&entry)) ||
+			!s.ReadUint16LengthPrefixed(&extensions) ||
+			!s.ReadUint16LengthPrefixed(&fingerprints) {
+			return fmt.Errorf("invalid data tile x509_entry")
+		}
+		b.AddUint24LengthPrefixed(func(b *cryptobyte.Builder) {
+			b.AddBytes(entry)
+			t.Certificate = bytes.Clone(entry)
+		})
+		b.AddUint16LengthPrefixed(func(b *cryptobyte.Builder) {
+			b.AddBytes(extensions)
+			t.RawExtensions = string(extensions)
+		})
+		b.AddUint16LengthPrefixed(func(b *cryptobyte.Builder) {
+			b.AddBytes(fingerprints)
+			t.RawFingerprints = string(fingerprints)
+		})
+
+	case 1: // precert_entry
+		t.IsPrecert = true
+		IssuerKeyHash := [32]byte{}
+		var defangedCrt, extensions cryptobyte.String
+		if !s.CopyBytes(IssuerKeyHash[:]) ||
+			!s.ReadUint24LengthPrefixed(&defangedCrt) ||
+			!s.ReadUint16LengthPrefixed(&extensions) ||
+			!s.ReadUint24LengthPrefixed((*cryptobyte.String)(&entry)) ||
+			!s.ReadUint16LengthPrefixed(&fingerprints) {
+			return fmt.Errorf("invalid data tile precert_entry")
+		}
+		b.AddBytes(IssuerKeyHash[:])
+		t.IssuerKeyHash = bytes.Clone(IssuerKeyHash[:])
+		b.AddUint24LengthPrefixed(func(b *cryptobyte.Builder) {
+			b.AddBytes(defangedCrt)
+			t.Certificate = bytes.Clone(defangedCrt)
+		})
+		b.AddUint16LengthPrefixed(func(b *cryptobyte.Builder) {
+			b.AddBytes(extensions)
+			t.RawExtensions = string(extensions)
+		})
+		b.AddUint24LengthPrefixed(func(b *cryptobyte.Builder) {
+			b.AddBytes(entry)
+			t.Precertificate = bytes.Clone(entry)
+		})
+		b.AddUint16LengthPrefixed(func(b *cryptobyte.Builder) {
+			b.AddBytes(fingerprints)
+			t.RawFingerprints = string(fingerprints)
+		})
+	default:
+		return fmt.Errorf("invalid data tile: unknown type %d", entryType)
+	}
+
+	var err error
+	t.LeafIndex, err = ParseCTExtensions(base64.StdEncoding.EncodeToString([]byte(t.RawExtensions)))
+	if err != nil {
+		return fmt.Errorf("can't parse extensions: %v", err)
+	}
+
+	rfp := cryptobyte.String(t.RawFingerprints)
+	for i := 0; len(rfp) > 0; i++ {
+		fp := [32]byte{}
+		if !rfp.CopyBytes(fp[:]) {
+			return fmt.Errorf("can't extract fingerprint number %d", i)
+		}
+		t.FingerprintsChain = append(t.FingerprintsChain, fp)
+	}
+
+	if len(s) > 0 {
+		return fmt.Errorf("trailing %d bytes after entry", len(s))
+	}
+
+	return nil
 }
