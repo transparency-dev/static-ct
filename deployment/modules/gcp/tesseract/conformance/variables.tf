@@ -33,6 +33,12 @@ variable "server_docker_image" {
   type        = string
 }
 
+variable "spanner_pu" {
+  description = "Amount of Spanner processing units"
+  type = number
+  default = 100
+}
+
 variable "ephemeral" {
   description = "Set to true if this is a throwaway/temporary log instance. Will set attributes on created resources to allow them to be disabled/deleted more easily."
   default     = false
