@@ -27,9 +27,9 @@ import (
 
 	"github.com/transparency-dev/formats/log"
 	"github.com/transparency-dev/merkle/proof"
-	"github.com/transparency-dev/merkle/rfc6962"
+	hasher "github.com/transparency-dev/merkle/rfc6962"
 	"github.com/transparency-dev/static-ct/internal/client"
-	rfc69621 "github.com/transparency-dev/static-ct/internal/types/rfc6962"
+	"github.com/transparency-dev/static-ct/internal/types/rfc6962"
 	"github.com/transparency-dev/static-ct/internal/x509util"
 	"github.com/transparency-dev/trillian-tessera/api/layout"
 	"github.com/transparency-dev/trillian-tessera/ctonly"
@@ -246,7 +246,7 @@ func (w *LogWriter) Run(ctx context.Context) {
 
 		// TODO: Remove the json.Unmarshal by generating the chain and
 		// marshaling the add chain request from w.gen() at a later stage.
-		var req rfc69621.AddChainRequest
+		var req rfc6962.AddChainRequest
 		if err := json.Unmarshal(newLeaf, &req); err != nil {
 			klog.Warningf("Failed to unmarshal add-chain request: %v", err)
 		}
@@ -365,7 +365,7 @@ func (v *MMDVerifier) Run(ctx context.Context) {
 			panic(fmt.Sprintf("Failed to create entry from chain: %v", err))
 		}
 		leafHash := entry.MerkleLeafHash(leafMMD.index)
-		if err := proof.VerifyInclusion(rfc6962.DefaultHasher, leafMMD.index, checkpoint.Size, leafHash, ip, checkpoint.Hash); err != nil {
+		if err := proof.VerifyInclusion(hasher.DefaultHasher, leafMMD.index, checkpoint.Size, leafHash, ip, checkpoint.Hash); err != nil {
 			panic(fmt.Sprintf("Failed to verify inclusion proof: %v", err))
 		}
 
@@ -449,7 +449,7 @@ func isPreIssuer(cert *x509.Certificate) bool {
 	// Look for the extension in the Extensions field and not ExtKeyUsage
 	// since crypto/x509 does not recognize this extension as an ExtKeyUsage.
 	for _, ext := range cert.Extensions {
-		if rfc69621.OIDExtKeyUsageCertificateTransparency.Equal(ext.Id) {
+		if rfc6962.OIDExtKeyUsageCertificateTransparency.Equal(ext.Id) {
 			return true
 		}
 	}
