@@ -25,7 +25,7 @@ import (
 	"time"
 
 	"github.com/transparency-dev/static-ct/internal/lax509"
-	"github.com/transparency-dev/static-ct/internal/types"
+	"github.com/transparency-dev/static-ct/internal/types/rfc6962"
 	"github.com/transparency-dev/static-ct/internal/x509util"
 	"k8s.io/klog/v2"
 )
@@ -131,7 +131,7 @@ func isPrecertificate(cert *x509.Certificate) (bool, error) {
 	}
 
 	for _, ext := range cert.Extensions {
-		if types.OIDExtensionCTPoison.Equal(ext.Id) {
+		if rfc6962.OIDExtensionCTPoison.Equal(ext.Id) {
 			if !ext.Critical || !bytes.Equal(asn1.NullBytes, ext.Value) {
 				return false, fmt.Errorf("CT poison ext is not critical or invalid: %v", ext)
 			}

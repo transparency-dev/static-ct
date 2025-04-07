@@ -8,7 +8,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/transparency-dev/static-ct/internal/types"
+	"github.com/transparency-dev/static-ct/internal/types/rfc6962"
 	"github.com/transparency-dev/static-ct/modules/dedup"
 	"github.com/transparency-dev/static-ct/storage"
 	tessera "github.com/transparency-dev/trillian-tessera"
@@ -64,7 +64,7 @@ func NewLog(ctx context.Context, origin string, signer crypto.Signer, cvOpts Cha
 		return nil, fmt.Errorf("unsupported key type: %v", keyType)
 	}
 
-	log.signSCT = func(leaf *types.MerkleTreeLeaf) (*types.SignedCertificateTimestamp, error) {
+	log.signSCT = func(leaf *rfc6962.MerkleTreeLeaf) (*rfc6962.SignedCertificateTimestamp, error) {
 		return buildV1SCT(signer, leaf)
 	}
 
