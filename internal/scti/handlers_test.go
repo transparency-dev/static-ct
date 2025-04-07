@@ -327,6 +327,7 @@ func parseChain(t *testing.T, isPrecert bool, pemChain []string, root *x509.Cert
 	if err != nil {
 		t.Fatalf("failed to create entry")
 	}
+
 	return entry, leafChain
 }
 
@@ -504,7 +505,7 @@ func TestAddChain(t *testing.T) {
 				t.Errorf("http.Post(%s)=(%d,nil); want (%d,nil)", rfc6962.AddChainPath, got, want)
 			}
 			if test.want == http.StatusOK {
-				wantEntry, _ := parseChain(t, false, test.chain, log.chainValidationOpts.trustedRoots.RawCertificates()[0])
+				unseqEntry, _ := parseChain(t, false, test.chain, log.chainValidationOpts.trustedRoots.RawCertificates()[0])
 
 				var gotRsp rfc6962.AddChainResponse
 				if err := json.NewDecoder(resp.Body).Decode(&gotRsp); err != nil {
@@ -545,9 +546,16 @@ func TestAddChain(t *testing.T) {
 				if uint64(len(eBundle.Entries)) < test.wantIdx {
 					t.Errorf("Got %d entries, want %d", len(eBundle.Entries), test.wantIdx)
 				}
-				if got, want := eBundle.Entries[test.wantIdx], wantEntry.LeafData(test.wantIdx); !bytes.Equal(got, want) {
-					// TODO(phbnf): replace with a more useful error message
-					t.Errorf("Got entry %q, want %q", got, want)
+				gotEntry := staticct.Entry{}
+				if err := gotEntry.UnmarshalText(eBundle.Entries[test.wantIdx]); err != nil {
+					t.Errorf("Failed to parse log entry: %v", err)
+				}
+				wantEntry := staticct.Entry{}
+				if err := wantEntry.UnmarshalText(unseqEntry.LeafData(test.wantIdx)); err != nil {
+					t.Errorf("Failed to parse log entry: %v", err)
+				}
+				if diff := cmp.Diff(wantEntry, gotEntry); diff != "" {
+					t.Errorf("Logged entry mismatch (-want +got):\n%s", diff)
 				}
 				// TODO(phbnf): check the issuer chain fingerprint
 				// TODO(phbnf): check inclusion proof
@@ -623,7 +631,7 @@ func TestAddPreChain(t *testing.T) {
 				t.Errorf("http.Post(%s)=(%d,nil); want (%d,nil)", rfc6962.AddPreChainPath, got, want)
 			}
 			if test.want == http.StatusOK {
-				wantEntry, _ := parseChain(t, true, test.chain, log.chainValidationOpts.trustedRoots.RawCertificates()[0])
+				unseqEntry, _ := parseChain(t, true, test.chain, log.chainValidationOpts.trustedRoots.RawCertificates()[0])
 
 				var gotRsp rfc6962.AddChainResponse
 				if err := json.NewDecoder(resp.Body).Decode(&gotRsp); err != nil {
@@ -664,9 +672,16 @@ func TestAddPreChain(t *testing.T) {
 				if uint64(len(eBundle.Entries)) < test.wantIdx {
 					t.Errorf("Got %d entries, want %d", len(eBundle.Entries), test.wantIdx)
 				}
-				if got, want := eBundle.Entries[test.wantIdx], wantEntry.LeafData(test.wantIdx); !bytes.Equal(got, want) {
-					// TODO(phbnf): replace with a more useful error message
-					t.Errorf("Got entry %q, want %q", got, want)
+				gotEntry := staticct.Entry{}
+				if err := gotEntry.UnmarshalText(eBundle.Entries[test.wantIdx]); err != nil {
+					t.Errorf("Failed to parse log entry: %v", err)
+				}
+				wantEntry := staticct.Entry{}
+				if err := wantEntry.UnmarshalText(unseqEntry.LeafData(test.wantIdx)); err != nil {
+					t.Errorf("Failed to parse log entry: %v", err)
+				}
+				if diff := cmp.Diff(wantEntry, gotEntry); diff != "" {
+					t.Errorf("Logged entry mismatch (-want +got):\n%s", diff)
 				}
 				// TODO(phbnf): check the issuer chain fingerprint
 				// TODO(phbnf): check inclusion proof
