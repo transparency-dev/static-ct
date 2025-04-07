@@ -64,6 +64,10 @@ var (
 		MaskInternalErrors: false,
 		TimeSource:         newFixedTimeSource(fakeTime),
 	}
+
+	// POSIX subdirectories
+	logDir = "log"
+	issDir = "issuers"
 )
 
 type fixedTimeSource struct {
@@ -81,8 +85,9 @@ func (f *fixedTimeSource) Now() time.Time {
 }
 
 // setupTestLog creates a test TesseraCT log using a POSIX backend.
-func setupTestLog(t *testing.T) *log {
+func setupTestLog(t *testing.T) (*log, string) {
 	t.Helper()
+	storageDir := t.TempDir()
 
 	signer, err := setupSigner(fakeSignature)
 	if err != nil {
@@ -100,12 +105,12 @@ func setupTestLog(t *testing.T) *log {
 		rejectUnexpired: false,
 	}
 
-	log, err := NewLog(t.Context(), origin, signer, cvOpts, newPosixStorageFunc(t), newFixedTimeSource(fakeTime))
+	log, err := NewLog(t.Context(), origin, signer, cvOpts, newPosixStorageFunc(t, storageDir), newFixedTimeSource(fakeTime))
 	if err != nil {
 		t.Fatalf("newLog(): %v", err)
 	}
 
-	return log
+	return log, storageDir
 }
 
 // setupTestServer creates a test TesseraCT server with a single endpoint at path.
@@ -125,10 +130,13 @@ func setupTestServer(t *testing.T, log *log, path string) *httptest.Server {
 //   - a POSIX Tessera storage driver
 //   - a POSIX issuer storage system
 //   - a BBolt deduplication database
-func newPosixStorageFunc(t *testing.T) storage.CreateStorage {
+//
+// It also prepares directories to host the log and the deduplication database.
+func newPosixStorageFunc(t *testing.T, root string) storage.CreateStorage {
 	t.Helper()
+
 	return func(ctx context.Context, signer note.Signer) (*storage.CTStorage, error) {
-		driver, err := posixTessera.New(ctx, path.Join(t.TempDir(), "log"))
+		driver, err := posixTessera.New(ctx, path.Join(root, logDir))
 		if err != nil {
 			klog.Fatalf("Failed to initialize POSIX Tessera storage driver: %v", err)
 		}
@@ -144,12 +152,12 @@ func newPosixStorageFunc(t *testing.T) storage.CreateStorage {
 			klog.Fatalf("Failed to initialize POSIX Tessera appender: %v", err)
 		}
 
-		issuerStorage, err := posix.NewIssuerStorage(t.TempDir())
+		issuerStorage, err := posix.NewIssuerStorage(path.Join(root, issDir))
 		if err != nil {
 			klog.Fatalf("failed to initialize InMemory issuer storage: %v", err)
 		}
 
-		beDedupStorage, err := bbolt.NewStorage(path.Join(t.TempDir(), "dedup.db"))
+		beDedupStorage, err := bbolt.NewStorage(path.Join(root, "dedup.db"))
 		if err != nil {
 			klog.Fatalf("Failed to initialize BBolt deduplication database: %v", err)
 		}
@@ -193,7 +201,7 @@ func postHandlers(t *testing.T, handlers pathHandlers) pathHandlers {
 }
 
 func TestPostHandlersRejectGet(t *testing.T) {
-	log := setupTestLog(t)
+	log, _ := setupTestLog(t)
 	handlers := NewPathHandlers(&hOpts, log)
 
 	// Anything in the post handler list should reject GET
@@ -214,7 +222,7 @@ func TestPostHandlersRejectGet(t *testing.T) {
 }
 
 func TestGetHandlersRejectPost(t *testing.T) {
-	log := setupTestLog(t)
+	log, _ := setupTestLog(t)
 	handlers := NewPathHandlers(&hOpts, log)
 
 	// Anything in the get handler list should reject POST.
@@ -247,7 +255,7 @@ func TestPostHandlersFailure(t *testing.T) {
 		{"wrong-chain", strings.NewReader(`{ "chain": [ "test" ] }`), http.StatusBadRequest},
 	}
 
-	log := setupTestLog(t)
+	log, _ := setupTestLog(t)
 	handlers := NewPathHandlers(&hOpts, log)
 
 	for path, handler := range postHandlers(t, handlers) {
@@ -269,7 +277,7 @@ func TestPostHandlersFailure(t *testing.T) {
 }
 
 func TestNewPathHandlers(t *testing.T) {
-	log := setupTestLog(t)
+	log, _ := setupTestLog(t)
 	t.Run("Handlers", func(t *testing.T) {
 		handlers := NewPathHandlers(&HandlerOptions{}, log)
 		// Check each entrypoint has a handler
@@ -321,7 +329,7 @@ func TestNewPathHandlers(t *testing.T) {
 // }
 
 func TestGetRoots(t *testing.T) {
-	log := setupTestLog(t)
+	log, _ := setupTestLog(t)
 	server := setupTestServer(t, log, path.Join(prefix, rfc6962.GetRootsPath))
 	defer server.Close()
 
@@ -411,7 +419,7 @@ func TestAddChainWhitespace(t *testing.T) {
 		},
 	}
 
-	log := setupTestLog(t)
+	log, _ := setupTestLog(t)
 	server := setupTestServer(t, log, path.Join(prefix, rfc6962.AddChainPath))
 	defer server.Close()
 
@@ -472,7 +480,7 @@ func TestAddChain(t *testing.T) {
 		},
 	}
 
-	log := setupTestLog(t)
+	log, _ := setupTestLog(t)
 	server := setupTestServer(t, log, path.Join(prefix, rfc6962.AddChainPath))
 	defer server.Close()
 
@@ -563,7 +571,7 @@ func TestAddPreChain(t *testing.T) {
 		},
 	}
 
-	log := setupTestLog(t)
+	log, _ := setupTestLog(t)
 	server := setupTestServer(t, log, path.Join(prefix, rfc6962.AddPreChainPath))
 	defer server.Close()
 
