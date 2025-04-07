@@ -393,6 +393,8 @@ func deadlineTime(opts *HandlerOptions) time.Time {
 
 // verifyAddChain is used by add-chain and add-pre-chain. It does the checks that the supplied
 // cert is of the correct type and chains to a trusted root.
+// TODO(phbnf): add tests
+// TODO(phbnf): move to chain_validation.go
 func verifyAddChain(log *log, req rfc6962.AddChainRequest, expectingPrecert bool) ([]*x509.Certificate, error) {
 	// We already checked that the chain is not empty so can move on to verification
 	validPath, err := validateChain(req.Chain, log.chainValidationOpts)
@@ -452,7 +454,8 @@ func marshalAndWriteAddChainResponse(sct *rfc6962.SignedCertificateTimestamp, w 
 
 // entryFromChain generates an Entry from a chain and timestamp.
 // copied from certificate-transparency-go/serialization.go
-// TODO(phboneff): move in a different file maybe?
+// TODO(phboneff): move to ct.go
+// TODO(phboneff): add tests
 func entryFromChain(chain []*x509.Certificate, isPrecert bool, timestamp uint64) (*ctonly.Entry, error) {
 	leaf := ctonly.Entry{
 		IsPrecert: isPrecert,
