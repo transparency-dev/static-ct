@@ -104,7 +104,7 @@ func (t *EntryBundle) UnmarshalText(raw []byte) error {
 	return nil
 }
 
-// parseCTExtensions parses CTEXtensions into an index.
+// parseCTExtensions parses CTExtensions into an index.
 // Code is inspired by https://github.com/FiloSottile/sunlight/blob/main/tile.go.
 func ParseCTExtensions(ext string) (uint64, error) {
 	extensionBytes, err := base64.StdEncoding.DecodeString(ext)
@@ -114,7 +114,7 @@ func ParseCTExtensions(ext string) (uint64, error) {
 	extensions := cryptobyte.String(extensionBytes)
 	var extensionType uint8
 	var extensionData cryptobyte.String
-	var leafIdx int64
+	var leafIdx uint64
 	if !extensions.ReadUint8(&extensionType) {
 		return 0, fmt.Errorf("can't read extension type")
 	}
@@ -129,19 +129,19 @@ func ParseCTExtensions(ext string) (uint64, error) {
 	}
 	if !extensionData.Empty() ||
 		!extensions.Empty() {
-		return 0, fmt.Errorf("invalid data tile extensions: %v", ext)
+		return 0, fmt.Errorf("invalid SCT extension data: %v", ext)
 	}
-	return uint64(leafIdx), nil
+	return leafIdx, nil
 }
 
 // readUint40 decodes a big-endian, 40-bit value into out and advances over it.
 // It reports whether the read was successful.
 // Code is copied from https://github.com/FiloSottile/sunlight/blob/main/extensions.go.
-func readUint40(s *cryptobyte.String, out *int64) bool {
+func readUint40(s *cryptobyte.String, out *uint64) bool {
 	var v []byte
 	if !s.ReadBytes(&v, 5) {
 		return false
 	}
-	*out = int64(v[0])<<32 | int64(v[1])<<24 | int64(v[2])<<16 | int64(v[3])<<8 | int64(v[4])
+	*out = uint64(v[0])<<32 | uint64(v[1])<<24 | uint64(v[2])<<16 | uint64(v[3])<<8 | uint64(v[4])
 	return true
 }
