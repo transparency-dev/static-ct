@@ -30,7 +30,7 @@ import (
 	"github.com/transparency-dev/merkle/compact"
 	"github.com/transparency-dev/merkle/proof"
 	"github.com/transparency-dev/merkle/rfc6962"
-	"github.com/transparency-dev/static-ct/internal/types/staticctapi"
+	"github.com/transparency-dev/static-ct/internal/types/staticct"
 	"github.com/transparency-dev/trillian-tessera/api"
 	"github.com/transparency-dev/trillian-tessera/api/layout"
 	"golang.org/x/mod/sumdb/note"
@@ -285,8 +285,8 @@ func (n *nodeCache) GetNode(ctx context.Context, id compact.NodeID) ([]byte, err
 }
 
 // GetEntryBundle fetches the entry bundle at the given _tile index_.
-func GetEntryBundle(ctx context.Context, f EntryBundleFetcherFunc, i, logSize uint64) (staticctapi.EntryBundle, error) {
-	bundle := staticctapi.EntryBundle{}
+func GetEntryBundle(ctx context.Context, f EntryBundleFetcherFunc, i, logSize uint64) (staticct.EntryBundle, error) {
+	bundle := staticct.EntryBundle{}
 	sRaw, err := f(ctx, i, layout.PartialTileSize(0, i, logSize))
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
