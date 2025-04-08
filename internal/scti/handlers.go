@@ -334,7 +334,6 @@ func addChainInternal(ctx context.Context, opts *HandlerOptions, log *log, w htt
 
 	// As the Log server has definitely got the Merkle tree leaf, we can
 	// generate an SCT and respond with it.
-	// TODO(phboneff): this should work, but double check
 	sct, err := log.signSCT(&loggedLeaf)
 	if err != nil {
 		return http.StatusInternalServerError, fmt.Errorf("failed to generate SCT: %s", err)
