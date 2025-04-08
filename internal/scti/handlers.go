@@ -345,14 +345,23 @@ func addChainInternal(ctx context.Context, opts *HandlerOptions, log *log, w htt
 }
 
 func addChain(ctx context.Context, opts *HandlerOptions, log *log, w http.ResponseWriter, r *http.Request) (int, error) {
+	ctx, span := tracer.Start(ctx, "tesseract.addChain")
+	defer span.End()
+
 	return addChainInternal(ctx, opts, log, w, r, false)
 }
 
 func addPreChain(ctx context.Context, opts *HandlerOptions, log *log, w http.ResponseWriter, r *http.Request) (int, error) {
+	ctx, span := tracer.Start(ctx, "tesseract.addPreChain")
+	defer span.End()
+
 	return addChainInternal(ctx, opts, log, w, r, true)
 }
 
-func getRoots(_ context.Context, opts *HandlerOptions, log *log, w http.ResponseWriter, _ *http.Request) (int, error) {
+func getRoots(ctx context.Context, opts *HandlerOptions, log *log, w http.ResponseWriter, _ *http.Request) (int, error) {
+	_, span := tracer.Start(ctx, "tesseract.getRoots")
+	defer span.End()
+
 	// Pull out the raw certificates from the parsed versions
 	rawCerts := make([][]byte, 0, len(log.chainValidationOpts.trustedRoots.RawCertificates()))
 	for _, cert := range log.chainValidationOpts.trustedRoots.RawCertificates() {
