@@ -196,7 +196,6 @@ func (cts *cpSigner) Sign(msg []byte) ([]byte, error) {
 		return nil, fmt.Errorf("checkpoint's origin %s doesn't match signer's origin %s", ckpt.Origin, cts.origin)
 	}
 
-	// TODO(phboneff): make sure that it's ok to generate the timestamp here
 	t := uint64(cts.timeSource.Now().UnixMilli())
 	sig, err := buildCp(cts.sthSigner, ckpt.Size, t, ckpt.Hash[:])
 	if err != nil {
@@ -240,7 +239,6 @@ func NewCpSigner(cs crypto.Signer, origin string, timeSource TimeSource) (note.S
 
 // getCTLogID takes a log public key and returns the LogID. (see RFC 6962 S3.2)
 // In CT V1 the log id is a hash of the public key.
-// TODO(phboneff): migrate to the logid package
 func getCTLogID(pk crypto.PublicKey) ([sha256.Size]byte, error) {
 	pubBytes, err := x509.MarshalPKIXPublicKey(pk)
 	if err != nil {
