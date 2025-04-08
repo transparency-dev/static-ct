@@ -40,7 +40,7 @@ type ChainValidationConfig struct {
 	// checked against the current time during the validation of submissions.
 	// This will cause expired certificates to be rejected.
 	RejectExpired bool
-	// RejectUnexpired controls if the SCTFE rejects certificates that are
+	// RejectUnexpired controls if TesseraCT rejects certificates that are
 	// either currently valid or not yet valid.
 	// TODO(phboneff): evaluate whether we need to keep this one.
 	RejectUnexpired bool
