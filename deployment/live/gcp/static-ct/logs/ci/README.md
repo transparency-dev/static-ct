@@ -40,7 +40,7 @@ Build and push the Docker image to Artifact Registry repository:
 
 ```sh
 gcloud auth configure-docker ${GOOGLE_REGION}-docker.pkg.dev
-docker build -f ./cmd/gcp/Dockerfile -t sctfe-gcp:latest .
+docker build -f ./cmd/gcp/Dockerfile -t tesseract-gcp:latest .
 docker build -f ./cmd/gcp/ci/Dockerfile -t conformance-gcp:latest .
 docker tag conformance-gcp:latest ${GOOGLE_REGION}-docker.pkg.dev/${GOOGLE_PROJECT}/docker-ci/conformance-gcp:latest
 docker push ${GOOGLE_REGION}-docker.pkg.dev/${GOOGLE_PROJECT}/docker-ci/conformance-gcp
