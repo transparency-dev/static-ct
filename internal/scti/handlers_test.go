@@ -570,7 +570,7 @@ func TestAddChain(t *testing.T) {
 						t.Errorf("Failed to read issuer at %q: %v", issPath, err)
 					}
 					if !bytes.Equal(gotIss, wantIss.Raw) {
-						t.Errorf("Issuer mismatch) got %s, want %s", gotIss, wantIss.Raw)
+						t.Errorf("Issuer mismatch: got %s, want %s", gotIss, wantIss.Raw)
 					}
 				}
 
@@ -709,7 +709,7 @@ func TestAddPreChain(t *testing.T) {
 						t.Errorf("Failed to read issuer at %q: %v", issPath, err)
 					}
 					if !bytes.Equal(gotIss, wantIss.Raw) {
-						t.Errorf("Issuer mismatch) got %s, want %s", gotIss, wantIss.Raw)
+						t.Errorf("Issuer mismatch: got %s, want %s", gotIss, wantIss.Raw)
 					}
 				}
 
