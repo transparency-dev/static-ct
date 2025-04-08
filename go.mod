@@ -4,7 +4,7 @@ go 1.24.0
 
 require (
 	cloud.google.com/go/secretmanager v1.14.6
-	cloud.google.com/go/spanner v1.78.0
+	cloud.google.com/go/spanner v1.79.0
 	cloud.google.com/go/storage v1.51.0
 	github.com/RobinUS2/golang-moving-average v1.0.0
 	github.com/aws/aws-sdk-go-v2 v1.36.3
@@ -13,18 +13,18 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/secretsmanager v1.35.3
 	github.com/aws/smithy-go v1.22.3
 	github.com/gdamore/tcell/v2 v2.8.1
-	github.com/go-sql-driver/mysql v1.9.1
+	github.com/go-sql-driver/mysql v1.9.2
 	github.com/google/go-cmp v0.7.0
 	github.com/kylelemons/godebug v1.1.0
 	github.com/prometheus/client_golang v1.21.1
 	github.com/rivo/tview v0.0.0-20240625185742-b0a7293b8130
 	github.com/transparency-dev/formats v0.0.0-20250127084410-134797944be6
 	github.com/transparency-dev/merkle v0.0.2
-	github.com/transparency-dev/trillian-tessera v0.1.2-0.20250320160837-ae724376e1ac
+	github.com/transparency-dev/trillian-tessera v0.1.2-0.20250408153912-a650aa01f2a4
 	go.etcd.io/bbolt v1.4.0
 	golang.org/x/crypto v0.37.0
 	golang.org/x/mod v0.24.0
-	golang.org/x/net v0.38.0
+	golang.org/x/net v0.39.0
 	google.golang.org/api v0.228.0
 	google.golang.org/grpc v1.71.1
 	k8s.io/klog/v2 v2.130.1
