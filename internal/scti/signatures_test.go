@@ -255,7 +255,7 @@ func TestBuildV1MerkleTreeLeafForCert(t *testing.T) {
 	}
 
 	// Use the same cert as the issuer for convenience.
-	entry, err := entryFromChain([]*x509.Certificate{cert, cert}, false, fixedTimeMillis)
+	entry, err := x509util.EntryFromChain([]*x509.Certificate{cert, cert}, false, fixedTimeMillis)
 	if err != nil {
 		t.Fatalf("buildV1MerkleTreeLeafForCert()=nil,%v; want _,nil", err)
 	}
@@ -318,7 +318,7 @@ func TestSignV1SCTForPrecertificate(t *testing.T) {
 	}
 
 	// Use the same cert as the issuer for convenience.
-	entry, err := entryFromChain([]*x509.Certificate{cert, cert}, true, fixedTimeMillis)
+	entry, err := x509util.EntryFromChain([]*x509.Certificate{cert, cert}, true, fixedTimeMillis)
 	if err != nil {
 		t.Fatalf("buildV1MerkleTreeLeafForCert()=nil,%v; want _,nil", err)
 	}

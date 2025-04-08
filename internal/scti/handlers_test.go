@@ -326,7 +326,7 @@ func parseChain(t *testing.T, isPrecert bool, pemChain []string, root *x509.Cert
 		fullChain[len(leafChain)] = root
 		leafChain = fullChain
 	}
-	entry, err := entryFromChain(leafChain, isPrecert, fakeTimeMillis)
+	entry, err := x509util.EntryFromChain(leafChain, isPrecert, fakeTimeMillis)
 	if err != nil {
 		t.Fatalf("Failed to create entry")
 	}
