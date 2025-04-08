@@ -89,6 +89,8 @@ func (f *fixedTimeSource) Now() time.Time {
 }
 
 // setupTestLog creates a test TesseraCT log using a POSIX backend.
+//
+// It returns the log and the path to the storage directory.
 func setupTestLog(t *testing.T) (*log, string) {
 	t.Helper()
 	storageDir := t.TempDir()
@@ -109,7 +111,7 @@ func setupTestLog(t *testing.T) (*log, string) {
 		rejectUnexpired: false,
 	}
 
-	log, err := NewLog(t.Context(), origin, signer, cvOpts, newPosixStorageFunc(t, storageDir), newFixedTimeSource(fakeTime))
+	log, err := NewLog(t.Context(), origin, signer, cvOpts, newPOSIXStorageFunc(t, storageDir), newFixedTimeSource(fakeTime))
 	if err != nil {
 		t.Fatalf("newLog(): %v", err)
 	}
@@ -130,13 +132,13 @@ func setupTestServer(t *testing.T, log *log, path string) *httptest.Server {
 	return httptest.NewServer(handler)
 }
 
-// newPosixStorageFunc returns a function to create a new storage.CTStorage instance with:
+// newPOSIXStorageFunc returns a function to create a new storage.CTStorage instance with:
 //   - a POSIX Tessera storage driver
 //   - a POSIX issuer storage system
 //   - a BBolt deduplication database
 //
 // It also prepares directories to host the log and the deduplication database.
-func newPosixStorageFunc(t *testing.T, root string) storage.CreateStorage {
+func newPOSIXStorageFunc(t *testing.T, root string) storage.CreateStorage {
 	t.Helper()
 
 	return func(ctx context.Context, signer note.Signer) (*storage.CTStorage, error) {
@@ -317,7 +319,7 @@ func parseChain(t *testing.T, isPrecert bool, pemChain []string, root *x509.Cert
 	pool := loadCertsIntoPoolOrDie(t, pemChain)
 	leafChain := pool.RawCertificates()
 	if !leafChain[len(leafChain)-1].Equal(root) {
-		// The submitted chain may not include a root, but the generated LogLeaf will
+		// The submitted chain may not include a root, but the generated LogLeaf will.
 		fullChain := make([]*x509.Certificate, len(leafChain)+1)
 		copy(fullChain, leafChain)
 		fullChain[len(leafChain)] = root
@@ -325,7 +327,7 @@ func parseChain(t *testing.T, isPrecert bool, pemChain []string, root *x509.Cert
 	}
 	entry, err := entryFromChain(leafChain, isPrecert, fakeTimeMillis)
 	if err != nil {
-		t.Fatalf("failed to create entry")
+		t.Fatalf("Failed to create entry")
 	}
 
 	return entry, leafChain
@@ -534,7 +536,7 @@ func TestAddChain(t *testing.T) {
 				}
 
 				// Check that the leaf bundle contains the expected leaf.
-				bPath := path.Join(dir, logDir, "tile/data", layout.NWithSuffix(0, test.wantLogSize/256, uint8(test.wantLogSize)))
+				bPath := path.Join(dir, logDir, "tile/data", layout.NWithSuffix(0, test.wantLogSize/layout.EntryBundleWidth, uint8(test.wantLogSize)))
 				bundle, err := os.ReadFile(bPath)
 				if err != nil {
 					t.Errorf("Failed to read leaf bundle at %q: %v", bPath, err)
@@ -660,7 +662,7 @@ func TestAddPreChain(t *testing.T) {
 				}
 
 				// Check that the leaf bundle contains the expected leaf.
-				bPath := path.Join(dir, logDir, "tile/data", layout.NWithSuffix(0, test.wantLogSize/256, uint8(test.wantLogSize)))
+				bPath := path.Join(dir, logDir, "tile/data", layout.NWithSuffix(0, test.wantLogSize/layout.EntryBundleWidth, uint8(test.wantLogSize)))
 				bundle, err := os.ReadFile(bPath)
 				if err != nil {
 					t.Errorf("Failed to read leaf bundle at %q: %v", bPath, err)
