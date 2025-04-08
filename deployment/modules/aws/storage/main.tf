@@ -39,3 +39,14 @@ resource "aws_rds_cluster_instance" "cluster_instances" {
 
   force_destroy = var.ephemeral
 }
+
+# Data source to get the secret details using the ARN provided by the cluster
+data "aws_secretsmanager_secret_version" "db_credentials" {
+  # The secret ARN is available in the master_user_secret block (it's a list)
+  secret_id = aws_rds_cluster.log_rds_cluster.master_user_secret[0].secret_arn
+
+  depends_on = [
+    aws_rds_cluster.log_rds_cluster,
+    aws_rds_cluster_instance.cluster_instances
+  ]
+}

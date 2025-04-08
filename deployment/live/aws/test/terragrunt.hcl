@@ -3,9 +3,9 @@ terraform {
 }
 
 locals {
-  env        = "test"
-  base_name  = get_env("TESSERA_BASE_NAME", "${local.env}-static-ct")
-  ephemeral   = true
+  env       = "test"
+  base_name = get_env("TESSERA_BASE_NAME", "${local.env}-static-ct")
+  ephemeral = true
 }
 
 include "root" {

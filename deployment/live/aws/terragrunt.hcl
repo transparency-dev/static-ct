@@ -11,12 +11,12 @@ remote_state {
   backend = "s3"
 
   config = {
-    region         = local.region
-    bucket         = "${local.prefix_name}-${local.base_name}-terraform-state"
-    key            = "terraform.tfstate"
+    region = local.region
+    bucket = "${local.prefix_name}-${local.base_name}-terraform-state"
+    key    = "terraform.tfstate"
     s3_bucket_tags = {
       name = "terraform_state_storage"
     }
-    use_lockfile   = true
+    use_lockfile = true
   }
 }
