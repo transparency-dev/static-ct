@@ -16,7 +16,6 @@ package scti
 
 import (
 	"context"
-	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -382,37 +381,6 @@ func getRoots(ctx context.Context, opts *HandlerOptions, log *log, w http.Respon
 // deadlineTime calculates the future time a request should expire based on our config.
 func deadlineTime(opts *HandlerOptions) time.Time {
 	return opts.TimeSource.Now().Add(opts.Deadline)
-}
-
-// verifyAddChain is used by add-chain and add-pre-chain. It does the checks that the supplied
-// cert is of the correct type and chains to a trusted root.
-// TODO(phbnf): add tests
-// TODO(phbnf): move to chain_validation.go
-func verifyAddChain(log *log, req rfc6962.AddChainRequest, expectingPrecert bool) ([]*x509.Certificate, error) {
-	// We already checked that the chain is not empty so can move on to verification
-	validPath, err := validateChain(req.Chain, log.chainValidationOpts)
-	if err != nil {
-		// We rejected it because the cert failed checks or we could not find a path to a root etc.
-		// Lots of possible causes for errors
-		return nil, fmt.Errorf("chain failed to verify: %s", err)
-	}
-
-	isPrecert, err := isPrecertificate(validPath[0])
-	if err != nil {
-		return nil, fmt.Errorf("precert test failed: %s", err)
-	}
-
-	// The type of the leaf must match the one the handler expects
-	if isPrecert != expectingPrecert {
-		if expectingPrecert {
-			klog.Warningf("%s: Cert (or precert with invalid CT ext) submitted as precert chain: %q", log.origin, req.Chain)
-		} else {
-			klog.Warningf("%s: Precert (or cert with invalid CT ext) submitted as cert chain: %q", log.origin, req.Chain)
-		}
-		return nil, fmt.Errorf("cert / precert mismatch: %T", expectingPrecert)
-	}
-
-	return validPath, nil
 }
 
 // marshalAndWriteAddChainResponse is used by add-chain and add-pre-chain to create and write
