@@ -85,9 +85,9 @@ func ParseOIDs(oids []string) ([]asn1.ObjectIdentifier, error) {
 	return ret, nil
 }
 
-// ChainValidationOpts contains various parameters for certificate chain validation
-type ChainValidationOpts struct {
-	// trustedRoots is a pool of certificates that defines the roots the CT log will accept
+// chainValidator contains various parameters for certificate chain validation.
+type chainValidator struct {
+	// trustedRoots is a pool of certificates that defines the roots the CT log will accept.
 	trustedRoots *x509util.PEMCertPool
 	// currentTime is the time used for checking a certificate's validity period
 	// against. If it's zero then time.Now() is used. Only for testing.
@@ -104,14 +104,14 @@ type ChainValidationOpts struct {
 	// dates strictly *before* notAfterLimit will be accepted.
 	// nil means no upper bound on the accepted range.
 	notAfterLimit *time.Time
-	// extKeyUsages contains the list of EKUs to use during chain verification
+	// extKeyUsages contains the list of EKUs to use during chain verification.
 	extKeyUsages []x509.ExtKeyUsage
 	// rejectExtIds contains a list of X.509 extension IDs to reject during chain verification.
 	rejectExtIds []asn1.ObjectIdentifier
 }
 
-func NewChainValidationOpts(trustedRoots *x509util.PEMCertPool, rejectExpired, rejectUnexpired bool, notAfterStart, notAfterLimit *time.Time, extKeyUsages []x509.ExtKeyUsage, rejectExtIds []asn1.ObjectIdentifier) ChainValidationOpts {
-	return ChainValidationOpts{
+func NewChainValidator(trustedRoots *x509util.PEMCertPool, rejectExpired, rejectUnexpired bool, notAfterStart, notAfterLimit *time.Time, extKeyUsages []x509.ExtKeyUsage, rejectExtIds []asn1.ObjectIdentifier) chainValidator {
+	return chainValidator{
 		trustedRoots:    trustedRoots,
 		rejectExpired:   rejectExpired,
 		rejectUnexpired: rejectUnexpired,
@@ -143,13 +143,12 @@ func isPrecertificate(cert *x509.Certificate) (bool, error) {
 	return false, nil
 }
 
-// validateChain takes the certificate chain as it was parsed from a JSON request. Ensures all
+// validate takes the certificate chain as it was parsed from a JSON request. Ensures all
 // elements in the chain decode as X.509 certificates. Ensures that there is a valid path from the
 // end entity certificate in the chain to a trusted root cert, possibly using the intermediates
 // supplied in the chain. Then applies the RFC requirement that the path must involve all
 // the submitted chain in the order of submission.
-// TODO(phboneff): make this a method func([][]byte) ([]*x509.Certificate, error)
-func (opts ChainValidationOpts) validateChain(rawChain [][]byte) ([]*x509.Certificate, error) {
+func (cv chainValidator) validate(rawChain [][]byte) ([]*x509.Certificate, error) {
 	if len(rawChain) == 0 {
 		return nil, errors.New("empty certificate chain")
 	}
@@ -172,8 +171,8 @@ func (opts ChainValidationOpts) validateChain(rawChain [][]byte) ([]*x509.Certif
 		}
 	}
 
-	naStart := opts.notAfterStart
-	naLimit := opts.notAfterLimit
+	naStart := cv.notAfterStart
+	naLimit := cv.notAfterLimit
 	cert := chain[0]
 
 	// Check whether the expiry date of the cert is within the acceptable range.
@@ -184,24 +183,24 @@ func (opts ChainValidationOpts) validateChain(rawChain [][]byte) ([]*x509.Certif
 		return nil, fmt.Errorf("certificate NotAfter (%v) >= %v", cert.NotAfter, *naLimit)
 	}
 
-	now := opts.currentTime
+	now := cv.currentTime
 	if now.IsZero() {
 		now = time.Now()
 	}
 	expired := now.After(cert.NotAfter)
-	if opts.rejectExpired && expired {
+	if cv.rejectExpired && expired {
 		return nil, errors.New("rejecting expired certificate")
 	}
-	if opts.rejectUnexpired && !expired {
+	if cv.rejectUnexpired && !expired {
 		return nil, errors.New("rejecting unexpired certificate")
 	}
 
 	// Check for unwanted extension types, if required.
 	// TODO(al): Refactor CertValidationOpts c'tor to a builder pattern and
 	// pre-calc this in there
-	if len(opts.rejectExtIds) != 0 {
+	if len(cv.rejectExtIds) != 0 {
 		badIDs := make(map[string]bool)
-		for _, id := range opts.rejectExtIds {
+		for _, id := range cv.rejectExtIds {
 			badIDs[id.String()] = true
 		}
 		for idx, ext := range cert.Extensions {
@@ -214,9 +213,9 @@ func (opts ChainValidationOpts) validateChain(rawChain [][]byte) ([]*x509.Certif
 
 	// TODO(al): Refactor CertValidationOpts c'tor to a builder pattern and
 	// pre-calc this in there too.
-	if len(opts.extKeyUsages) > 0 {
+	if len(cv.extKeyUsages) > 0 {
 		acceptEKUs := make(map[x509.ExtKeyUsage]bool)
-		for _, eku := range opts.extKeyUsages {
+		for _, eku := range cv.extKeyUsages {
 			acceptEKUs[eku] = true
 		}
 		good := false
@@ -227,7 +226,7 @@ func (opts ChainValidationOpts) validateChain(rawChain [][]byte) ([]*x509.Certif
 			}
 		}
 		if !good {
-			return nil, fmt.Errorf("rejecting certificate without EKU in %v", opts.extKeyUsages)
+			return nil, fmt.Errorf("rejecting certificate without EKU in %v", cv.extKeyUsages)
 		}
 	}
 
@@ -237,9 +236,9 @@ func (opts ChainValidationOpts) validateChain(rawChain [][]byte) ([]*x509.Certif
 	//  - allow certificate without policing them since this is not CT's responsibility
 	// See /internal/lax509/README.md for further information.
 	verifyOpts := lax509.VerifyOptions{
-		Roots:         opts.trustedRoots.CertPool(),
+		Roots:         cv.trustedRoots.CertPool(),
 		Intermediates: intermediatePool.CertPool(),
-		KeyUsages:     opts.extKeyUsages,
+		KeyUsages:     cv.extKeyUsages,
 	}
 
 	verifiedChains, err := lax509.Verify(cert, verifyOpts)
@@ -263,16 +262,18 @@ func (opts ChainValidationOpts) validateChain(rawChain [][]byte) ([]*x509.Certif
 	return nil, errors.New("no RFC compliant path to root found when trying to validate chain")
 }
 
-// verifyAddChain is used by add-chain and add-pre-chain. It does the checks that the supplied
-// cert is of the correct type and chains to a trusted root.
+// Validate is used by add-chain and add-pre-chain. It checks that the supplied
+// cert is of the correct type, chains to a trusted root and satisties time
+// constraints.
 // TODO(phbnf): add tests
-func (opts ChainValidationOpts) verifyAddChain(req rfc6962.AddChainRequest, expectingPrecert bool) ([]*x509.Certificate, error) {
-	// We already checked that the chain is not empty so can move on to verification
-	validPath, err := opts.validateChain(req.Chain)
+// TODO(phbnf): merge with validate
+func (cv chainValidator) Validate(req rfc6962.AddChainRequest, expectingPrecert bool) ([]*x509.Certificate, error) {
+	// We already checked that the chain is not empty so can move on to validation.
+	validPath, err := cv.validate(req.Chain)
 	if err != nil {
 		// We rejected it because the cert failed checks or we could not find a path to a root etc.
 		// Lots of possible causes for errors
-		return nil, fmt.Errorf("chain failed to verify: %s", err)
+		return nil, fmt.Errorf("chain failed to validate: %s", err)
 	}
 
 	isPrecert, err := isPrecertificate(validPath[0])
@@ -291,6 +292,10 @@ func (opts ChainValidationOpts) verifyAddChain(req rfc6962.AddChainRequest, expe
 	}
 
 	return validPath, nil
+}
+
+func (cv chainValidator) Roots() []*x509.Certificate {
+	return cv.trustedRoots.RawCertificates()
 }
 
 func chainsEquivalent(inChain []*x509.Certificate, verifiedChain []*x509.Certificate) bool {

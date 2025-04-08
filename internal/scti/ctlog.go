@@ -24,9 +24,8 @@ type log struct {
 	origin string
 	// signSCT Signs SCTs.
 	signSCT signSCT
-	// chainValidationOpts contains various parameters for certificate chain
-	// validation.
-	chainValidationOpts ChainValidationOpts
+	// chainValidator validates incoming chains.
+	chainValidator ChainValidator
 	// storage stores certificate data.
 	storage Storage
 }
@@ -43,10 +42,18 @@ type Storage interface {
 	GetCertDedupInfo(context.Context, *x509.Certificate) (dedup.SCTDedupInfo, bool, error)
 }
 
+// ChainValidator provides functions to validate incoming chains.
+type ChainValidator interface {
+	Validate(req rfc6962.AddChainRequest, expectingPrecert bool) ([]*x509.Certificate, error)
+	Roots() []*x509.Certificate
+}
+
 // NewLog instantiates a new log instance, with write endpoints.
-// It initiates chain validation to validate writes, and storage to persist
-// chains.
-func NewLog(ctx context.Context, origin string, signer crypto.Signer, cvOpts ChainValidationOpts, cs storage.CreateStorage, ts TimeSource) (*log, error) {
+// It initiates:
+//   - checkpoint signer
+//   - SCT signer
+//   - storage, used to persist chains
+func NewLog(ctx context.Context, origin string, signer crypto.Signer, cv ChainValidator, cs storage.CreateStorage, ts TimeSource) (*log, error) {
 	log := &log{}
 
 	if origin == "" {
@@ -68,7 +75,7 @@ func NewLog(ctx context.Context, origin string, signer crypto.Signer, cvOpts Cha
 		return buildV1SCT(signer, leaf)
 	}
 
-	log.chainValidationOpts = cvOpts
+	log.chainValidator = cv
 
 	cpSigner, err := NewCpSigner(signer, origin, ts)
 	if err != nil {

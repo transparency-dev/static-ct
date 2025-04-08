@@ -106,13 +106,13 @@ func setupTestLog(t *testing.T) (*log, string) {
 		t.Fatalf("Failed to read trusted roots: %v", err)
 	}
 
-	cvOpts := ChainValidationOpts{
+	cv := chainValidator{
 		trustedRoots:    roots,
 		rejectExpired:   false,
 		rejectUnexpired: false,
 	}
 
-	log, err := NewLog(t.Context(), origin, signer, cvOpts, newPOSIXStorageFunc(t, storageDir), newFixedTimeSource(fakeTime))
+	log, err := NewLog(t.Context(), origin, signer, cv, newPOSIXStorageFunc(t, storageDir), newFixedTimeSource(fakeTime))
 	if err != nil {
 		t.Fatalf("newLog(): %v", err)
 	}
@@ -508,7 +508,7 @@ func TestAddChain(t *testing.T) {
 				t.Errorf("http.Post(%s)=(%d,nil); want (%d,nil)", rfc6962.AddChainPath, got, want)
 			}
 			if test.want == http.StatusOK {
-				unseqEntry, wantIssChain := parseChain(t, false, test.chain, log.chainValidationOpts.trustedRoots.RawCertificates()[0])
+				unseqEntry, wantIssChain := parseChain(t, false, test.chain, log.chainValidator.Roots()[0])
 
 				var gotRsp rfc6962.AddChainResponse
 				if err := json.NewDecoder(resp.Body).Decode(&gotRsp); err != nil {
@@ -647,7 +647,7 @@ func TestAddPreChain(t *testing.T) {
 				t.Errorf("http.Post(%s)=(%d,nil); want (%d,nil)", rfc6962.AddPreChainPath, got, want)
 			}
 			if test.want == http.StatusOK {
-				unseqEntry, wantIssChain := parseChain(t, true, test.chain, log.chainValidationOpts.trustedRoots.RawCertificates()[0])
+				unseqEntry, wantIssChain := parseChain(t, true, test.chain, log.chainValidator.Roots()[0])
 
 				var gotRsp rfc6962.AddChainResponse
 				if err := json.NewDecoder(resp.Body).Decode(&gotRsp); err != nil {

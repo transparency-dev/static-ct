@@ -38,7 +38,7 @@ func TestNewLog(t *testing.T) {
 		desc    string
 		origin  string
 		wantErr string
-		cvOpts  ChainValidationOpts
+		cv      chainValidator
 		signer  crypto.Signer
 	}{
 		{
@@ -48,7 +48,7 @@ func TestNewLog(t *testing.T) {
 		{
 			desc:   "empty-signer",
 			origin: "testlog",
-			cvOpts: ChainValidationOpts{
+			cv: chainValidator{
 				trustedRoots: roots,
 			},
 			wantErr: "empty signer",
@@ -56,7 +56,7 @@ func TestNewLog(t *testing.T) {
 		{
 			desc:   "ok",
 			origin: "testlog",
-			cvOpts: ChainValidationOpts{
+			cv: chainValidator{
 				trustedRoots: roots,
 			},
 			signer: ecdsaSigner,
@@ -64,7 +64,7 @@ func TestNewLog(t *testing.T) {
 		{
 			desc:   "incorrect-signer-type",
 			origin: "testlog",
-			cvOpts: ChainValidationOpts{
+			cv: chainValidator{
 				trustedRoots: roots,
 			},
 			signer:  rsaSigner,
@@ -72,7 +72,7 @@ func TestNewLog(t *testing.T) {
 		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
-			log, err := NewLog(ctx, tc.origin, tc.signer, tc.cvOpts,
+			log, err := NewLog(ctx, tc.origin, tc.signer, tc.cv,
 				func(_ context.Context, _ note.Signer) (*storage.CTStorage, error) {
 					return &storage.CTStorage{}, nil
 				}, &FixedTimeSource{})

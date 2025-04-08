@@ -72,9 +72,9 @@ func (s systemTimeSource) Now() time.Time {
 
 var sysTimeSource = systemTimeSource{}
 
-// newCertValidationOpts checks that a chain validation config is valid,
+// newChainValidator checks that a chain validation config is valid,
 // parses it, and loads resources to validate chains.
-func newCertValidationOpts(cfg ChainValidationConfig) (*scti.ChainValidationOpts, error) {
+func newChainValidator(cfg ChainValidationConfig) (scti.ChainValidator, error) {
 	// Load the trusted roots.
 	if cfg.RootsPEMFile == "" {
 		return nil, errors.New("empty rootsPemFile")
@@ -114,19 +114,19 @@ func newCertValidationOpts(cfg ChainValidationConfig) (*scti.ChainValidationOpts
 		}
 	}
 
-	vOpts := scti.NewChainValidationOpts(roots, cfg.RejectExpired, cfg.RejectUnexpired, cfg.NotAfterStart, cfg.NotAfterLimit, extKeyUsages, rejectExtIds)
-	return &vOpts, nil
+	cv := scti.NewChainValidator(roots, cfg.RejectExpired, cfg.RejectUnexpired, cfg.NotAfterStart, cfg.NotAfterLimit, extKeyUsages, rejectExtIds)
+	return &cv, nil
 }
 
 // NewLogHandler creates a Tessera based CT log pluged into HTTP handlers.
 // The HTTP server handlers implement https://c2sp.org/static-ct-api write
 // endpoints.
 func NewLogHandler(ctx context.Context, origin string, signer crypto.Signer, cfg ChainValidationConfig, cs storage.CreateStorage, httpDeadline time.Duration, maskInternalErrors bool) (http.Handler, error) {
-	cvOpts, err := newCertValidationOpts(cfg)
+	cv, err := newChainValidator(cfg)
 	if err != nil {
 		return nil, fmt.Errorf("newCertValidationOpts(): %v", err)
 	}
-	log, err := scti.NewLog(ctx, origin, signer, *cvOpts, cs, sysTimeSource)
+	log, err := scti.NewLog(ctx, origin, signer, cv, cs, sysTimeSource)
 	if err != nil {
 		return nil, fmt.Errorf("newLog(): %v", err)
 	}
