@@ -24,19 +24,18 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promauto"
+	"github.com/transparency-dev/static-ct/internal/otel"
 	"github.com/transparency-dev/static-ct/internal/types/rfc6962"
 	"github.com/transparency-dev/static-ct/internal/types/tls"
 	"github.com/transparency-dev/static-ct/internal/x509util"
 	"github.com/transparency-dev/static-ct/modules/dedup"
 	tessera "github.com/transparency-dev/trillian-tessera"
 	"github.com/transparency-dev/trillian-tessera/ctonly"
+	"go.opentelemetry.io/otel/metric"
 	"k8s.io/klog/v2"
 )
 
@@ -50,7 +49,7 @@ const (
 )
 
 // entrypointName identifies a CT entrypoint as defined in section 4 of RFC 6962.
-type entrypointName string
+type entrypointName = string
 
 // Constants for entrypoint names, as exposed in statistics/logging.
 const (
@@ -63,53 +62,38 @@ var (
 	// Metrics are all per-log (label "origin"), but may also be
 	// per-entrypoint (label "ep") or per-return-code (label "rc").
 	once             sync.Once
-	knownLogs        *prometheus.GaugeVec     // origin => value (always 1.0)
-	lastSCTIndex     *prometheus.GaugeVec     // origin => value
-	lastSCTTimestamp *prometheus.GaugeVec     // origin => value
-	reqsCounter      *prometheus.CounterVec   // origin, op => value
-	rspsCounter      *prometheus.CounterVec   // origin, op, code => value
-	rspLatency       *prometheus.HistogramVec // origin, op, code => value
+	knownLogs        metric.Int64Gauge       // origin => value (always 1.0)
+	lastSCTIndex     metric.Int64Gauge       // origin => value
+	lastSCTTimestamp metric.Int64Gauge       // origin => value
+	reqsCounter      metric.Int64Counter     // origin, op => value
+	rspsCounter      metric.Int64Counter     // origin, op, code => value
+	rspLatency       metric.Float64Histogram // origin, op, code => value
 )
 
 // setupMetrics initializes all the exported metrics.
 func setupMetrics() {
 	// TODO(phboneff): add metrics for deduplication and chain storage.
-	knownLogs = promauto.NewGaugeVec(
-		prometheus.GaugeOpts{
-			Name: "known_logs",
-			Help: "Set to 1 for known logs",
-		},
-		[]string{"origin"})
-	lastSCTTimestamp = promauto.NewGaugeVec(
-		prometheus.GaugeOpts{
-			Name: "last_sct_timestamp",
-			Help: "Time of last SCT in ms since epoch",
-		},
-		[]string{"origin"})
-	lastSCTIndex = promauto.NewGaugeVec(
-		prometheus.GaugeOpts{
-			Name: "last_sct_index",
-			Help: "Index of last SCT",
-		},
-		[]string{"origin"})
-	reqsCounter = promauto.NewCounterVec(
-		prometheus.CounterOpts{
-			Name: "http_reqs",
-			Help: "Number of requests",
-		},
-		[]string{"origin", "ep"})
-	rspsCounter = promauto.NewCounterVec(
-		prometheus.CounterOpts{
-			Name: "http_rsps",
-			Help: "Number of responses",
-		},
-		[]string{"origin", "op", "code"})
-	rspLatency = promauto.NewHistogramVec(
-		prometheus.HistogramOpts{
-			Name: "http_latency",
-			Help: "Latency of responses in seconds",
-		},
-		[]string{"origin", "op", "code"})
+	knownLogs = mustCreate(meter.Int64Gauge("tesseract.known_logs",
+		metric.WithDescription("Set to 1 for known logs")))
+
+	lastSCTTimestamp = mustCreate(meter.Int64Gauge("tesseract.last_sct.timestamp",
+		metric.WithDescription("Time of last SCT since epoch"),
+		metric.WithUnit("ms")))
+
+	lastSCTIndex = mustCreate(meter.Int64Gauge("tesseract.last_sct.index",
+		metric.WithDescription("Index of last SCT"),
+		metric.WithUnit("{entry}")))
+
+	reqsCounter = mustCreate(meter.Int64Counter("tesseract.http_request.count",
+		metric.WithDescription("CT HTTP requests")))
+
+	rspsCounter = mustCreate(meter.Int64Counter("tesseract.http_response.count",
+		metric.WithDescription("CT HTTP responses")))
+
+	rspLatency = mustCreate(meter.Float64Histogram("tesseract.http_response.duration",
+		metric.WithDescription("CT HTTP response duration"),
+		metric.WithExplicitBucketBoundaries(otel.LatencyHistogramBuckets...),
+		metric.WithUnit("ms")))
 }
 
 // entrypoints is a list of entrypoint names as exposed in statistics/logging.
@@ -132,16 +116,18 @@ type appHandler struct {
 // does additional common error and stats processing.
 func (a appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var statusCode int
-	label0 := a.log.origin
-	label1 := string(a.name)
-	reqsCounter.WithLabelValues(label0, label1).Inc()
+
+	originAttr := originKey.String(a.log.origin)
+	operationAttr := operationKey.String(a.name)
+	reqsCounter.Add(r.Context(), 1, metric.WithAttributes(originAttr, operationAttr))
 	startTime := a.opts.TimeSource.Now()
 	logCtx := a.opts.RequestLog.start(r.Context())
 	a.opts.RequestLog.origin(logCtx, a.log.origin)
 	defer func() {
 		latency := a.opts.TimeSource.Now().Sub(startTime).Seconds()
-		rspLatency.WithLabelValues(label0, label1, strconv.Itoa(statusCode)).Observe(latency)
+		rspLatency.Record(r.Context(), latency, metric.WithAttributes(originAttr, operationAttr, codeKey.Int(statusCode)))
 	}()
+
 	klog.V(2).Infof("%s: request %v %q => %s", a.log.origin, r.Method, r.URL, a.name)
 	// TODO(phboneff): add a.Method directly on the handler path and remove this test.
 	if r.Method != a.method {
@@ -169,7 +155,7 @@ func (a appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	statusCode, err = a.handler(ctx, a.opts, a.log, w, r)
 	a.opts.RequestLog.status(ctx, statusCode)
 	klog.V(2).Infof("%s: %s <= st=%d", a.log.origin, a.name, statusCode)
-	rspsCounter.WithLabelValues(label0, label1, strconv.Itoa(statusCode)).Inc()
+	rspsCounter.Add(r.Context(), 1, metric.WithAttributes(originAttr, operationAttr, codeKey.Int(statusCode)))
 	if err != nil {
 		klog.Warningf("%s: %s handler error: %v", a.log.origin, a.name, err)
 		a.opts.sendHTTPError(w, statusCode, err)
@@ -197,9 +183,9 @@ type HandlerOptions struct {
 	TimeSource TimeSource
 }
 
-func NewPathHandlers(opts *HandlerOptions, log *log) pathHandlers {
+func NewPathHandlers(ctx context.Context, opts *HandlerOptions, log *log) pathHandlers {
 	once.Do(func() { setupMetrics() })
-	knownLogs.WithLabelValues(log.origin).Set(1.0)
+	knownLogs.Record(ctx, 1, metric.WithAttributes(originKey.String(log.origin)))
 
 	prefix := strings.TrimRight(log.origin, "/")
 	if !strings.HasPrefix(prefix, "/") {
@@ -351,8 +337,8 @@ func addChainInternal(ctx context.Context, opts *HandlerOptions, log *log, w htt
 	}
 	klog.V(3).Infof("%s: %s <= SCT", log.origin, method)
 	if sct.Timestamp == timeMillis {
-		lastSCTTimestamp.WithLabelValues(log.origin).Set(float64(sct.Timestamp))
-		lastSCTIndex.WithLabelValues(log.origin).Set(float64(idx))
+		lastSCTTimestamp.Record(ctx, otel.Clamp64(sct.Timestamp), metric.WithAttributes(originKey.String(log.origin)))
+		lastSCTIndex.Record(ctx, otel.Clamp64(idx), metric.WithAttributes(originKey.String(log.origin)))
 	}
 
 	return http.StatusOK, nil

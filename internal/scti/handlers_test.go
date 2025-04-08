@@ -124,7 +124,7 @@ func setupTestLog(t *testing.T) (*log, string) {
 func setupTestServer(t *testing.T, log *log, path string) *httptest.Server {
 	t.Helper()
 
-	handlers := NewPathHandlers(&hOpts, log)
+	handlers := NewPathHandlers(t.Context(), &hOpts, log)
 	handler, ok := handlers[path]
 	if !ok {
 		t.Fatalf("Handler not found: %s", path)
@@ -209,7 +209,7 @@ func postHandlers(t *testing.T, handlers pathHandlers) pathHandlers {
 
 func TestPostHandlersRejectGet(t *testing.T) {
 	log, _ := setupTestLog(t)
-	handlers := NewPathHandlers(&hOpts, log)
+	handlers := NewPathHandlers(t.Context(), &hOpts, log)
 
 	// Anything in the post handler list should reject GET
 	for path, handler := range postHandlers(t, handlers) {
@@ -230,7 +230,7 @@ func TestPostHandlersRejectGet(t *testing.T) {
 
 func TestGetHandlersRejectPost(t *testing.T) {
 	log, _ := setupTestLog(t)
-	handlers := NewPathHandlers(&hOpts, log)
+	handlers := NewPathHandlers(t.Context(), &hOpts, log)
 
 	// Anything in the get handler list should reject POST.
 	for path, handler := range getHandlers(t, handlers) {
@@ -263,7 +263,7 @@ func TestPostHandlersFailure(t *testing.T) {
 	}
 
 	log, _ := setupTestLog(t)
-	handlers := NewPathHandlers(&hOpts, log)
+	handlers := NewPathHandlers(t.Context(), &hOpts, log)
 
 	for path, handler := range postHandlers(t, handlers) {
 		t.Run(path, func(t *testing.T) {
@@ -286,7 +286,7 @@ func TestPostHandlersFailure(t *testing.T) {
 func TestNewPathHandlers(t *testing.T) {
 	log, _ := setupTestLog(t)
 	t.Run("Handlers", func(t *testing.T) {
-		handlers := NewPathHandlers(&HandlerOptions{}, log)
+		handlers := NewPathHandlers(t.Context(), &HandlerOptions{}, log)
 		// Check each entrypoint has a handler
 		if got, want := len(handlers), len(entrypoints); got != want {
 			t.Fatalf("len(info.handler)=%d; want %d", got, want)
