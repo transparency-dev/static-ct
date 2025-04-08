@@ -124,6 +124,22 @@ resource "google_cloudbuild_trigger" "build_trigger" {
       name   = "alpine/terragrunt"
       script = <<EOT
         terragrunt --terragrunt-non-interactive --terragrunt-no-color apply -auto-approve -no-color 2>&1
+      EOT
+      dir    = "deployment/live/gcp/static-ct/logs/ci"
+      env = [
+        "GOOGLE_PROJECT=${var.project_id}",
+        "TF_IN_AUTOMATION=1",
+        "TF_INPUT=false",
+        "TF_VAR_project_id=${var.project_id}"
+      ]
+      wait_for = ["preclean_env", "docker_push_conformance_gcp"]
+    }
+
+    ## Print Terragrunt output.
+    step {
+      id     = "terraform_print_output"
+      name   = "alpine/terragrunt"
+      script = <<EOT
         terragrunt --terragrunt-no-color output --raw conformance_url -no-color > /workspace/conformance_url
         terragrunt --terragrunt-no-color output --raw conformance_bucket_name -no-color > /workspace/conformance_bucket_name
         terragrunt --terragrunt-no-color output --raw ecdsa_p256_public_key_data -no-color > /workspace/conformance_log_public_key.pem
@@ -135,7 +151,7 @@ resource "google_cloudbuild_trigger" "build_trigger" {
         "TF_INPUT=false",
         "TF_VAR_project_id=${var.project_id}"
       ]
-      wait_for = ["preclean_env", "docker_push_conformance_gcp"]
+      wait_for = ["terraform_apply_conformance_ci"]
     }
 
     ## Since the conformance infrastructure is not publicly accessible, we need to use 
