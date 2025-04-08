@@ -57,7 +57,7 @@ resource "google_cloudbuild_trigger" "preloader_trigger" {
       id       = "bearer_token"
       name     = "gcr.io/cloud-builders/gcloud"
       script   = <<EOT
-        gcloud auth print-access-token --lifetime=4200 > /workspace/cb_access
+        gcloud auth print-access-token > /workspace/cb_access
         curl -H "Metadata-Flavor: Google" "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/${local.cloudbuild_service_account}/identity?audience=${var.submission_url}" > /workspace/cb_identity
       EOT
     }
@@ -65,14 +65,14 @@ resource "google_cloudbuild_trigger" "preloader_trigger" {
     ## TODO(phboneff): move to its own container / cloudrun / batch job.
     ## Preload entries.
     ## Leave enough time for the preloader to run, until the token expires.
-    ## Stop after 40k entries, this is what gets copied within 60 minutes.
+    ## Stop after 360k entries, this is what gets copied within 60 minutes.
     timeout = "4200s" // 60 minutes
     step {
       id       = "ct_preloader"
       name     = "golang"
       script   = <<EOT
 	      START_INDEX=$(curl -H "Authorization: Bearer $(cat /workspace/cb_access)" ${var.monitoring_url}/checkpoint | head -2 | tail -1)
-	      END_INDEX=$(($START_INDEX+400000))
+	      END_INDEX=$(($START_INDEX+360000))
 	      echo "Will run preloader between $START_INDEX and $END_INDEX"
         go run github.com/google/certificate-transparency-go/preload/preloader@master \
           --target_log_uri=${var.submission_url}/ \
@@ -85,7 +85,7 @@ resource "google_cloudbuild_trigger" "preloader_trigger" {
           --parallel_submit=20
       EOT
       wait_for = ["bearer_token"]
-      timeout = "3600s" // 60 minutes, duration of token validity.
+      timeout = "3420s" // 57 minutes, since token validity if of 60 min.
     }
 
     options {
@@ -112,7 +112,7 @@ resource "google_cloud_scheduler_job" "deploy_cron" {
     uri         = "https://cloudbuild.googleapis.com/v1/projects/${var.project_id}/locations/${var.location}/triggers/${google_cloudbuild_trigger.preloader_trigger.trigger_id}:run"
     body        = base64encode(jsonencode({
       source = {
-        branchName = "preloader"
+        branchName = "main"
       }
     }))
     headers = {
