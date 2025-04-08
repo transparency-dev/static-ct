@@ -18,6 +18,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"crypto/x509"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
@@ -25,6 +26,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path"
 	"strings"
 	"testing"
@@ -40,6 +42,8 @@ import (
 	"github.com/transparency-dev/static-ct/storage"
 	"github.com/transparency-dev/static-ct/storage/bbolt"
 	tessera "github.com/transparency-dev/trillian-tessera"
+	"github.com/transparency-dev/trillian-tessera/api/layout"
+	"github.com/transparency-dev/trillian-tessera/ctonly"
 	posixTessera "github.com/transparency-dev/trillian-tessera/storage/posix"
 	"golang.org/x/mod/sumdb/note"
 	"k8s.io/klog/v2"
@@ -64,6 +68,10 @@ var (
 		MaskInternalErrors: false,
 		TimeSource:         newFixedTimeSource(fakeTime),
 	}
+
+	// POSIX subdirectories
+	logDir = "log"
+	issDir = "issuers"
 )
 
 type fixedTimeSource struct {
@@ -81,8 +89,11 @@ func (f *fixedTimeSource) Now() time.Time {
 }
 
 // setupTestLog creates a test TesseraCT log using a POSIX backend.
-func setupTestLog(t *testing.T) *log {
+//
+// It returns the log and the path to the storage directory.
+func setupTestLog(t *testing.T) (*log, string) {
 	t.Helper()
+	storageDir := t.TempDir()
 
 	signer, err := setupSigner(fakeSignature)
 	if err != nil {
@@ -100,12 +111,12 @@ func setupTestLog(t *testing.T) *log {
 		rejectUnexpired: false,
 	}
 
-	log, err := NewLog(t.Context(), origin, signer, cvOpts, newPosixStorageFunc(t), newFixedTimeSource(fakeTime))
+	log, err := NewLog(t.Context(), origin, signer, cvOpts, newPOSIXStorageFunc(t, storageDir), newFixedTimeSource(fakeTime))
 	if err != nil {
 		t.Fatalf("newLog(): %v", err)
 	}
 
-	return log
+	return log, storageDir
 }
 
 // setupTestServer creates a test TesseraCT server with a single endpoint at path.
@@ -121,14 +132,17 @@ func setupTestServer(t *testing.T, log *log, path string) *httptest.Server {
 	return httptest.NewServer(handler)
 }
 
-// newPosixStorageFunc returns a function to create a new storage.CTStorage instance with:
+// newPOSIXStorageFunc returns a function to create a new storage.CTStorage instance with:
 //   - a POSIX Tessera storage driver
 //   - a POSIX issuer storage system
 //   - a BBolt deduplication database
-func newPosixStorageFunc(t *testing.T) storage.CreateStorage {
+//
+// It also prepares directories to host the log and the deduplication database.
+func newPOSIXStorageFunc(t *testing.T, root string) storage.CreateStorage {
 	t.Helper()
+
 	return func(ctx context.Context, signer note.Signer) (*storage.CTStorage, error) {
-		driver, err := posixTessera.New(ctx, path.Join(t.TempDir(), "log"))
+		driver, err := posixTessera.New(ctx, path.Join(root, logDir))
 		if err != nil {
 			klog.Fatalf("Failed to initialize POSIX Tessera storage driver: %v", err)
 		}
@@ -144,12 +158,12 @@ func newPosixStorageFunc(t *testing.T) storage.CreateStorage {
 			klog.Fatalf("Failed to initialize POSIX Tessera appender: %v", err)
 		}
 
-		issuerStorage, err := posix.NewIssuerStorage(t.TempDir())
+		issuerStorage, err := posix.NewIssuerStorage(path.Join(root, issDir))
 		if err != nil {
 			klog.Fatalf("failed to initialize InMemory issuer storage: %v", err)
 		}
 
-		beDedupStorage, err := bbolt.NewStorage(path.Join(t.TempDir(), "dedup.db"))
+		beDedupStorage, err := bbolt.NewStorage(path.Join(root, "dedup.db"))
 		if err != nil {
 			klog.Fatalf("Failed to initialize BBolt deduplication database: %v", err)
 		}
@@ -193,7 +207,7 @@ func postHandlers(t *testing.T, handlers pathHandlers) pathHandlers {
 }
 
 func TestPostHandlersRejectGet(t *testing.T) {
-	log := setupTestLog(t)
+	log, _ := setupTestLog(t)
 	handlers := NewPathHandlers(&hOpts, log)
 
 	// Anything in the post handler list should reject GET
@@ -214,7 +228,7 @@ func TestPostHandlersRejectGet(t *testing.T) {
 }
 
 func TestGetHandlersRejectPost(t *testing.T) {
-	log := setupTestLog(t)
+	log, _ := setupTestLog(t)
 	handlers := NewPathHandlers(&hOpts, log)
 
 	// Anything in the get handler list should reject POST.
@@ -247,7 +261,7 @@ func TestPostHandlersFailure(t *testing.T) {
 		{"wrong-chain", strings.NewReader(`{ "chain": [ "test" ] }`), http.StatusBadRequest},
 	}
 
-	log := setupTestLog(t)
+	log, _ := setupTestLog(t)
 	handlers := NewPathHandlers(&hOpts, log)
 
 	for path, handler := range postHandlers(t, handlers) {
@@ -269,7 +283,7 @@ func TestPostHandlersFailure(t *testing.T) {
 }
 
 func TestNewPathHandlers(t *testing.T) {
-	log := setupTestLog(t)
+	log, _ := setupTestLog(t)
 	t.Run("Handlers", func(t *testing.T) {
 		handlers := NewPathHandlers(&HandlerOptions{}, log)
 		// Check each entrypoint has a handler
@@ -300,28 +314,27 @@ func TestNewPathHandlers(t *testing.T) {
 	})
 }
 
-// TODO(phboneff): use this in followup PR. Leaving here for now to make
-// diffs easier to digest in PRs.
-// func parseChain(t *testing.T, isPrecert bool, pemChain []string, root *x509.Certificate) (*ctonly.Entry, []*x509.Certificate) {
-// 	t.Helper()
-// 	pool := loadCertsIntoPoolOrDie(t, pemChain)
-// 	leafChain := pool.RawCertificates()
-// 	if !leafChain[len(leafChain)-1].Equal(root) {
-// 		// The submitted chain may not include a root, but the generated LogLeaf will
-// 		fullChain := make([]*x509.Certificate, len(leafChain)+1)
-// 		copy(fullChain, leafChain)
-// 		fullChain[len(leafChain)] = root
-// 		leafChain = fullChain
-// 	}
-// 	entry, err := entryFromChain(leafChain, isPrecert, fakeTimeMillis)
-// 	if err != nil {
-// 		t.Fatalf("failed to create entry")
-// 	}
-// 	return entry, leafChain
-// }
+func parseChain(t *testing.T, isPrecert bool, pemChain []string, root *x509.Certificate) (*ctonly.Entry, []*x509.Certificate) {
+	t.Helper()
+	pool := loadCertsIntoPoolOrDie(t, pemChain)
+	leafChain := pool.RawCertificates()
+	if !leafChain[len(leafChain)-1].Equal(root) {
+		// The submitted chain may not include a root, but the generated LogLeaf will.
+		fullChain := make([]*x509.Certificate, len(leafChain)+1)
+		copy(fullChain, leafChain)
+		fullChain[len(leafChain)] = root
+		leafChain = fullChain
+	}
+	entry, err := entryFromChain(leafChain, isPrecert, fakeTimeMillis)
+	if err != nil {
+		t.Fatalf("Failed to create entry")
+	}
+
+	return entry, leafChain
+}
 
 func TestGetRoots(t *testing.T) {
-	log := setupTestLog(t)
+	log, _ := setupTestLog(t)
 	server := setupTestServer(t, log, path.Join(prefix, rfc6962.GetRootsPath))
 	defer server.Close()
 
@@ -411,7 +424,7 @@ func TestAddChainWhitespace(t *testing.T) {
 		},
 	}
 
-	log := setupTestLog(t)
+	log, _ := setupTestLog(t)
 	server := setupTestServer(t, log, path.Join(prefix, rfc6962.AddChainPath))
 	defer server.Close()
 
@@ -430,11 +443,12 @@ func TestAddChainWhitespace(t *testing.T) {
 
 func TestAddChain(t *testing.T) {
 	var tests = []struct {
-		descr   string
-		chain   []string
-		want    int
-		wantIdx uint64
-		err     error
+		descr       string
+		chain       []string
+		want        int
+		wantIdx     uint64
+		wantLogSize uint64
+		err         error
 	}{
 		{
 			descr: "leaf-only",
@@ -447,32 +461,36 @@ func TestAddChain(t *testing.T) {
 			want:  http.StatusBadRequest,
 		},
 		{
-			descr:   "success",
-			chain:   []string{testdata.CertFromIntermediate, testdata.IntermediateFromRoot, testdata.CACertPEM},
-			wantIdx: 0,
-			want:    http.StatusOK,
+			descr:       "success",
+			chain:       []string{testdata.CertFromIntermediate, testdata.IntermediateFromRoot, testdata.CACertPEM},
+			wantIdx:     0,
+			wantLogSize: 1,
+			want:        http.StatusOK,
 		},
 		{
-			descr:   "success-duplicate",
-			chain:   []string{testdata.CertFromIntermediate, testdata.IntermediateFromRoot, testdata.CACertPEM},
-			wantIdx: 0,
-			want:    http.StatusOK,
+			descr:       "success-duplicate",
+			chain:       []string{testdata.CertFromIntermediate, testdata.IntermediateFromRoot, testdata.CACertPEM},
+			wantIdx:     0,
+			wantLogSize: 1,
+			want:        http.StatusOK,
 		},
 		{
-			descr:   "success-not-duplicate",
-			chain:   []string{testdata.TestCertPEM, testdata.CACertPEM},
-			wantIdx: 1,
-			want:    http.StatusOK,
+			descr:       "success-not-duplicate",
+			chain:       []string{testdata.TestCertPEM, testdata.CACertPEM},
+			wantIdx:     1,
+			wantLogSize: 2,
+			want:        http.StatusOK,
 		},
 		{
-			descr:   "success-without-root",
-			chain:   []string{testdata.CertFromIntermediate, testdata.IntermediateFromRoot},
-			wantIdx: 0,
-			want:    http.StatusOK,
+			descr:       "success-without-root",
+			chain:       []string{testdata.CertFromIntermediate, testdata.IntermediateFromRoot},
+			wantIdx:     0,
+			wantLogSize: 2,
+			want:        http.StatusOK,
 		},
 	}
 
-	log := setupTestLog(t)
+	log, dir := setupTestLog(t)
 	server := setupTestServer(t, log, path.Join(prefix, rfc6962.AddChainPath))
 	defer server.Close()
 
@@ -489,6 +507,8 @@ func TestAddChain(t *testing.T) {
 				t.Errorf("http.Post(%s)=(%d,nil); want (%d,nil)", rfc6962.AddChainPath, got, want)
 			}
 			if test.want == http.StatusOK {
+				unseqEntry, _ := parseChain(t, false, test.chain, log.chainValidationOpts.trustedRoots.RawCertificates()[0])
+
 				var gotRsp rfc6962.AddChainResponse
 				if err := json.NewDecoder(resp.Body).Decode(&gotRsp); err != nil {
 					t.Fatalf("json.Decode()=%v; want nil", err)
@@ -505,6 +525,8 @@ func TestAddChain(t *testing.T) {
 				if got, want := hex.EncodeToString(gotRsp.Signature), "040300067369676e6564"; got != want {
 					t.Errorf("resp.Signature=%s; want %s", got, want)
 				}
+
+				// Check that the Extensions contains the expected index.
 				idx, err := staticct.ParseCTExtensions(gotRsp.Extensions)
 				if err != nil {
 					t.Errorf("Failed to parse extensions %q: %v", gotRsp.Extensions, err)
@@ -512,8 +534,34 @@ func TestAddChain(t *testing.T) {
 				if got, want := idx, test.wantIdx; got != want {
 					t.Errorf("resp.Extensions.Index=%d; want %d", got, want)
 				}
-				// TODO(phboneff): read from the log and compare values
-				// TODO(phboneff): add a test with a backend write failure
+
+				// Check that the leaf bundle contains the expected leaf.
+				bPath := path.Join(dir, logDir, "tile/data", layout.NWithSuffix(0, test.wantLogSize/layout.EntryBundleWidth, uint8(test.wantLogSize)))
+				bundle, err := os.ReadFile(bPath)
+				if err != nil {
+					t.Errorf("Failed to read leaf bundle at %q: %v", bPath, err)
+				}
+				eBundle := staticct.EntryBundle{}
+				if err := eBundle.UnmarshalText(bundle); err != nil {
+					t.Errorf("Failed to parse entry bundle: %v", err)
+				}
+				if uint64(len(eBundle.Entries)) < test.wantIdx {
+					t.Errorf("Got %d entries, want %d", len(eBundle.Entries), test.wantIdx)
+				}
+				gotEntry := staticct.Entry{}
+				if err := gotEntry.UnmarshalText(eBundle.Entries[test.wantIdx]); err != nil {
+					t.Errorf("Failed to parse log entry: %v", err)
+				}
+				wantEntry := staticct.Entry{}
+				if err := wantEntry.UnmarshalText(unseqEntry.LeafData(test.wantIdx)); err != nil {
+					t.Errorf("Failed to parse log entry: %v", err)
+				}
+				if diff := cmp.Diff(wantEntry, gotEntry); diff != "" {
+					t.Errorf("Logged entry mismatch (-want +got):\n%s", diff)
+				}
+				// TODO(phbnf): check the issuer chain fingerprint
+				// TODO(phbnf): check inclusion proof
+				// TODO(phbnf): add a test with a backend write failure
 			}
 		})
 	}
@@ -521,11 +569,12 @@ func TestAddChain(t *testing.T) {
 
 func TestAddPreChain(t *testing.T) {
 	var tests = []struct {
-		descr   string
-		chain   []string
-		want    int
-		wantIdx uint64
-		err     error
+		descr       string
+		chain       []string
+		want        int
+		wantIdx     uint64
+		wantLogSize uint64
+		err         error
 	}{
 		{
 			descr: "leaf-signed-by-different",
@@ -538,32 +587,36 @@ func TestAddPreChain(t *testing.T) {
 			want:  http.StatusBadRequest,
 		},
 		{
-			descr:   "success",
-			chain:   []string{testdata.PrecertPEMValid, testdata.CACertPEM},
-			want:    http.StatusOK,
-			wantIdx: 0,
+			descr:       "success",
+			chain:       []string{testdata.PrecertPEMValid, testdata.CACertPEM},
+			want:        http.StatusOK,
+			wantIdx:     0,
+			wantLogSize: 1,
 		},
 		{
-			descr:   "success-duplicate",
-			chain:   []string{testdata.PrecertPEMValid, testdata.CACertPEM},
-			want:    http.StatusOK,
-			wantIdx: 0,
+			descr:       "success-duplicate",
+			chain:       []string{testdata.PrecertPEMValid, testdata.CACertPEM},
+			want:        http.StatusOK,
+			wantIdx:     0,
+			wantLogSize: 1,
 		},
 		{
-			descr:   "success-with-intermediate",
-			chain:   []string{testdata.PreCertFromIntermediate, testdata.IntermediateFromRoot, testdata.CACertPEM},
-			want:    http.StatusOK,
-			wantIdx: 1,
+			descr:       "success-with-intermediate",
+			chain:       []string{testdata.PreCertFromIntermediate, testdata.IntermediateFromRoot, testdata.CACertPEM},
+			want:        http.StatusOK,
+			wantIdx:     1,
+			wantLogSize: 2,
 		},
 		{
-			descr:   "success-without-root",
-			chain:   []string{testdata.PrecertPEMValid},
-			want:    http.StatusOK,
-			wantIdx: 0,
+			descr:       "success-without-root",
+			chain:       []string{testdata.PrecertPEMValid},
+			want:        http.StatusOK,
+			wantIdx:     0,
+			wantLogSize: 2,
 		},
 	}
 
-	log := setupTestLog(t)
+	log, dir := setupTestLog(t)
 	server := setupTestServer(t, log, path.Join(prefix, rfc6962.AddPreChainPath))
 	defer server.Close()
 
@@ -580,6 +633,8 @@ func TestAddPreChain(t *testing.T) {
 				t.Errorf("http.Post(%s)=(%d,nil); want (%d,nil)", rfc6962.AddPreChainPath, got, want)
 			}
 			if test.want == http.StatusOK {
+				unseqEntry, _ := parseChain(t, true, test.chain, log.chainValidationOpts.trustedRoots.RawCertificates()[0])
+
 				var gotRsp rfc6962.AddChainResponse
 				if err := json.NewDecoder(resp.Body).Decode(&gotRsp); err != nil {
 					t.Fatalf("json.Decode()=%v; want nil", err)
@@ -596,6 +651,8 @@ func TestAddPreChain(t *testing.T) {
 				if got, want := hex.EncodeToString(gotRsp.Signature), "040300067369676e6564"; got != want {
 					t.Errorf("resp.Signature=%s; want %s", got, want)
 				}
+
+				// Check that the Extensions contains the expected index.
 				idx, err := staticct.ParseCTExtensions(gotRsp.Extensions)
 				if err != nil {
 					t.Errorf("Failed to parse extensions %q: %v", gotRsp.Extensions, err)
@@ -603,7 +660,33 @@ func TestAddPreChain(t *testing.T) {
 				if got, want := idx, test.wantIdx; got != want {
 					t.Errorf("resp.Extensions.Index=%d; want %d", got, want)
 				}
-				// TODO(phboneff): read from the log and compare values
+
+				// Check that the leaf bundle contains the expected leaf.
+				bPath := path.Join(dir, logDir, "tile/data", layout.NWithSuffix(0, test.wantLogSize/layout.EntryBundleWidth, uint8(test.wantLogSize)))
+				bundle, err := os.ReadFile(bPath)
+				if err != nil {
+					t.Errorf("Failed to read leaf bundle at %q: %v", bPath, err)
+				}
+				eBundle := staticct.EntryBundle{}
+				if err := eBundle.UnmarshalText(bundle); err != nil {
+					t.Errorf("Failed to parse entry bundle: %v", err)
+				}
+				if uint64(len(eBundle.Entries)) < test.wantIdx {
+					t.Errorf("Got %d entries, want %d", len(eBundle.Entries), test.wantIdx)
+				}
+				gotEntry := staticct.Entry{}
+				if err := gotEntry.UnmarshalText(eBundle.Entries[test.wantIdx]); err != nil {
+					t.Errorf("Failed to parse log entry: %v", err)
+				}
+				wantEntry := staticct.Entry{}
+				if err := wantEntry.UnmarshalText(unseqEntry.LeafData(test.wantIdx)); err != nil {
+					t.Errorf("Failed to parse log entry: %v", err)
+				}
+				if diff := cmp.Diff(wantEntry, gotEntry); diff != "" {
+					t.Errorf("Logged entry mismatch (-want +got):\n%s", diff)
+				}
+				// TODO(phbnf): check the issuer chain fingerprint
+				// TODO(phbnf): check inclusion proof
 				// TODO(phboneff): add a test with a backend write failure
 			}
 		})
