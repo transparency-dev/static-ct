@@ -28,7 +28,7 @@ import (
 	"time"
 
 	"github.com/go-sql-driver/mysql"
-	sctfe "github.com/transparency-dev/static-ct"
+	tesseract "github.com/transparency-dev/static-ct"
 	"github.com/transparency-dev/static-ct/storage"
 	awsSCTFE "github.com/transparency-dev/static-ct/storage/aws"
 	"github.com/transparency-dev/static-ct/storage/bbolt"
@@ -81,7 +81,7 @@ func main() {
 		klog.Exitf("Can't create AWS Secrets Manager signer: %v", err)
 	}
 
-	chainValidationConfig := sctfe.ChainValidationConfig{
+	chainValidationConfig := tesseract.ChainValidationConfig{
 		RootsPEMFile:     *rootsPemFile,
 		RejectExpired:    *rejectExpired,
 		RejectUnexpired:  *rejectUnexpired,
@@ -91,7 +91,7 @@ func main() {
 		NotAfterLimit:    notAfterLimit.t,
 	}
 
-	logHandler, err := sctfe.NewLogHandler(ctx, *origin, signer, chainValidationConfig, newAWSStorage, *httpDeadline, *maskInternalErrors)
+	logHandler, err := tesseract.NewLogHandler(ctx, *origin, signer, chainValidationConfig, newAWSStorage, *httpDeadline, *maskInternalErrors)
 	if err != nil {
 		klog.Exitf("Can't initialize CT HTTP Server: %v", err)
 	}

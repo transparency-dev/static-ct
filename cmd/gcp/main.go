@@ -28,7 +28,7 @@ import (
 	"syscall"
 	"time"
 
-	sctfe "github.com/transparency-dev/static-ct"
+	tesseract "github.com/transparency-dev/static-ct"
 	"github.com/transparency-dev/static-ct/storage"
 	gcpSCTFE "github.com/transparency-dev/static-ct/storage/gcp"
 	tessera "github.com/transparency-dev/trillian-tessera"
@@ -78,7 +78,7 @@ func main() {
 		klog.Exitf("Can't create secret manager signer: %v", err)
 	}
 
-	chainValidationConfig := sctfe.ChainValidationConfig{
+	chainValidationConfig := tesseract.ChainValidationConfig{
 		RootsPEMFile:     *rootsPemFile,
 		RejectExpired:    *rejectExpired,
 		RejectUnexpired:  *rejectUnexpired,
@@ -88,7 +88,7 @@ func main() {
 		NotAfterLimit:    notAfterLimit.t,
 	}
 
-	logHandler, err := sctfe.NewLogHandler(ctx, *origin, signer, chainValidationConfig, newGCPStorage, *httpDeadline, *maskInternalErrors)
+	logHandler, err := tesseract.NewLogHandler(ctx, *origin, signer, chainValidationConfig, newGCPStorage, *httpDeadline, *maskInternalErrors)
 	if err != nil {
 		klog.Exitf("Can't initialize CT HTTP Server: %v", err)
 	}
