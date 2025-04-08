@@ -507,7 +507,7 @@ func TestAddChain(t *testing.T) {
 				}
 				idx, err := staticct.ParseCTExtensions(gotRsp.Extensions)
 				if err != nil {
-					t.Errorf("failed to parse extensions %q: %v", gotRsp.Extensions, err)
+					t.Errorf("Failed to parse extensions %q: %v", gotRsp.Extensions, err)
 				}
 				if got, want := idx, test.wantIdx; got != want {
 					t.Errorf("resp.Extensions.Index=%d; want %d", got, want)
@@ -598,7 +598,7 @@ func TestAddPreChain(t *testing.T) {
 				}
 				idx, err := staticct.ParseCTExtensions(gotRsp.Extensions)
 				if err != nil {
-					t.Errorf("failed to parse extensions %q: %v", gotRsp.Extensions, err)
+					t.Errorf("Failed to parse extensions %q: %v", gotRsp.Extensions, err)
 				}
 				if got, want := idx, test.wantIdx; got != want {
 					t.Errorf("resp.Extensions.Index=%d; want %d", got, want)
