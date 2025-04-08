@@ -16,7 +16,6 @@ package scti
 
 import (
 	"bytes"
-	"crypto"
 	"crypto/ecdsa"
 	"crypto/sha256"
 	"crypto/x509"
@@ -250,7 +249,7 @@ func TestBuildV1MerkleTreeLeafForCert(t *testing.T) {
 		t.Fatalf("failed to set up test cert: %v", err)
 	}
 
-	signer, err := setupSigner(fakeSignature)
+	sctSigner, err := setupSCTSigner(fakeSignature)
 	if err != nil {
 		t.Fatalf("could not create signer: %v", err)
 	}
@@ -267,7 +266,7 @@ func TestBuildV1MerkleTreeLeafForCert(t *testing.T) {
 	} else if len(rest) > 0 {
 		t.Fatalf("extra data (%d bytes) on reconstructing MerkleTreeLeaf", len(rest))
 	}
-	got, err := buildV1SCT(signer, &leaf)
+	got, err := sctSigner.Sign(&leaf)
 	if err != nil {
 		t.Fatalf("buildV1SCT()=nil,%v; want _,nil", err)
 	}
@@ -313,7 +312,7 @@ func TestSignV1SCTForPrecertificate(t *testing.T) {
 		t.Fatalf("failed to set up test precert: %v", err)
 	}
 
-	signer, err := setupSigner(fakeSignature)
+	sctSigner, err := setupSCTSigner(fakeSignature)
 	if err != nil {
 		t.Fatalf("could not create signer: %v", err)
 	}
@@ -331,7 +330,7 @@ func TestSignV1SCTForPrecertificate(t *testing.T) {
 		t.Fatalf("extra data (%d bytes) on reconstructing MerkleTreeLeaf", len(rest))
 	}
 
-	got, err := buildV1SCT(signer, &leaf)
+	got, err := sctSigner.Sign(&leaf)
 	if err != nil {
 		t.Fatalf("buildV1SCT()=nil,%v; want _,nil", err)
 	}
@@ -393,14 +392,14 @@ func TestGetCTLogID(t *testing.T) {
 
 // Creates a fake signer for use in interaction tests.
 // It will always return fakeSig when asked to sign something.
-func setupSigner(fakeSig []byte) (crypto.Signer, error) {
+func setupSCTSigner(fakeSig []byte) (*sctSigner, error) {
 	block, _ := pem.Decode([]byte(testdata.DemoPublicKey))
 	key, err := x509.ParsePKIXPublicKey(block.Bytes)
 	if err != nil {
 		return nil, err
 	}
 
-	return testdata.NewSignerWithFixedSig(key, fakeSig), nil
+	return &sctSigner{testdata.NewSignerWithFixedSig(key, fakeSig)}, nil
 }
 
 func TestBuildCp(t *testing.T) {
