@@ -28,7 +28,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 	sctfe "github.com/transparency-dev/static-ct"
 	"github.com/transparency-dev/static-ct/storage"
 	gcpSCTFE "github.com/transparency-dev/static-ct/storage/gcp"
@@ -49,7 +48,6 @@ var (
 	notAfterLimit timestampFlag
 
 	httpEndpoint               = flag.String("http_endpoint", "localhost:6962", "Endpoint for HTTP (host:port).")
-	metricsEndpoint            = flag.String("metrics_endpoint", "", "Endpoint for serving metrics; if left empty, metrics will be visible on --http_endpoint.")
 	httpDeadline               = flag.Duration("http_deadline", time.Second*10, "Deadline for HTTP requests.")
 	maskInternalErrors         = flag.Bool("mask_internal_errors", false, "Don't return error strings with Internal Server Error HTTP responses.")
 	origin                     = flag.String("origin", "", "Origin of the log, for checkpoints and the monitoring prefix.")
@@ -63,6 +61,7 @@ var (
 	rejectExtensions           = flag.String("reject_extension", "", "A list of X.509 extension OIDs, in dotted string form (e.g. '2.3.4.5') which, if present, should cause submissions to be rejected.")
 	signerPublicKeySecretName  = flag.String("signer_public_key_secret_name", "", "Public key secret name for checkpoints and SCTs signer. Format: projects/{projectId}/secrets/{secretName}/versions/{secretVersion}.")
 	signerPrivateKeySecretName = flag.String("signer_private_key_secret_name", "", "Private key secret name for checkpoints and SCTs signer. Format: projects/{projectId}/secrets/{secretName}/versions/{secretVersion}.")
+	traceFraction              = flag.Float64("trace_fraction", 0, "Fraction of open-telemetry span traces to sample")
 )
 
 // nolint:staticcheck
@@ -70,6 +69,9 @@ func main() {
 	klog.InitFlags(nil)
 	flag.Parse()
 	ctx := context.Background()
+
+	shutdownOTel := initOTel(ctx, *traceFraction)
+	defer shutdownOTel(ctx)
 
 	signer, err := NewSecretManagerSigner(ctx, *signerPublicKeySecretName, *signerPrivateKeySecretName)
 	if err != nil {
@@ -94,25 +96,6 @@ func main() {
 	klog.CopyStandardLogTo("WARNING")
 	klog.Info("**** CT HTTP Server Starting ****")
 	http.Handle("/", logHandler)
-
-	metricsAt := *metricsEndpoint
-	if metricsAt == "" {
-		metricsAt = *httpEndpoint
-	}
-
-	if metricsAt != *httpEndpoint {
-		// Run a separate handler for metrics.
-		go func() {
-			mux := http.NewServeMux()
-			mux.Handle("/metrics", promhttp.Handler())
-			metricsServer := http.Server{Addr: metricsAt, Handler: mux}
-			err := metricsServer.ListenAndServe()
-			klog.Warningf("Metrics server exited: %v", err)
-		}()
-	} else {
-		// Handle metrics on the DefaultServeMux.
-		http.Handle("/metrics", promhttp.Handler())
-	}
 
 	// Bring up the HTTP server and serve until we get a signal not to.
 	srv := http.Server{Addr: *httpEndpoint}

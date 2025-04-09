@@ -68,6 +68,9 @@ func NewCTStorage(logStorage *tessera.Appender, issuerStorage IssuerStorage, ded
 
 // Add stores CT entries.
 func (cts *CTStorage) Add(ctx context.Context, entry *ctonly.Entry) tessera.IndexFuture {
+	ctx, span := tracer.Start(ctx, "tesseract.storage.Add")
+	defer span.End()
+
 	// TODO(phboneff): add deduplication and chain storage
 	return cts.storeData(ctx, entry)
 }
@@ -76,6 +79,9 @@ func (cts *CTStorage) Add(ctx context.Context, entry *ctonly.Entry) tessera.Inde
 //
 // If an object is already stored under this hash, continues.
 func (cts *CTStorage) AddIssuerChain(ctx context.Context, chain []*x509.Certificate) error {
+	ctx, span := tracer.Start(ctx, "tesseract.storage.AddIssuerChain")
+	defer span.End()
+
 	kvs := []KV{}
 	for _, c := range chain {
 		id := sha256.Sum256(c.Raw)
@@ -125,6 +131,9 @@ func cachedStoreIssuers(s IssuerStorage) func(context.Context, []KV) error {
 
 // AddCertDedupInfo stores <cert_hash, SCTDedupInfo> in the deduplication storage.
 func (cts CTStorage) AddCertDedupInfo(ctx context.Context, c *x509.Certificate, sctDedupInfo dedup.SCTDedupInfo) error {
+	ctx, span := tracer.Start(ctx, "tesseract.storage.AddCertDedupInfo")
+	defer span.End()
+
 	key := sha256.Sum256(c.Raw)
 	if err := cts.dedupStorage.Add(ctx, []dedup.LeafDedupInfo{{LeafID: key[:], SCTDedupInfo: sctDedupInfo}}); err != nil {
 		return fmt.Errorf("error storing SCTDedupInfo %+v of \"%x\": %v", sctDedupInfo, key, err)
@@ -134,6 +143,9 @@ func (cts CTStorage) AddCertDedupInfo(ctx context.Context, c *x509.Certificate, 
 
 // GetCertDedupInfo fetches the SCTDedupInfo of a given certificate from the deduplication storage.
 func (cts CTStorage) GetCertDedupInfo(ctx context.Context, c *x509.Certificate) (dedup.SCTDedupInfo, bool, error) {
+	ctx, span := tracer.Start(ctx, "tesseract.storageGetCertDedupInfo")
+	defer span.End()
+
 	key := sha256.Sum256(c.Raw)
 	sctC, ok, err := cts.dedupStorage.Get(ctx, key[:])
 	if err != nil {
