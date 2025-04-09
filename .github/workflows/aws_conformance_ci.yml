@@ -1,0 +1,128 @@
+name: AWS Conformance CI
+
+on:
+  push:
+    branches:
+    - main
+
+# This prevents two workflows from running at the same time.
+# This workflows calls terragrunt, which does not allow concurrent runs.
+concurrency:
+  group: aws-conformance-ci
+  cancel-in-progress: false
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  TF_VERSION: "1.11.3"
+  TG_VERSION: "0.77.7"
+  TG_DIR: "deployment/live/aws/conformance/ci/"
+  ECR_REPOSITORY_CONFORMANCE: static-ct-ci/conformance:latest
+  ECR_REPOSITORY_HAMMER: static-ct-ci/hammer:latest
+  AWS_REGION: us-east-1
+
+jobs:
+  aws-conformance-ci:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@ececac1a45f3b08a01d2dd070d28d111c5fe6722 # v4.1.0
+        with:
+          role-to-assume: ${{ secrets.AWS_IAMROLE_GITHUB_CI }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Checkout code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      # Authenticate with ECR to push the conformance and hammer images.
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@062b18b96a7aff071d4dc91bc00c4c1a7945b076 # v2.0.1
+
+      # Build the conformance image and push it to ECR. This will be used later on by Terragrunt.
+      - name: Build, tag, and push Conformance image to Amazon ECR
+        shell: bash
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: ${{ env.ECR_REPOSITORY_CONFORMANCE }}
+        run: |
+          docker build -f ./cmd/aws/Dockerfile . -t sctfe-aws:latest
+          docker build -f ./cmd/aws/ci/Dockerfile . -t "$ECR_REGISTRY/$ECR_REPOSITORY"
+          docker push "$ECR_REGISTRY/$ECR_REPOSITORY"
+          echo "Pushed image to $ECR_REGISTRY/$ECR_REPOSITORY"
+      
+      # Build the CT hammer image and push it to ECR. This will be used later on by Terragrunt.
+      - name: Build, tag, and push CT Hammer image to Amazon ECR
+        shell: bash
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: ${{ env.ECR_REPOSITORY_HAMMER }}
+        run: |
+          docker build -f ./internal/hammer/Dockerfile . -t tesseract-hammer:latest
+          docker build -f ./internal/hammer/ci/Dockerfile . -t "$ECR_REGISTRY/$ECR_REPOSITORY"
+          docker push "$ECR_REGISTRY/$ECR_REPOSITORY"
+          echo "Pushed image to $ECR_REGISTRY/$ECR_REPOSITORY"
+
+      # Destroy any pre-existing deployment/live/aws/conformance/ci env.
+      # This might happen if a previous integration test workflow has failed.
+      - name: Terragrunt destroy pre conformance test
+        uses: gruntwork-io/terragrunt-action@aee21a7df999be8b471c2a8564c6cd853cb674e1 # v2.1.8
+        with:
+          tf_version: ${{ env.TF_VERSION }}
+          tg_version: ${{ env.TG_VERSION }}
+          tg_dir: ${{ env.TG_DIR }}
+          tg_command: "destroy"
+        env:
+          ECS_EXECUTION_ROLE: ${{ secrets.AWS_IAMROLE_ECS_EXECUTION }}
+          ECS_CONFORMANCE_TASK_ROLE: ${{ secrets.AWS_IAMROLE_ECS_CONFORMANCE_TASK }}
+
+      # Apply the deployment/live/aws/conformance/ci terragrunt config.
+      - name: Terragrunt apply
+        uses: gruntwork-io/terragrunt-action@aee21a7df999be8b471c2a8564c6cd853cb674e1 # v2.1.8
+        with:
+          tf_version: ${{ env.TF_VERSION }}
+          tg_version: ${{ env.TG_VERSION }}
+          tg_dir: ${{ env.TG_DIR }}
+          tg_command: "apply"
+        env:
+          ECS_EXECUTION_ROLE: ${{ secrets.AWS_IAMROLE_ECS_EXECUTION }}
+          ECS_CONFORMANCE_TASK_ROLE: ${{ secrets.AWS_IAMROLE_ECS_CONFORMANCE_TASK }}
+          INPUT_POST_EXEC_1: |
+            echo "ECS_CLUSTER=$(terragrunt output -raw ecs_cluster)" >> "$GITHUB_ENV"
+          INPUT_POST_EXEC_2: |
+            echo "VPC_SUBNETS=$(terragrunt output -json vpc_subnets)" >> "$GITHUB_ENV"
+
+      # Run CT Hammer using the defined task definition.
+      # This step returns the CT Hammer task's exit code.
+      - name: Run CT Hammer
+        shell: bash
+        run: |
+          echo "Will launch a hammer ECS task."
+          HAMMER_ARN=$(aws ecs run-task \
+            --cluster="$ECS_CLUSTER" \
+            --task-definition=hammer \
+            --count=1 \
+            --launch-type=FARGATE \
+            --network-configuration='{"awsvpcConfiguration": {"assignPublicIp":"ENABLED","subnets": '$VPC_SUBNETS'}}' \
+            --query 'tasks[0].taskArn')
+          echo "Hammer task running, ARN: $HAMMER_ARN."
+          echo "Waiting for task to stop..."
+          aws ecs wait tasks-stopped --cluster="$ECS_CLUSTER" --tasks=[$HAMMER_ARN]
+          echo "The task has stopped. Fetching exit code and returning this action with it."
+          exit $(aws ecs describe-tasks --cluster="$ECS_CLUSTER" --tasks=[$HAMMER_ARN] --query 'tasks[0].containers[0].exitCode')
+
+      # Destroy the deployment/live/aws/conformance/ci env.
+      - name: Terragrunt destroy pre conformance test
+        uses: gruntwork-io/terragrunt-action@aee21a7df999be8b471c2a8564c6cd853cb674e1 # v2.1.8
+        with:
+          tf_version: ${{ env.TF_VERSION }}
+          tg_version: ${{ env.TG_VERSION }}
+          tg_dir: ${{ env.TG_DIR }}
+          tg_command: "destroy"
+        env:
+          ECS_EXECUTION_ROLE: ${{ secrets.AWS_IAMROLE_ECS_EXECUTION }}
+          ECS_CONFORMANCE_TASK_ROLE: ${{ secrets.AWS_IAMROLE_ECS_CONFORMANCE_TASK }}

@@ -19,3 +19,10 @@ resource "tls_private_key" "ecdsa_p256" {
   algorithm   = "ECDSA"
   ecdsa_curve = "P256"
 }
+
+# Use locals to process the secret string
+locals {
+  # Base64 representation (stripping PEM headers/footers and whitespace)
+  # regexreplace removes the BEGIN/END lines and any whitespace characters (\s+)
+  public_key_base64_der = trimspace(replace(replace(replace(tls_private_key.ecdsa_p256.public_key_pem, "-----BEGIN PUBLIC KEY-----", ""), "-----END PUBLIC KEY-----", ""), "\n", ""))
+}
