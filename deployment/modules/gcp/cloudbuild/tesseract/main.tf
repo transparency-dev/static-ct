@@ -23,7 +23,8 @@ module "artifactregistry" {
 locals {
   cloudbuild_service_account   = "cloudbuild-${var.env}-sa@${var.project_id}.iam.gserviceaccount.com"
   artifact_repo                = "${var.location}-docker.pkg.dev/${var.project_id}/${module.artifactregistry.docker.name}"
-  conformance_gcp_docker_image = "${local.artifact_repo}/conformance-gcp"
+  ## TODO(phbnf): this should include the name of the log since it contains roots
+  tesseract_gcp_docker_image = "${local.artifact_repo}/tesseract-gcp"
 }
 
 resource "google_project_service" "cloudbuild_api" {
@@ -60,9 +61,7 @@ resource "google_cloudbuild_trigger" "build_trigger" {
   }
 
   build {
-    ## Build TesseraCT GCP Docker image.
-    ## This will be used by the building the conformance Docker image which includes 
-    ## the test data.
+    ## Build TesseraCT GCP Docker container image, without roots.
     step {
       id   = "docker_build_tesseract_gcp"
       name = "gcr.io/cloud-builders/docker"
@@ -75,41 +74,42 @@ resource "google_cloudbuild_trigger" "build_trigger" {
       ]
     }
 
-    ## Build TesseraCT GCP Conformance Docker container image.
+    ## Build TesseraCT GCP Docker container image, with roots.
+    ## TODO(phbnf): make the docker file path a var.
     step {
-      id   = "docker_build_conformance_gcp"
+      id   = "docker_build_tesseract_with_roots_gcp"
       name = "gcr.io/cloud-builders/docker"
       args = [
         "build",
-        "-t", "${local.conformance_gcp_docker_image}:$SHORT_SHA",
-        "-t", "${local.conformance_gcp_docker_image}:latest",
+        "-t", "${local.tesseract_gcp_docker_image}:$SHORT_SHA",
+        "-t", "${local.tesseract_gcp_docker_image}:latest",
         "-f", "./cmd/gcp/staging/Dockerfile",
         "."
       ]
       wait_for = ["docker_build_tesseract_gcp"]
     }
 
-    ## Push the conformance Docker container image to Artifact Registry.
+    ## Push TesseraCT's Docker container image to Artifact Registry.
     step {
-      id   = "docker_push_conformance_gcp"
+      id   = "docker_push_tesseract_gcp"
       name = "gcr.io/cloud-builders/docker"
       args = [
         "push",
         "--all-tags",
-        local.conformance_gcp_docker_image
+        local.tesseract_gcp_docker_image
       ]
-      wait_for = ["docker_build_conformance_gcp"]
+      wait_for = ["docker_build_tesseract_with_roots_gcp"]
     }
 
     ## Apply the deployment/live/gcp/static-staging/logs/XXX terragrunt configs.
-    ## This will bring up or update the conformance infrastructure, including a service
+    ## This will bring up or update TesseraCT's infrastructure, including a service
     ## running the conformance server docker image built above.
     dynamic "step" {
       for_each = var.logs_terragrunts
       iterator = tg_path
 
       content {
-        id     = "terraform_apply_conformance_staging_${tg_path.key}"
+        id     = "terraform_apply_tesseract_${tg_path.key}"
         name   = "alpine/terragrunt"
         script = <<EOT
           terragrunt --terragrunt-non-interactive --terragrunt-no-color apply -auto-approve -no-color 2>&1
@@ -122,7 +122,7 @@ resource "google_cloudbuild_trigger" "build_trigger" {
           "TF_VAR_project_id=${var.project_id}",
           "DOCKER_CONTAINER_TAG=$SHORT_SHA"
         ]
-        wait_for = tg_path.key > 0 ? ["docker_push_conformance_gcp", "terraform_apply_conformance_staging_${tg_path.key - 1}"] : ["docker_push_conformance_gcp"]
+        wait_for = tg_path.key > 0 ? ["docker_push_tesseract_gcp", "terraform_apply_tesseract_${tg_path.key - 1}"] : ["docker_push_tesseract_gcp"]
       }
     }
 
@@ -135,12 +135,12 @@ resource "google_cloudbuild_trigger" "build_trigger" {
         id     = "terraform_print_output_${tg_path.key}"
         name   = "alpine/terragrunt"
         script = <<EOT
-          terragrunt --terragrunt-no-color output --raw conformance_url -no-color > /workspace/conformance_url
-          terragrunt --terragrunt-no-color output --raw conformance_bucket_name -no-color > /workspace/conformance_bucket_name
-          terragrunt --terragrunt-no-color output --raw ecdsa_p256_public_key_data -no-color > /workspace/conformance_log_public_key.pem
-          cat /workspace/conformance_url
-          cat /workspace/conformance_bucket_name
-          cat /workspace/conformance_log_public_key.pem
+          terragrunt --terragrunt-no-color output --raw tesseract_url -no-color > /workspace/tesseract_url
+          terragrunt --terragrunt-no-color output --raw tesseract_bucket_name -no-color > /workspace/tesseract_bucket_name
+          terragrunt --terragrunt-no-color output --raw ecdsa_p256_public_key_data -no-color > /workspace/tesseract_log_public_key.pem
+          cat /workspace/tesseract_url
+          cat /workspace/tesseract_bucket_name
+          cat /workspace/tesseract_log_public_key.pem
         EOT
         dir    = tg_path.value
         env = [
@@ -150,7 +150,7 @@ resource "google_cloudbuild_trigger" "build_trigger" {
           "TF_VAR_project_id=${var.project_id}",
           "DOCKER_CONTAINER_TAG=$SHORT_SHA"
         ]
-        wait_for = ["terraform_apply_conformance_staging_${tg_path.key}"]
+        wait_for = ["terraform_apply_tesseract_${tg_path.key}"]
       }
     }
 
