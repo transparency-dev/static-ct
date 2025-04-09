@@ -3,8 +3,8 @@ terraform {
 }
 
 locals {
-  env        = "test"
-  base_name  = get_env("TESSERA_BASE_NAME", "${local.env}-static-ct")
+  env       = "test"
+  base_name = get_env("TESSERA_BASE_NAME", "${local.env}-static-ct")
 }
 
 include "root" {
