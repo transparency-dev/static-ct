@@ -1,5 +1,5 @@
 terraform {
-  source = "${get_repo_root()}/deployment/modules/gcp//cloudbuild/preloaded"
+  source = "${get_repo_root()}/deployment/modules/gcp//cloudbuild/tesseract"
 }
 
 locals {
@@ -10,12 +10,21 @@ locals {
   github_owner   = get_env("GITHUB_OWNER", "transparency-dev")
 }
 
-include "root" {
-  path   = find_in_parent_folders()
-  expose = true
+inputs = local
+
+remote_state {
+  backend = "gcs"
+
+  config = {
+    project  = local.project_id
+    location = local.location
+    bucket   = "${local.project_id}-cloudbuild-terraform-state"
+    prefix   = "terraform.tfstate"
+
+    gcs_bucket_labels = {
+      name = "terraform_state"
+      env  = "${local.env}"
+    }
+  }
 }
 
-inputs = merge(
-  local,
-  include.root.locals,
-)
