@@ -127,28 +127,6 @@ resource "google_cloudbuild_trigger" "build_trigger" {
       wait_for = ["docker_push_conformance_gcp"]
     }
 
-    ## Apply the deployment/live/gcp/static-staging/cloudbuild/preloader terragrunt config.
-    ## This will bring up the preloader agaist the conformance infrastructure.
-    step {
-      id     = "terraform_apply_preloader"
-      name   = "alpine/terragrunt"
-      script = <<EOT
-        terragrunt --terragrunt-non-interactive --terragrunt-no-color apply -auto-approve -no-color -var="submission_url=$(cat /workspace/conformance_url)/arche2025h1.ct.transparency.dev/" -var="monitoring_url=https://storage.googleapis.com/$(cat /workspace/conformance_bucket_name)" 2>&1
-      EOT
-      dir    = "deployment/live/gcp/static-ct-staging/cloudbuild/preloader"
-      env = [
-        "GOOGLE_PROJECT=${var.project_id}",
-        "TF_IN_AUTOMATION=1",
-        "TF_INPUT=false",
-        "TF_VAR_project_id=${var.project_id}",
-        "TF_VAR_location=${var.location}",
-        "TF_VAR_env=${var.env}",
-        "TF_VAR_github_owner=${var.github_owner}",
-        "TF_VAR_source_log_uri=${var.source_log_uri}",
-      ]
-      wait_for = ["terraform_apply_conformance_staging"]
-    }
-
     options {
       logging      = "CLOUD_LOGGING_ONLY"
       machine_type = "E2_HIGHCPU_8"
