@@ -37,7 +37,7 @@ resource "google_cloud_run_v2_service" "default" {
 
     containers {
       image = var.server_docker_image
-      name  = "conformance"
+      name  = "tesseract"
       args = [
         "--logtostderr",
         "--v=1",

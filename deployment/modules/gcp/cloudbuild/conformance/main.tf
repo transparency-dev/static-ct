@@ -140,8 +140,8 @@ resource "google_cloudbuild_trigger" "build_trigger" {
       id     = "terraform_print_output"
       name   = "alpine/terragrunt"
       script = <<EOT
-        terragrunt --terragrunt-no-color output --raw conformance_url -no-color > /workspace/conformance_url
-        terragrunt --terragrunt-no-color output --raw conformance_bucket_name -no-color > /workspace/conformance_bucket_name
+        terragrunt --terragrunt-no-color output --raw tesseract_url -no-color > /workspace/conformance_url
+        terragrunt --terragrunt-no-color output --raw tesseract_bucket_name -no-color > /workspace/conformance_bucket_name
         terragrunt --terragrunt-no-color output --raw ecdsa_p256_public_key_data -no-color > /workspace/conformance_log_public_key.pem
       EOT
       dir    = "deployment/live/gcp/static-ct/logs/ci"
