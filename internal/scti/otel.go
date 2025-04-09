@@ -28,7 +28,7 @@ var (
 )
 
 var (
-	codeKey      = attribute.Key("tesseract.code")
+	codeKey      = attribute.Key("http.response.status_code")
 	operationKey = attribute.Key("tesseract.operation")
 	originKey    = attribute.Key("tesseract.origin")
 )

@@ -65,9 +65,9 @@ var (
 	knownLogs        metric.Int64Gauge       // origin => value (always 1.0)
 	lastSCTIndex     metric.Int64Gauge       // origin => value
 	lastSCTTimestamp metric.Int64Gauge       // origin => value
-	reqsCounter      metric.Int64Counter     // origin, op => value
-	rspsCounter      metric.Int64Counter     // origin, op, code => value
-	rspLatency       metric.Float64Histogram // origin, op, code => value
+	reqCounter       metric.Int64Counter     // origin, op => value
+	rspCounter       metric.Int64Counter     // origin, op, code => value
+	reqDuration      metric.Float64Histogram // origin, op, code => value
 )
 
 // setupMetrics initializes all the exported metrics.
@@ -84,16 +84,17 @@ func setupMetrics() {
 		metric.WithDescription("Index of last SCT"),
 		metric.WithUnit("{entry}")))
 
-	reqsCounter = mustCreate(meter.Int64Counter("tesseract.http_request.count",
-		metric.WithDescription("CT HTTP requests")))
+	reqCounter = mustCreate(meter.Int64Counter("tesseract.http.request.count",
+		metric.WithDescription("CT HTTP requests"),
+		metric.WithUnit("{request}")))
 
-	rspsCounter = mustCreate(meter.Int64Counter("tesseract.http_response.count",
-		metric.WithDescription("CT HTTP responses")))
+	rspCounter = mustCreate(meter.Int64Counter("tesseract.http.response.count",
+		metric.WithDescription("CT HTTP responses"),
+		metric.WithUnit("{response}")))
 
-	rspLatency = mustCreate(meter.Float64Histogram("tesseract.http_response.duration",
+	reqDuration = mustCreate(meter.Float64Histogram("tesseract.http.request.duration",
 		metric.WithDescription("CT HTTP response duration"),
-		metric.WithExplicitBucketBoundaries(otel.LatencyHistogramBuckets...),
-		metric.WithUnit("ms")))
+		metric.WithUnit("s")))
 }
 
 // entrypoints is a list of entrypoint names as exposed in statistics/logging.
@@ -119,13 +120,13 @@ func (a appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	originAttr := originKey.String(a.log.origin)
 	operationAttr := operationKey.String(a.name)
-	reqsCounter.Add(r.Context(), 1, metric.WithAttributes(originAttr, operationAttr))
+	reqCounter.Add(r.Context(), 1, metric.WithAttributes(originAttr, operationAttr))
 	startTime := a.opts.TimeSource.Now()
 	logCtx := a.opts.RequestLog.start(r.Context())
 	a.opts.RequestLog.origin(logCtx, a.log.origin)
 	defer func() {
 		latency := a.opts.TimeSource.Now().Sub(startTime).Seconds()
-		rspLatency.Record(r.Context(), latency, metric.WithAttributes(originAttr, operationAttr, codeKey.Int(statusCode)))
+		reqDuration.Record(r.Context(), latency, metric.WithAttributes(originAttr, operationAttr, codeKey.Int(statusCode)))
 	}()
 
 	klog.V(2).Infof("%s: request %v %q => %s", a.log.origin, r.Method, r.URL, a.name)
@@ -155,7 +156,7 @@ func (a appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	statusCode, err = a.handler(ctx, a.opts, a.log, w, r)
 	a.opts.RequestLog.status(ctx, statusCode)
 	klog.V(2).Infof("%s: %s <= st=%d", a.log.origin, a.name, statusCode)
-	rspsCounter.Add(r.Context(), 1, metric.WithAttributes(originAttr, operationAttr, codeKey.Int(statusCode)))
+	rspCounter.Add(r.Context(), 1, metric.WithAttributes(originAttr, operationAttr, codeKey.Int(statusCode)))
 	if err != nil {
 		klog.Warningf("%s: %s handler error: %v", a.log.origin, a.name, err)
 		a.opts.sendHTTPError(w, statusCode, err)
