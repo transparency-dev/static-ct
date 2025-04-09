@@ -135,7 +135,7 @@ resource "google_cloudbuild_trigger" "build_trigger" {
       wait_for = ["preclean_env", "docker_push_conformance_gcp"]
     }
 
-    ## Print Terragrunt output.
+    ## Print Terragrunt output to files.
     step {
       id     = "terraform_print_output"
       name   = "alpine/terragrunt"
