@@ -347,26 +347,30 @@ func (v *MMDVerifier) Run(ctx context.Context) {
 				Hash:   checkpoint.Hash,
 			}, v.tracker.TileFetcher)
 			if err != nil {
-				panic(fmt.Sprintf("Failed to create proof builder: %v", err))
+				v.errChan <- fmt.Errorf("failed to create proof builder: %v", err)
+				continue
 			}
 		}
 
-		// Panic if the following logic hits any error.
 		ip, err := proofBuilder.InclusionProof(ctx, leafMMD.index)
 		if err != nil {
-			panic(fmt.Sprintf("Failed to create inclusion proof: %v", err))
+			v.errChan <- fmt.Errorf("failed to create inclusion proof: %v", err)
+			continue
 		}
 		certs, err := x509.ParseCertificates(leafMMD.leaf)
 		if err != nil {
-			panic(fmt.Sprintf("Failed to parse certificates: %v", err))
+			v.errChan <- fmt.Errorf("failed to parse certificates: %v", err)
+			continue
 		}
 		entry, err := entryFromChain(certs, false, leafMMD.timestamp)
 		if err != nil {
-			panic(fmt.Sprintf("Failed to create entry from chain: %v", err))
+			v.errChan <- fmt.Errorf("failed to create entry from chain: %v", err)
+			continue
 		}
 		leafHash := entry.MerkleLeafHash(leafMMD.index)
 		if err := proof.VerifyInclusion(hasher.DefaultHasher, leafMMD.index, checkpoint.Size, leafHash, ip, checkpoint.Hash); err != nil {
-			panic(fmt.Sprintf("Failed to verify inclusion proof: %v", err))
+			v.errChan <- fmt.Errorf("failed to verify inclusion proof: %v", err)
+			continue
 		}
 
 		leafMMD = nil
