@@ -19,3 +19,20 @@ updates:
       applies-to: version-updates
       patterns:
         - "*"
+
+- package-ecosystem: docker
+  directories:
+    - /cmd/aws
+    - /cmd/aws/ci
+    - /cmd/gcp
+    - /cmd/gcp/ci
+    - /cmd/gcp/staging
+    - /internal/hammer
+    - /internal/hammer/ci
+  schedule:
+    interval: weekly
+  groups:
+    all-deps:
+      applies-to: version-updates
+      patterns:
+        - "*"
