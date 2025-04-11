@@ -16,8 +16,6 @@ package scti
 
 import (
 	"context"
-	"crypto/sha256"
-	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -34,7 +32,6 @@ import (
 	"github.com/transparency-dev/static-ct/internal/x509util"
 	"github.com/transparency-dev/static-ct/modules/dedup"
 	tessera "github.com/transparency-dev/trillian-tessera"
-	"github.com/transparency-dev/trillian-tessera/ctonly"
 	"go.opentelemetry.io/otel/metric"
 	"k8s.io/klog/v2"
 )
@@ -255,7 +252,7 @@ func addChainInternal(ctx context.Context, opts *HandlerOptions, log *log, w htt
 	for _, der := range addChainReq.Chain {
 		opts.RequestLog.addDERToChain(ctx, der)
 	}
-	chain, err := verifyAddChain(log, addChainReq, isPrecert)
+	chain, err := log.chainValidationOpts.verifyAddChain(addChainReq, isPrecert)
 	if err != nil {
 		return http.StatusBadRequest, fmt.Errorf("failed to verify add-chain contents: %s", err)
 	}
@@ -267,7 +264,7 @@ func addChainInternal(ctx context.Context, opts *HandlerOptions, log *log, w htt
 	nanosPerMilli := int64(time.Millisecond / time.Nanosecond)
 	timeMillis := uint64(opts.TimeSource.Now().UnixNano() / nanosPerMilli)
 
-	entry, err := entryFromChain(chain, isPrecert, timeMillis)
+	entry, err := x509util.EntryFromChain(chain, isPrecert, timeMillis)
 	if err != nil {
 		return http.StatusBadRequest, fmt.Errorf("failed to build MerkleTreeLeaf: %s", err)
 	}
@@ -386,37 +383,6 @@ func deadlineTime(opts *HandlerOptions) time.Time {
 	return opts.TimeSource.Now().Add(opts.Deadline)
 }
 
-// verifyAddChain is used by add-chain and add-pre-chain. It does the checks that the supplied
-// cert is of the correct type and chains to a trusted root.
-// TODO(phbnf): add tests
-// TODO(phbnf): move to chain_validation.go
-func verifyAddChain(log *log, req rfc6962.AddChainRequest, expectingPrecert bool) ([]*x509.Certificate, error) {
-	// We already checked that the chain is not empty so can move on to verification
-	validPath, err := validateChain(req.Chain, log.chainValidationOpts)
-	if err != nil {
-		// We rejected it because the cert failed checks or we could not find a path to a root etc.
-		// Lots of possible causes for errors
-		return nil, fmt.Errorf("chain failed to verify: %s", err)
-	}
-
-	isPrecert, err := isPrecertificate(validPath[0])
-	if err != nil {
-		return nil, fmt.Errorf("precert test failed: %s", err)
-	}
-
-	// The type of the leaf must match the one the handler expects
-	if isPrecert != expectingPrecert {
-		if expectingPrecert {
-			klog.Warningf("%s: Cert (or precert with invalid CT ext) submitted as precert chain: %q", log.origin, req.Chain)
-		} else {
-			klog.Warningf("%s: Precert (or cert with invalid CT ext) submitted as cert chain: %q", log.origin, req.Chain)
-		}
-		return nil, fmt.Errorf("cert / precert mismatch: %T", expectingPrecert)
-	}
-
-	return validPath, nil
-}
-
 // marshalAndWriteAddChainResponse is used by add-chain and add-pre-chain to create and write
 // the JSON response to the client
 func marshalAndWriteAddChainResponse(sct *rfc6962.SignedCertificateTimestamp, w http.ResponseWriter) error {
@@ -445,78 +411,4 @@ func marshalAndWriteAddChainResponse(sct *rfc6962.SignedCertificateTimestamp, w 
 	}
 
 	return nil
-}
-
-// entryFromChain generates an Entry from a chain and timestamp.
-// copied from certificate-transparency-go/serialization.go
-// TODO(phboneff): move to ct.go
-// TODO(phboneff): add tests
-func entryFromChain(chain []*x509.Certificate, isPrecert bool, timestamp uint64) (*ctonly.Entry, error) {
-	leaf := ctonly.Entry{
-		IsPrecert: isPrecert,
-		Timestamp: timestamp,
-	}
-
-	if len(chain) > 1 {
-		issuersChain := make([][32]byte, len(chain)-1)
-		for i, c := range chain[1:] {
-			issuersChain[i] = sha256.Sum256(c.Raw)
-		}
-		leaf.FingerprintsChain = issuersChain
-	}
-
-	if !isPrecert {
-		leaf.Certificate = chain[0].Raw
-		return &leaf, nil
-	}
-
-	// Pre-certs are more complicated. First, parse the leaf pre-cert and its
-	// putative issuer.
-	if len(chain) < 2 {
-		return nil, fmt.Errorf("no issuer cert available for precert leaf building")
-	}
-	issuer := chain[1]
-	cert := chain[0]
-
-	var preIssuer *x509.Certificate
-	if isPreIssuer(issuer) {
-		// Replace the cert's issuance information with details from the pre-issuer.
-		preIssuer = issuer
-
-		// The issuer of the pre-cert is not going to be the issuer of the final
-		// cert.  Change to use the final issuer's key hash.
-		if len(chain) < 3 {
-			return nil, fmt.Errorf("no issuer cert available for pre-issuer")
-		}
-		issuer = chain[2]
-	}
-
-	// Next, post-process the DER-encoded TBSCertificate, to remove the CT poison
-	// extension and possibly update the issuer field.
-	defangedTBS, err := x509util.BuildPrecertTBS(cert.RawTBSCertificate, preIssuer)
-	if err != nil {
-		return nil, fmt.Errorf("failed to remove poison extension: %v", err)
-	}
-
-	leaf.Precertificate = cert.Raw
-	// TODO(phboneff): do we need this?
-	// leaf.PrecertSigningCert = issuer.Raw
-	leaf.Certificate = defangedTBS
-
-	issuerKeyHash := sha256.Sum256(issuer.RawSubjectPublicKeyInfo)
-	leaf.IssuerKeyHash = issuerKeyHash[:]
-	return &leaf, nil
-}
-
-// isPreIssuer indicates whether a certificate is a pre-cert issuer with the specific
-// certificate transparency extended key usage.
-func isPreIssuer(cert *x509.Certificate) bool {
-	// Look for the extension in the Extensions field and not ExtKeyUsage
-	// since crypto/x509 does not recognize this extension as an ExtKeyUsage.
-	for _, ext := range cert.Extensions {
-		if rfc6962.OIDExtKeyUsageCertificateTransparency.Equal(ext.Id) {
-			return true
-		}
-	}
-	return false
 }

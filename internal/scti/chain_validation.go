@@ -149,7 +149,7 @@ func isPrecertificate(cert *x509.Certificate) (bool, error) {
 // supplied in the chain. Then applies the RFC requirement that the path must involve all
 // the submitted chain in the order of submission.
 // TODO(phboneff): make this a method func([][]byte) ([]*x509.Certificate, error)
-func validateChain(rawChain [][]byte, validationOpts ChainValidationOpts) ([]*x509.Certificate, error) {
+func (opts ChainValidationOpts) validateChain(rawChain [][]byte) ([]*x509.Certificate, error) {
 	if len(rawChain) == 0 {
 		return nil, errors.New("empty certificate chain")
 	}
@@ -172,8 +172,8 @@ func validateChain(rawChain [][]byte, validationOpts ChainValidationOpts) ([]*x5
 		}
 	}
 
-	naStart := validationOpts.notAfterStart
-	naLimit := validationOpts.notAfterLimit
+	naStart := opts.notAfterStart
+	naLimit := opts.notAfterLimit
 	cert := chain[0]
 
 	// Check whether the expiry date of the cert is within the acceptable range.
@@ -184,24 +184,24 @@ func validateChain(rawChain [][]byte, validationOpts ChainValidationOpts) ([]*x5
 		return nil, fmt.Errorf("certificate NotAfter (%v) >= %v", cert.NotAfter, *naLimit)
 	}
 
-	now := validationOpts.currentTime
+	now := opts.currentTime
 	if now.IsZero() {
 		now = time.Now()
 	}
 	expired := now.After(cert.NotAfter)
-	if validationOpts.rejectExpired && expired {
+	if opts.rejectExpired && expired {
 		return nil, errors.New("rejecting expired certificate")
 	}
-	if validationOpts.rejectUnexpired && !expired {
+	if opts.rejectUnexpired && !expired {
 		return nil, errors.New("rejecting unexpired certificate")
 	}
 
 	// Check for unwanted extension types, if required.
 	// TODO(al): Refactor CertValidationOpts c'tor to a builder pattern and
 	// pre-calc this in there
-	if len(validationOpts.rejectExtIds) != 0 {
+	if len(opts.rejectExtIds) != 0 {
 		badIDs := make(map[string]bool)
-		for _, id := range validationOpts.rejectExtIds {
+		for _, id := range opts.rejectExtIds {
 			badIDs[id.String()] = true
 		}
 		for idx, ext := range cert.Extensions {
@@ -214,9 +214,9 @@ func validateChain(rawChain [][]byte, validationOpts ChainValidationOpts) ([]*x5
 
 	// TODO(al): Refactor CertValidationOpts c'tor to a builder pattern and
 	// pre-calc this in there too.
-	if len(validationOpts.extKeyUsages) > 0 {
+	if len(opts.extKeyUsages) > 0 {
 		acceptEKUs := make(map[x509.ExtKeyUsage]bool)
-		for _, eku := range validationOpts.extKeyUsages {
+		for _, eku := range opts.extKeyUsages {
 			acceptEKUs[eku] = true
 		}
 		good := false
@@ -227,7 +227,7 @@ func validateChain(rawChain [][]byte, validationOpts ChainValidationOpts) ([]*x5
 			}
 		}
 		if !good {
-			return nil, fmt.Errorf("rejecting certificate without EKU in %v", validationOpts.extKeyUsages)
+			return nil, fmt.Errorf("rejecting certificate without EKU in %v", opts.extKeyUsages)
 		}
 	}
 
@@ -237,9 +237,9 @@ func validateChain(rawChain [][]byte, validationOpts ChainValidationOpts) ([]*x5
 	//  - allow certificate without policing them since this is not CT's responsibility
 	// See /internal/lax509/README.md for further information.
 	verifyOpts := lax509.VerifyOptions{
-		Roots:         validationOpts.trustedRoots.CertPool(),
+		Roots:         opts.trustedRoots.CertPool(),
 		Intermediates: intermediatePool.CertPool(),
-		KeyUsages:     validationOpts.extKeyUsages,
+		KeyUsages:     opts.extKeyUsages,
 	}
 
 	verifiedChains, err := lax509.Verify(cert, verifyOpts)
@@ -261,6 +261,36 @@ func validateChain(rawChain [][]byte, validationOpts ChainValidationOpts) ([]*x5
 	}
 
 	return nil, errors.New("no RFC compliant path to root found when trying to validate chain")
+}
+
+// verifyAddChain is used by add-chain and add-pre-chain. It does the checks that the supplied
+// cert is of the correct type and chains to a trusted root.
+// TODO(phbnf): add tests
+func (opts ChainValidationOpts) verifyAddChain(req rfc6962.AddChainRequest, expectingPrecert bool) ([]*x509.Certificate, error) {
+	// We already checked that the chain is not empty so can move on to verification
+	validPath, err := opts.validateChain(req.Chain)
+	if err != nil {
+		// We rejected it because the cert failed checks or we could not find a path to a root etc.
+		// Lots of possible causes for errors
+		return nil, fmt.Errorf("chain failed to verify: %s", err)
+	}
+
+	isPrecert, err := isPrecertificate(validPath[0])
+	if err != nil {
+		return nil, fmt.Errorf("precert test failed: %s", err)
+	}
+
+	// The type of the leaf must match the one the handler expects
+	if isPrecert != expectingPrecert {
+		if expectingPrecert {
+			klog.Warningf("Cert (or precert with invalid CT ext) submitted as precert chain: %q", req.Chain)
+		} else {
+			klog.Warningf("Precert (or cert with invalid CT ext) submitted as cert chain: %q", req.Chain)
+		}
+		return nil, fmt.Errorf("cert / precert mismatch: %T", expectingPrecert)
+	}
+
+	return validPath, nil
 }
 
 func chainsEquivalent(inChain []*x509.Certificate, verifiedChain []*x509.Certificate) bool {

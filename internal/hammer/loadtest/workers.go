@@ -16,7 +16,6 @@ package loadtest
 
 import (
 	"context"
-	"crypto/sha256"
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
@@ -32,7 +31,6 @@ import (
 	"github.com/transparency-dev/static-ct/internal/types/rfc6962"
 	"github.com/transparency-dev/static-ct/internal/x509util"
 	"github.com/transparency-dev/trillian-tessera/api/layout"
-	"github.com/transparency-dev/trillian-tessera/ctonly"
 	"k8s.io/klog/v2"
 )
 
@@ -362,7 +360,7 @@ func (v *MMDVerifier) Run(ctx context.Context) {
 			v.errChan <- fmt.Errorf("failed to parse certificates: %v", err)
 			continue
 		}
-		entry, err := entryFromChain(certs, false, leafMMD.timestamp)
+		entry, err := x509util.EntryFromChain(certs, false, leafMMD.timestamp)
 		if err != nil {
 			v.errChan <- fmt.Errorf("failed to create entry from chain: %v", err)
 			continue
@@ -383,79 +381,4 @@ func (v *MMDVerifier) Kill() {
 	if v.cancel != nil {
 		v.cancel()
 	}
-}
-
-// entryFromChain generates an Entry from a chain and timestamp.
-// Copied from certificate-transparency-go/serialization.go and internal/scti/handlers.go.
-// TODO(phboneff): move in a different file maybe?
-func entryFromChain(chain []*x509.Certificate, isPrecert bool, timestamp uint64) (*ctonly.Entry, error) {
-	leaf := ctonly.Entry{
-		IsPrecert: isPrecert,
-		Timestamp: timestamp,
-	}
-
-	if len(chain) > 1 {
-		issuersChain := make([][32]byte, len(chain)-1)
-		for i, c := range chain[1:] {
-			issuersChain[i] = sha256.Sum256(c.Raw)
-		}
-		leaf.FingerprintsChain = issuersChain
-	}
-
-	if !isPrecert {
-		leaf.Certificate = chain[0].Raw
-		return &leaf, nil
-	}
-
-	// Pre-certs are more complicated. First, parse the leaf pre-cert and its
-	// putative issuer.
-	if len(chain) < 2 {
-		return nil, fmt.Errorf("no issuer cert available for precert leaf building")
-	}
-	issuer := chain[1]
-	cert := chain[0]
-
-	var preIssuer *x509.Certificate
-	if isPreIssuer(issuer) {
-		// Replace the cert's issuance information with details from the pre-issuer.
-		preIssuer = issuer
-
-		// The issuer of the pre-cert is not going to be the issuer of the final
-		// cert.  Change to use the final issuer's key hash.
-		if len(chain) < 3 {
-			return nil, fmt.Errorf("no issuer cert available for pre-issuer")
-		}
-		issuer = chain[2]
-	}
-
-	// Next, post-process the DER-encoded TBSCertificate, to remove the CT poison
-	// extension and possibly update the issuer field.
-	defangedTBS, err := x509util.BuildPrecertTBS(cert.RawTBSCertificate, preIssuer)
-	if err != nil {
-		return nil, fmt.Errorf("failed to remove poison extension: %v", err)
-	}
-
-	leaf.Precertificate = cert.Raw
-	// TODO(phboneff): do we need this?
-	// leaf.PrecertSigningCert = issuer.Raw
-	leaf.Certificate = defangedTBS
-
-	issuerKeyHash := sha256.Sum256(issuer.RawSubjectPublicKeyInfo)
-	leaf.IssuerKeyHash = issuerKeyHash[:]
-	return &leaf, nil
-}
-
-// isPreIssuer indicates whether a certificate is a pre-cert issuer with the specific
-// certificate transparency extended key usage.
-// Copied from certificate-transparency-go/serialization.go and internal/scti/handlers.go.
-// TODO(phboneff): unify these.
-func isPreIssuer(cert *x509.Certificate) bool {
-	// Look for the extension in the Extensions field and not ExtKeyUsage
-	// since crypto/x509 does not recognize this extension as an ExtKeyUsage.
-	for _, ext := range cert.Extensions {
-		if rfc6962.OIDExtKeyUsageCertificateTransparency.Equal(ext.Id) {
-			return true
-		}
-	}
-	return false
 }

@@ -254,7 +254,7 @@ func TestValidateChain(t *testing.T) {
 	if !fakeCARoots.AppendCertsFromPEM([]byte(testdata.RealPrecertIntermediatePEM)) {
 		t.Fatal("failed to load real intermediate")
 	}
-	validateOpts := ChainValidationOpts{
+	opts := ChainValidationOpts{
 		trustedRoots: fakeCARoots,
 	}
 
@@ -403,11 +403,11 @@ func TestValidateChain(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.desc, func(t *testing.T) {
-			validateOpts := validateOpts
+			opts := opts
 			if test.modifyOpts != nil {
-				test.modifyOpts(&validateOpts)
+				test.modifyOpts(&opts)
 			}
-			gotPath, err := validateChain(test.chain, validateOpts)
+			gotPath, err := opts.validateChain(test.chain)
 			if err != nil {
 				if !test.wantErr {
 					t.Errorf("ValidateChain()=%v,%v; want _,nil", gotPath, err)
@@ -433,7 +433,7 @@ func TestNotAfterRange(t *testing.T) {
 	if !fakeCARoots.AppendCertsFromPEM([]byte(testdata.FakeCACertPEM)) {
 		t.Fatal("failed to load fake root")
 	}
-	validateOpts := ChainValidationOpts{
+	opts := ChainValidationOpts{
 		trustedRoots:  fakeCARoots,
 		rejectExpired: false,
 	}
@@ -473,12 +473,12 @@ func TestNotAfterRange(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.desc, func(t *testing.T) {
 			if !test.notAfterStart.IsZero() {
-				validateOpts.notAfterStart = &test.notAfterStart
+				opts.notAfterStart = &test.notAfterStart
 			}
 			if !test.notAfterLimit.IsZero() {
-				validateOpts.notAfterLimit = &test.notAfterLimit
+				opts.notAfterLimit = &test.notAfterLimit
 			}
-			gotPath, err := validateChain(test.chain, validateOpts)
+			gotPath, err := opts.validateChain(test.chain)
 			if err != nil {
 				if !test.wantErr {
 					t.Errorf("ValidateChain()=%v,%v; want _,nil", gotPath, err)
@@ -500,7 +500,7 @@ func TestRejectExpiredUnexpired(t *testing.T) {
 	}
 	// Validity period: May 13, 2016 - Jul 12, 2019.
 	chain := pemsToDERChain(t, []string{testdata.LeafSignedByFakeIntermediateCertPEM, testdata.FakeIntermediateCertPEM})
-	validateOpts := ChainValidationOpts{
+	opts := ChainValidationOpts{
 		trustedRoots: fakeCARoots,
 		extKeyUsages: []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
 	}
@@ -587,10 +587,10 @@ func TestRejectExpiredUnexpired(t *testing.T) {
 		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
-			validateOpts.currentTime = tc.now
-			validateOpts.rejectExpired = tc.rejectExpired
-			validateOpts.rejectUnexpired = tc.rejectUnexpired
-			_, err := validateChain(chain, validateOpts)
+			opts.currentTime = tc.now
+			opts.rejectExpired = tc.rejectExpired
+			opts.rejectUnexpired = tc.rejectUnexpired
+			_, err := opts.validateChain(chain)
 			if err != nil {
 				if len(tc.wantErr) == 0 {
 					t.Errorf("ValidateChain()=_,%v; want _,nil", err)
@@ -692,7 +692,7 @@ func TestPreIssuedCert(t *testing.T) {
 				trustedRoots: roots,
 				extKeyUsages: tc.eku,
 			}
-			chain, err := validateChain(rawChain, opts)
+			chain, err := opts.validateChain(rawChain)
 			if err != nil {
 				t.Fatalf("failed to ValidateChain: %v", err)
 			}
