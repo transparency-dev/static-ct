@@ -252,7 +252,7 @@ func addChainInternal(ctx context.Context, opts *HandlerOptions, log *log, w htt
 	for _, der := range addChainReq.Chain {
 		opts.RequestLog.addDERToChain(ctx, der)
 	}
-	chain, err := log.chainValidationOpts.verifyAddChain(addChainReq, isPrecert)
+	chain, err := log.chainValidator.Validate(addChainReq, isPrecert)
 	if err != nil {
 		return http.StatusBadRequest, fmt.Errorf("failed to verify add-chain contents: %s", err)
 	}
@@ -361,8 +361,9 @@ func getRoots(ctx context.Context, opts *HandlerOptions, log *log, w http.Respon
 	defer span.End()
 
 	// Pull out the raw certificates from the parsed versions
-	rawCerts := make([][]byte, 0, len(log.chainValidationOpts.trustedRoots.RawCertificates()))
-	for _, cert := range log.chainValidationOpts.trustedRoots.RawCertificates() {
+	// TODO(phbnf): precompute the answer
+	rawCerts := make([][]byte, 0, len(log.chainValidator.Roots()))
+	for _, cert := range log.chainValidator.Roots() {
 		rawCerts = append(rawCerts, cert.Raw)
 	}
 

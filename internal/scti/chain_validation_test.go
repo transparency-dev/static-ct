@@ -254,7 +254,7 @@ func TestValidateChain(t *testing.T) {
 	if !fakeCARoots.AppendCertsFromPEM([]byte(testdata.RealPrecertIntermediatePEM)) {
 		t.Fatal("failed to load real intermediate")
 	}
-	opts := ChainValidationOpts{
+	cv := chainValidator{
 		trustedRoots: fakeCARoots,
 	}
 
@@ -263,7 +263,7 @@ func TestValidateChain(t *testing.T) {
 		chain       [][]byte
 		wantErr     bool
 		wantPathLen int
-		modifyOpts  func(v *ChainValidationOpts)
+		modifyOpts  func(v *chainValidator)
 	}{
 		{
 			desc:    "missing-intermediate-cert",
@@ -323,7 +323,7 @@ func TestValidateChain(t *testing.T) {
 		{
 			desc:  "reject-non-existent-ext-id",
 			chain: pemsToDERChain(t, []string{testdata.LeafSignedByFakeIntermediateCertPEM, testdata.FakeIntermediateCertPEM}),
-			modifyOpts: func(v *ChainValidationOpts) {
+			modifyOpts: func(v *chainValidator) {
 				// reject SubjectKeyIdentifier extension
 				v.rejectExtIds = []asn1.ObjectIdentifier{[]int{99, 99, 99, 99}}
 			},
@@ -332,7 +332,7 @@ func TestValidateChain(t *testing.T) {
 		{
 			desc:  "reject-non-existent-ext-id-precert",
 			chain: pemsToDERChain(t, []string{testdata.PrecertPEMValid}),
-			modifyOpts: func(v *ChainValidationOpts) {
+			modifyOpts: func(v *chainValidator) {
 				// reject SubjectKeyIdentifier extension
 				v.rejectExtIds = []asn1.ObjectIdentifier{[]int{99, 99, 99, 99}}
 			},
@@ -342,7 +342,7 @@ func TestValidateChain(t *testing.T) {
 			desc:    "reject-ext-id",
 			chain:   pemsToDERChain(t, []string{testdata.LeafSignedByFakeIntermediateCertPEM, testdata.FakeIntermediateCertPEM}),
 			wantErr: true,
-			modifyOpts: func(v *ChainValidationOpts) {
+			modifyOpts: func(v *chainValidator) {
 				// reject ExtendedKeyUsage extension
 				v.rejectExtIds = []asn1.ObjectIdentifier{[]int{2, 5, 29, 37}}
 			},
@@ -351,7 +351,7 @@ func TestValidateChain(t *testing.T) {
 			desc:    "reject-ext-id-precert",
 			chain:   pemsToDERChain(t, []string{testdata.PrecertPEMValid}),
 			wantErr: true,
-			modifyOpts: func(v *ChainValidationOpts) {
+			modifyOpts: func(v *chainValidator) {
 				// reject ExtendedKeyUsage extension
 				v.rejectExtIds = []asn1.ObjectIdentifier{[]int{2, 5, 29, 37}}
 			},
@@ -360,7 +360,7 @@ func TestValidateChain(t *testing.T) {
 			desc:    "reject-eku-not-present-in-cert",
 			chain:   pemsToDERChain(t, []string{testdata.LeafSignedByFakeIntermediateCertPEM, testdata.FakeIntermediateCertPEM}),
 			wantErr: true,
-			modifyOpts: func(v *ChainValidationOpts) {
+			modifyOpts: func(v *chainValidator) {
 				// reject cert without ExtKeyUsageEmailProtection
 				v.extKeyUsages = []x509.ExtKeyUsage{x509.ExtKeyUsageEmailProtection}
 			},
@@ -369,7 +369,7 @@ func TestValidateChain(t *testing.T) {
 			desc:        "allow-eku-present-in-cert",
 			chain:       pemsToDERChain(t, []string{testdata.LeafSignedByFakeIntermediateCertPEM, testdata.FakeIntermediateCertPEM}),
 			wantPathLen: 3,
-			modifyOpts: func(v *ChainValidationOpts) {
+			modifyOpts: func(v *chainValidator) {
 				v.extKeyUsages = []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth}
 			},
 		},
@@ -377,7 +377,7 @@ func TestValidateChain(t *testing.T) {
 			desc:    "reject-eku-not-present-in-precert",
 			chain:   pemsToDERChain(t, []string{testdata.RealPrecertWithEKUPEM}),
 			wantErr: true,
-			modifyOpts: func(v *ChainValidationOpts) {
+			modifyOpts: func(v *chainValidator) {
 				// reject cert without ExtKeyUsageEmailProtection
 				v.extKeyUsages = []x509.ExtKeyUsage{x509.ExtKeyUsageEmailProtection}
 			},
@@ -386,7 +386,7 @@ func TestValidateChain(t *testing.T) {
 			desc:        "allow-eku-present-in-precert",
 			chain:       pemsToDERChain(t, []string{testdata.RealPrecertWithEKUPEM}),
 			wantPathLen: 2,
-			modifyOpts: func(v *ChainValidationOpts) {
+			modifyOpts: func(v *chainValidator) {
 				v.extKeyUsages = []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth}
 			},
 		},
@@ -403,11 +403,11 @@ func TestValidateChain(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.desc, func(t *testing.T) {
-			opts := opts
+			opts := cv
 			if test.modifyOpts != nil {
 				test.modifyOpts(&opts)
 			}
-			gotPath, err := opts.validateChain(test.chain)
+			gotPath, err := opts.validate(test.chain)
 			if err != nil {
 				if !test.wantErr {
 					t.Errorf("ValidateChain()=%v,%v; want _,nil", gotPath, err)
@@ -433,7 +433,7 @@ func TestNotAfterRange(t *testing.T) {
 	if !fakeCARoots.AppendCertsFromPEM([]byte(testdata.FakeCACertPEM)) {
 		t.Fatal("failed to load fake root")
 	}
-	opts := ChainValidationOpts{
+	opts := chainValidator{
 		trustedRoots:  fakeCARoots,
 		rejectExpired: false,
 	}
@@ -478,7 +478,7 @@ func TestNotAfterRange(t *testing.T) {
 			if !test.notAfterLimit.IsZero() {
 				opts.notAfterLimit = &test.notAfterLimit
 			}
-			gotPath, err := opts.validateChain(test.chain)
+			gotPath, err := opts.validate(test.chain)
 			if err != nil {
 				if !test.wantErr {
 					t.Errorf("ValidateChain()=%v,%v; want _,nil", gotPath, err)
@@ -500,7 +500,7 @@ func TestRejectExpiredUnexpired(t *testing.T) {
 	}
 	// Validity period: May 13, 2016 - Jul 12, 2019.
 	chain := pemsToDERChain(t, []string{testdata.LeafSignedByFakeIntermediateCertPEM, testdata.FakeIntermediateCertPEM})
-	opts := ChainValidationOpts{
+	opts := chainValidator{
 		trustedRoots: fakeCARoots,
 		extKeyUsages: []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
 	}
@@ -590,7 +590,7 @@ func TestRejectExpiredUnexpired(t *testing.T) {
 			opts.currentTime = tc.now
 			opts.rejectExpired = tc.rejectExpired
 			opts.rejectUnexpired = tc.rejectUnexpired
-			_, err := opts.validateChain(chain)
+			_, err := opts.validate(chain)
 			if err != nil {
 				if len(tc.wantErr) == 0 {
 					t.Errorf("ValidateChain()=_,%v; want _,nil", err)
@@ -688,11 +688,11 @@ func TestPreIssuedCert(t *testing.T) {
 		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
-			opts := ChainValidationOpts{
+			opts := chainValidator{
 				trustedRoots: roots,
 				extKeyUsages: tc.eku,
 			}
-			chain, err := opts.validateChain(rawChain)
+			chain, err := opts.validate(rawChain)
 			if err != nil {
 				t.Fatalf("failed to ValidateChain: %v", err)
 			}

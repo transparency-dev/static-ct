@@ -27,7 +27,7 @@ func TestNewCertValidationOpts(t *testing.T) {
 	for _, tc := range []struct {
 		desc    string
 		wantErr string
-		cvcfg   ChainValidationConfig
+		cvCfg   ChainValidationConfig
 	}{
 		{
 			desc:    "empty-rootsPemFile",
@@ -36,14 +36,14 @@ func TestNewCertValidationOpts(t *testing.T) {
 		{
 			desc:    "missing-root-cert",
 			wantErr: "failed to read trusted roots",
-			cvcfg: ChainValidationConfig{
+			cvCfg: ChainValidationConfig{
 				RootsPEMFile: "./internal/testdata/bogus.cert",
 			},
 		},
 		{
 			desc:    "rejecting-all",
 			wantErr: "configuration would reject all certificates",
-			cvcfg: ChainValidationConfig{
+			cvCfg: ChainValidationConfig{
 				RootsPEMFile:    "./internal/testdata/fake-ca.cert",
 				RejectExpired:   true,
 				RejectUnexpired: true},
@@ -51,14 +51,14 @@ func TestNewCertValidationOpts(t *testing.T) {
 		{
 			desc:    "unknown-ext-key-usage-1",
 			wantErr: "unknown extended key usage",
-			cvcfg: ChainValidationConfig{
+			cvCfg: ChainValidationConfig{
 				RootsPEMFile: "./internal/testdata/fake-ca.cert",
 				ExtKeyUsages: "wrong_usage"},
 		},
 		{
 			desc:    "unknown-ext-key-usage-2",
 			wantErr: "unknown extended key usage",
-			cvcfg: ChainValidationConfig{
+			cvCfg: ChainValidationConfig{
 				RootsPEMFile: "./internal/testdata/fake-ca.cert",
 				ExtKeyUsages: "ClientAuth,ServerAuth,TimeStomping",
 			},
@@ -66,7 +66,7 @@ func TestNewCertValidationOpts(t *testing.T) {
 		{
 			desc:    "unknown-ext-key-usage-3",
 			wantErr: "unknown extended key usage",
-			cvcfg: ChainValidationConfig{
+			cvCfg: ChainValidationConfig{
 				RootsPEMFile: "./internal/testdata/fake-ca.cert",
 				ExtKeyUsages: "Any ",
 			},
@@ -74,7 +74,7 @@ func TestNewCertValidationOpts(t *testing.T) {
 		{
 			desc:    "unknown-reject-ext",
 			wantErr: "failed to parse RejectExtensions",
-			cvcfg: ChainValidationConfig{
+			cvCfg: ChainValidationConfig{
 				RootsPEMFile:     "./internal/testdata/fake-ca.cert",
 				RejectExtensions: "1.2.3.4,one.banana.two.bananas",
 			},
@@ -82,7 +82,7 @@ func TestNewCertValidationOpts(t *testing.T) {
 		{
 			desc:    "limit-before-start",
 			wantErr: "before start",
-			cvcfg: ChainValidationConfig{
+			cvCfg: ChainValidationConfig{
 				RootsPEMFile:  "./internal/testdata/fake-ca.cert",
 				NotAfterStart: &t200,
 				NotAfterLimit: &t100,
@@ -90,41 +90,41 @@ func TestNewCertValidationOpts(t *testing.T) {
 		},
 		{
 			desc: "ok",
-			cvcfg: ChainValidationConfig{
+			cvCfg: ChainValidationConfig{
 				RootsPEMFile: "./internal/testdata/fake-ca.cert",
 			},
 		},
 		{
 			desc: "ok-ext-key-usages",
-			cvcfg: ChainValidationConfig{
+			cvCfg: ChainValidationConfig{
 				RootsPEMFile: "./internal/testdata/fake-ca.cert",
 				ExtKeyUsages: "ServerAuth,ClientAuth,OCSPSigning",
 			},
 		},
 		{
 			desc: "ok-reject-ext",
-			cvcfg: ChainValidationConfig{
+			cvCfg: ChainValidationConfig{
 				RootsPEMFile:     "./internal/testdata/fake-ca.cert",
 				RejectExtensions: "1.2.3.4,5.6.7.8",
 			},
 		},
 		{
 			desc: "ok-start-timestamp",
-			cvcfg: ChainValidationConfig{
+			cvCfg: ChainValidationConfig{
 				RootsPEMFile:  "./internal/testdata/fake-ca.cert",
 				NotAfterStart: &t100,
 			},
 		},
 		{
 			desc: "ok-limit-timestamp",
-			cvcfg: ChainValidationConfig{
+			cvCfg: ChainValidationConfig{
 				RootsPEMFile:  "./internal/testdata/fake-ca.cert",
 				NotAfterStart: &t200,
 			},
 		},
 		{
 			desc: "ok-range-timestamp",
-			cvcfg: ChainValidationConfig{
+			cvCfg: ChainValidationConfig{
 				RootsPEMFile:  "./internal/testdata/fake-ca.cert",
 				NotAfterStart: &t100,
 				NotAfterLimit: &t200,
@@ -132,7 +132,7 @@ func TestNewCertValidationOpts(t *testing.T) {
 		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
-			vc, err := newCertValidationOpts(tc.cvcfg)
+			vc, err := newChainValidator(tc.cvCfg)
 			if len(tc.wantErr) == 0 && err != nil {
 				t.Errorf("ValidateLogConfig()=%v, want nil", err)
 			}
