@@ -25,6 +25,7 @@ env:
 
 jobs:
   aws-conformance-ci:
+    if: github.repository == 'transparency-dev/static-ct'
     runs-on: ubuntu-latest
     steps:
       - name: Configure AWS credentials
