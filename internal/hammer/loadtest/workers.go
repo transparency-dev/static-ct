@@ -335,7 +335,7 @@ func (v *MMDVerifier) Run(ctx context.Context) {
 		// Update the checkpoint and proof builder only if needed, so the node
 		// cache in the proof builder can be effectively used to improve the
 		// performance.
-		if leafMMD.index >= checkpoint.Size && checkpoint.Size < v.tracker.LatestConsistent.Size {
+		if (leafMMD.index >= checkpoint.Size && checkpoint.Size < v.tracker.LatestConsistent.Size) || proofBuilder == nil {
 			checkpoint = v.tracker.LatestConsistent
 
 			var err error
