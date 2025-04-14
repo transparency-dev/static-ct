@@ -33,6 +33,7 @@ import (
 	"github.com/transparency-dev/static-ct/storage/gcp"
 	tessera "github.com/transparency-dev/trillian-tessera"
 	tgcp "github.com/transparency-dev/trillian-tessera/storage/gcp"
+	gcp_as "github.com/transparency-dev/trillian-tessera/storage/gcp/antispam"
 	"golang.org/x/mod/sumdb/note"
 	"k8s.io/klog/v2"
 )
@@ -54,6 +55,7 @@ var (
 	bucket                     = flag.String("bucket", "", "Name of the bucket to store the log in.")
 	spannerDB                  = flag.String("spanner_db_path", "", "Spanner database path: projects/{projectId}/instances/{instanceId}/databases/{databaseId}.")
 	spannerDedupDB             = flag.String("spanner_dedup_db_path", "", "Spanner deduplication database path: projects/{projectId}/instances/{instanceId}/databases/{databaseId}.")
+	spannerAntispamDB          = flag.String("spanner_antispam_db_path", "", "EXPERIMENTAL: Spanner antispam deduplication database path projects/{projectId}/instances/{instanceId}/databases/{databaseId}.")
 	rootsPemFile               = flag.String("roots_pem_file", "", "Path to the file containing root certificates that are acceptable to the log. The certs are served through get-roots endpoint.")
 	rejectExpired              = flag.Bool("reject_expired", false, "If true then the certificate validity period will be checked against the current time during the validation of submissions. This will cause expired certificates to be rejected.")
 	rejectUnexpired            = flag.Bool("reject_unexpired", false, "If true then CTFE rejects certificates that are either currently valid or not yet valid.")
@@ -157,9 +159,23 @@ func newGCPStorage(ctx context.Context, signer note.Signer) (*storage.CTStorage,
 		return nil, fmt.Errorf("failed to initialize GCP Tessera storage driver: %v", err)
 	}
 
+	var antispam tessera.Antispam
+	// Persistent antispam is currently experimental, so there's no terraform or documentation yet!
+	if *spannerAntispamDB != "" {
+		asOpts := gcp_as.AntispamOpts{
+			MaxBatchSize:      5000,
+			PushbackThreshold: 1024,
+		}
+		antispam, err = gcp_as.NewAntispam(ctx, *spannerAntispamDB, asOpts)
+		if err != nil {
+			klog.Exitf("Failed to create new GCP antispam storage: %v", err)
+		}
+	}
+
 	opts := tessera.NewAppendOptions().
 		WithCheckpointSigner(signer).
-		WithCTLayout()
+		WithCTLayout().
+		WithAntispam(256, antispam)
 
 	// TODO(phbnf): figure out the best way to thread the `shutdown` func NewAppends returns back out to main so we can cleanly close Tessera down
 	// when it's time to exit.

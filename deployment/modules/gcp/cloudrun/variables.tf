@@ -48,6 +48,11 @@ variable "dedup_spanner_db" {
   type        = string
 }
 
+variable "antispam_spanner_db" {
+  description = "Antispam Spanner database"
+  type        = string
+}
+
 variable "signer_public_key_secret_name" {
   description = "Public key secret name for checkpoints and SCTs signer. Format: projects/{projectId}/secrets/{secretName}/versions/{secretVersion}."
   type        = string

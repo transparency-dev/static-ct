@@ -73,3 +73,14 @@ resource "google_spanner_database" "dedup_db" {
 
   deletion_protection = !var.ephemeral
 }
+
+resource "google_spanner_database" "antispam_db" {
+  instance = google_spanner_instance.log_spanner.name
+  name     = "${var.base_name}-antispam-db"
+  ddl = [
+    	"CREATE TABLE IF NOT EXISTS FollowCoord (id INT64 NOT NULL, nextIdx INT64 NOT NULL) PRIMARY KEY (id)",
+			"CREATE TABLE IF NOT EXISTS IDSeq (h BYTES(32) NOT NULL, idx INT64 NOT NULL) PRIMARY KEY (h)",
+  ]
+
+  deletion_protection = !var.ephemeral
+}
