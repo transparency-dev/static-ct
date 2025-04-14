@@ -17,6 +17,7 @@ package scti
 import (
 	"bytes"
 	"crypto"
+	"crypto/ecdsa"
 	"crypto/sha256"
 	"crypto/x509"
 	"encoding/hex"
@@ -400,4 +401,57 @@ func setupSigner(fakeSig []byte) (crypto.Signer, error) {
 	}
 
 	return testdata.NewSignerWithFixedSig(key, fakeSig), nil
+}
+
+func TestBuildCp(t *testing.T) {
+	// Create a test signer.
+	ecdsaSigner, err := loadPEMPrivateKey("../testdata/test_ct_server_ecdsa_private_key.pem")
+	if err != nil {
+		t.Fatalf("Can't open key: %v", err)
+	}
+
+	// Define test data.
+	size := uint64(12345)
+	hash := []byte("test_hash_value_12345678901234567890")
+
+	// Build the checkpoint which is in the RFC6962NoteSignature format.
+	checkpoint, err := buildCp(ecdsaSigner, size, fixedTimeMillis, hash)
+	if err != nil {
+		t.Errorf("buildCp failed: %v", err)
+	}
+
+	// Verify whether the checkpoint is empty.
+	if len(checkpoint) == 0 {
+		t.Errorf("buildCp returned an empty checkpoint")
+	}
+
+	// Verify that the checkpoint can be parsed.
+	var sig rfc6962NoteSignature
+	_, err = tls.Unmarshal(checkpoint, &sig)
+	if err != nil {
+		t.Errorf("failed to unmarshal checkpoint: %v", err)
+	}
+	// Verify the timestamp in the note signature.
+	if sig.Timestamp != fixedTimeMillis {
+		t.Errorf("buildCp returned wrong timestamp, got %d, want %d", sig.Timestamp, fixedTimeMillis)
+	}
+
+	// Verify the signature using the public key.
+	sth := rfc6962.SignedTreeHead{
+		Version:   rfc6962.V1,
+		TreeSize:  size,
+		Timestamp: fixedTimeMillis,
+	}
+	copy(sth.SHA256RootHash[:], hash)
+
+	sthBytes, err := serializeSTHSignatureInput(sth)
+	if err != nil {
+		t.Fatalf("serializeSTHSignatureInput(): %v", err)
+	}
+
+	h := sha256.Sum256(sthBytes)
+	valid := ecdsa.VerifyASN1(ecdsaSigner.Public().(*ecdsa.PublicKey), h[:], sig.Signature.Signature)
+	if !valid {
+		t.Errorf("buildCp returned an invalid signature")
+	}
 }
