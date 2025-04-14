@@ -19,9 +19,9 @@ require (
 	github.com/google/go-cmp v0.7.0
 	github.com/kylelemons/godebug v1.1.0
 	github.com/rivo/tview v0.0.0-20240625185742-b0a7293b8130
-	github.com/transparency-dev/formats v0.0.0-20250127084410-134797944be6
+	github.com/transparency-dev/formats v0.0.0-20250414062418-2207ab4ca61e
 	github.com/transparency-dev/merkle v0.0.2
-	github.com/transparency-dev/trillian-tessera v0.1.2-0.20250408153912-a650aa01f2a4
+	github.com/transparency-dev/trillian-tessera v0.1.2-0.20250414152447-15bd4550f882
 	go.etcd.io/bbolt v1.4.0
 	go.opentelemetry.io/otel v1.35.0
 	go.opentelemetry.io/otel/metric v1.35.0
