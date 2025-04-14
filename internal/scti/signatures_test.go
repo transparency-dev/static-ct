@@ -426,7 +426,7 @@ func TestBuildCp(t *testing.T) {
 	}
 
 	// Verify that the checkpoint can be parsed.
-	var sig RFC6962NoteSignature
+	var sig rfc6962NoteSignature
 	_, err = tls.Unmarshal(checkpoint, &sig)
 	if err != nil {
 		t.Errorf("failed to unmarshal checkpoint: %v", err)

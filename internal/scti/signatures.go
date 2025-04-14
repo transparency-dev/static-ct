@@ -105,7 +105,7 @@ func buildV1SCT(signer crypto.Signer, leaf *rfc6962.MerkleTreeLeaf) (*rfc6962.Si
 	}, nil
 }
 
-type RFC6962NoteSignature struct {
+type rfc6962NoteSignature struct {
 	Timestamp uint64
 	Signature rfc6962.DigitallySigned
 }
@@ -152,7 +152,7 @@ func buildCp(signer crypto.Signer, size uint64, timeMilli uint64, hash []byte) (
 		return nil, err
 	}
 
-	rfc6962Note := RFC6962NoteSignature{
+	rfc6962Note := rfc6962NoteSignature{
 		Timestamp: sth.Timestamp,
 		Signature: rfc6962.DigitallySigned{
 			Algorithm: tls.SignatureAndHashAlgorithm{
