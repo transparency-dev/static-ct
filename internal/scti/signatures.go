@@ -105,9 +105,9 @@ func buildV1SCT(signer crypto.Signer, leaf *rfc6962.MerkleTreeLeaf) (*rfc6962.Si
 	}, nil
 }
 
-type rfc6962NoteSignature struct {
-	timestamp uint64
-	signature rfc6962.DigitallySigned
+type RFC6962NoteSignature struct {
+	Timestamp uint64
+	Signature rfc6962.DigitallySigned
 }
 
 // serializeSTHSignatureInput serializes the passed in STH into the correct
@@ -133,7 +133,6 @@ func serializeSTHSignatureInput(sth rfc6962.SignedTreeHead) ([]byte, error) {
 }
 
 // buildCp builds a https://c2sp.org/static-ct-api checkpoint.
-// TODO(phboneff): add tests
 func buildCp(signer crypto.Signer, size uint64, timeMilli uint64, hash []byte) ([]byte, error) {
 	sth := rfc6962.SignedTreeHead{
 		Version:   rfc6962.V1,
@@ -153,9 +152,9 @@ func buildCp(signer crypto.Signer, size uint64, timeMilli uint64, hash []byte) (
 		return nil, err
 	}
 
-	rfc6962Note := rfc6962NoteSignature{
-		timestamp: sth.Timestamp,
-		signature: rfc6962.DigitallySigned{
+	rfc6962Note := RFC6962NoteSignature{
+		Timestamp: sth.Timestamp,
+		Signature: rfc6962.DigitallySigned{
 			Algorithm: tls.SignatureAndHashAlgorithm{
 				Hash:      tls.SHA256,
 				Signature: tls.SignatureAlgorithmFromPubKey(signer.Public()),
