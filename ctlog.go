@@ -25,7 +25,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/transparency-dev/static-ct/internal/scti"
+	"github.com/transparency-dev/static-ct/internal/tcti"
 	"github.com/transparency-dev/static-ct/internal/x509util"
 	"github.com/transparency-dev/static-ct/storage"
 )
@@ -62,7 +62,7 @@ type ChainValidationConfig struct {
 	NotAfterLimit *time.Time
 }
 
-// systemTimeSource implments scti.TimeSource.
+// systemTimeSource implements tcti.TimeSource.
 type systemTimeSource struct{}
 
 // Now returns the true current local time.
@@ -74,7 +74,7 @@ var sysTimeSource = systemTimeSource{}
 
 // newChainValidator checks that a chain validation config is valid,
 // parses it, and loads resources to validate chains.
-func newChainValidator(cfg ChainValidationConfig) (scti.ChainValidator, error) {
+func newChainValidator(cfg ChainValidationConfig) (tcti.ChainValidator, error) {
 	// Load the trusted roots.
 	if cfg.RootsPEMFile == "" {
 		return nil, errors.New("empty rootsPemFile")
@@ -98,7 +98,7 @@ func newChainValidator(cfg ChainValidationConfig) (scti.ChainValidator, error) {
 	// Filter which extended key usages are allowed.
 	if cfg.ExtKeyUsages != "" {
 		lExtKeyUsages := strings.Split(cfg.ExtKeyUsages, ",")
-		extKeyUsages, err = scti.ParseExtKeyUsages(lExtKeyUsages)
+		extKeyUsages, err = tcti.ParseExtKeyUsages(lExtKeyUsages)
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse ExtKeyUsages: %v", err)
 		}
@@ -108,13 +108,13 @@ func newChainValidator(cfg ChainValidationConfig) (scti.ChainValidator, error) {
 	// Filter which extensions are rejected.
 	if cfg.RejectExtensions != "" {
 		lRejectExtensions := strings.Split(cfg.RejectExtensions, ",")
-		rejectExtIds, err = scti.ParseOIDs(lRejectExtensions)
+		rejectExtIds, err = tcti.ParseOIDs(lRejectExtensions)
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse RejectExtensions: %v", err)
 		}
 	}
 
-	cv := scti.NewChainValidator(roots, cfg.RejectExpired, cfg.RejectUnexpired, cfg.NotAfterStart, cfg.NotAfterLimit, extKeyUsages, rejectExtIds)
+	cv := tcti.NewChainValidator(roots, cfg.RejectExpired, cfg.RejectUnexpired, cfg.NotAfterStart, cfg.NotAfterLimit, extKeyUsages, rejectExtIds)
 	return &cv, nil
 }
 
@@ -126,19 +126,19 @@ func NewLogHandler(ctx context.Context, origin string, signer crypto.Signer, cfg
 	if err != nil {
 		return nil, fmt.Errorf("newCertValidationOpts(): %v", err)
 	}
-	log, err := scti.NewLog(ctx, origin, signer, cv, cs, sysTimeSource)
+	log, err := tcti.NewLog(ctx, origin, signer, cv, cs, sysTimeSource)
 	if err != nil {
 		return nil, fmt.Errorf("newLog(): %v", err)
 	}
 
-	opts := &scti.HandlerOptions{
+	opts := &tcti.HandlerOptions{
 		Deadline:           httpDeadline,
-		RequestLog:         &scti.DefaultRequestLog{},
+		RequestLog:         &tcti.DefaultRequestLog{},
 		MaskInternalErrors: maskInternalErrors,
 		TimeSource:         sysTimeSource,
 	}
 
-	handlers := scti.NewPathHandlers(ctx, opts, log)
+	handlers := tcti.NewPathHandlers(ctx, opts, log)
 	mux := http.NewServeMux()
 	// Register handlers for all the configured logs.
 	for path, handler := range handlers {
