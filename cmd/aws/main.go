@@ -33,7 +33,7 @@ import (
 	"github.com/transparency-dev/static-ct/storage/aws"
 	"github.com/transparency-dev/static-ct/storage/bbolt"
 	tessera "github.com/transparency-dev/trillian-tessera"
-	awsTessera "github.com/transparency-dev/trillian-tessera/storage/aws"
+	taws "github.com/transparency-dev/trillian-tessera/storage/aws"
 	"golang.org/x/mod/sumdb/note"
 	"k8s.io/klog/v2"
 )
@@ -143,7 +143,7 @@ func awaitSignal(doneFn func()) {
 
 func newAWSStorage(ctx context.Context, signer note.Signer) (*storage.CTStorage, error) {
 	awsCfg := storageConfigFromFlags()
-	driver, err := awsTessera.New(ctx, awsCfg)
+	driver, err := taws.New(ctx, awsCfg)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize AWS Tessera storage driver: %v", err)
 	}
@@ -192,7 +192,7 @@ func (t *timestampFlag) Set(w string) error {
 
 // storageConfigFromFlags returns an aws.Config struct populated with values
 // provided via flags.
-func storageConfigFromFlags() awsTessera.Config {
+func storageConfigFromFlags() taws.Config {
 	if *bucket == "" {
 		klog.Exit("--bucket must be set")
 	}
@@ -223,7 +223,7 @@ func storageConfigFromFlags() awsTessera.Config {
 		AllowNativePasswords:    true,
 	}
 
-	return awsTessera.Config{
+	return taws.Config{
 		Bucket:       *bucket,
 		DSN:          c.FormatDSN(),
 		MaxOpenConns: *dbMaxConns,

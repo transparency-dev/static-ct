@@ -32,7 +32,7 @@ import (
 	"github.com/transparency-dev/static-ct/storage"
 	"github.com/transparency-dev/static-ct/storage/gcp"
 	tessera "github.com/transparency-dev/trillian-tessera"
-	gcpTessera "github.com/transparency-dev/trillian-tessera/storage/gcp"
+	tgcp "github.com/transparency-dev/trillian-tessera/storage/gcp"
 	"golang.org/x/mod/sumdb/note"
 	"k8s.io/klog/v2"
 )
@@ -147,12 +147,12 @@ func newGCPStorage(ctx context.Context, signer note.Signer) (*storage.CTStorage,
 		return nil, errors.New("missing spannerDB")
 	}
 
-	gcpCfg := gcpTessera.Config{
+	gcpCfg := tgcp.Config{
 		Bucket:  *bucket,
 		Spanner: *spannerDB,
 	}
 
-	driver, err := gcpTessera.New(ctx, gcpCfg)
+	driver, err := tgcp.New(ctx, gcpCfg)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize GCP Tessera storage driver: %v", err)
 	}
