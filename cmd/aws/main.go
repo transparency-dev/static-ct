@@ -30,7 +30,7 @@ import (
 	"github.com/go-sql-driver/mysql"
 	tesseract "github.com/transparency-dev/static-ct"
 	"github.com/transparency-dev/static-ct/storage"
-	awsTesseract "github.com/transparency-dev/static-ct/storage/aws"
+	"github.com/transparency-dev/static-ct/storage/aws"
 	"github.com/transparency-dev/static-ct/storage/bbolt"
 	tessera "github.com/transparency-dev/trillian-tessera"
 	awsTessera "github.com/transparency-dev/trillian-tessera/storage/aws"
@@ -154,7 +154,7 @@ func newAWSStorage(ctx context.Context, signer note.Signer) (*storage.CTStorage,
 		return nil, fmt.Errorf("failed to initialize AWS Tessera storage: %v", err)
 	}
 
-	issuerStorage, err := awsTesseract.NewIssuerStorage(ctx, *bucket, "fingerprints/", "application/pkix-cert")
+	issuerStorage, err := aws.NewIssuerStorage(ctx, *bucket, "fingerprints/", "application/pkix-cert")
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize AWS issuer storage: %v", err)
 	}

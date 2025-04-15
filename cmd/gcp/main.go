@@ -30,7 +30,7 @@ import (
 
 	tesseract "github.com/transparency-dev/static-ct"
 	"github.com/transparency-dev/static-ct/storage"
-	gcpTesseract "github.com/transparency-dev/static-ct/storage/gcp"
+	"github.com/transparency-dev/static-ct/storage/gcp"
 	tessera "github.com/transparency-dev/trillian-tessera"
 	gcpTessera "github.com/transparency-dev/trillian-tessera/storage/gcp"
 	"golang.org/x/mod/sumdb/note"
@@ -168,12 +168,12 @@ func newGCPStorage(ctx context.Context, signer note.Signer) (*storage.CTStorage,
 		return nil, fmt.Errorf("failed to initialize GCP Tessera appender: %v", err)
 	}
 
-	issuerStorage, err := gcpTesseract.NewIssuerStorage(ctx, *bucket, "fingerprints/", "application/pkix-cert")
+	issuerStorage, err := gcp.NewIssuerStorage(ctx, *bucket, "fingerprints/", "application/pkix-cert")
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize GCP issuer storage: %v", err)
 	}
 
-	beDedupStorage, err := gcpTesseract.NewDedupeStorage(ctx, *spannerDedupDB)
+	beDedupStorage, err := gcp.NewDedupeStorage(ctx, *spannerDedupDB)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize GCP Spanner deduplication database: %v", err)
 	}
