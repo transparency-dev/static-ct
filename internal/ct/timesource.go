@@ -12,22 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package tcti
+package ct
 
 import "time"
 
-// FixedTimeSource provides a fixed time for use in tests.
-// It should not be used in production code.
-type FixedTimeSource struct {
-	fakeTime time.Time
-}
-
-// NewFixedTimeSource creates a FixedTimeSource instance
-func NewFixedTimeSource(t time.Time) *FixedTimeSource {
-	return &FixedTimeSource{fakeTime: t}
-}
-
-// Now returns the time value this instance contains
-func (f *FixedTimeSource) Now() time.Time {
-	return f.fakeTime
+// TimeSource can provide the current time, or be replaced by a mock in tests to return
+// specific values.
+type TimeSource interface {
+	// Now returns the current time in real implementations or a suitable value in others
+	Now() time.Time
 }
