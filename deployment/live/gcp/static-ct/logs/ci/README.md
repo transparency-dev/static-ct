@@ -3,7 +3,7 @@
 ## Overview
 
 This config uses the [gcp/cloudrun](/deployment/modules/gcp/tesseract/cloudrun) module to
-define a CI environment to run the SCTFE on Cloud Run, backed by Trillian Tessera.
+define a CI environment to run TesseraCT on Cloud Run, backed by Trillian Tessera.
 
 At a high level, this environment consists of:
 - One Spanner instance with two databases:
