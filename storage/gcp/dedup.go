@@ -50,7 +50,7 @@ func NewDedupeStorage(ctx context.Context, spannerDB string) (*DedupStorage, err
 	}, nil
 }
 
-// DedupStorage is a GCP Spanner based dedup storage implementation for SCTFE.
+// DedupStorage is a GCP Spanner based dedup storage implementation for TesseraCT.
 type DedupStorage struct {
 	dbPool *spanner.Client
 }
