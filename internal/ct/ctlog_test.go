@@ -1,4 +1,4 @@
-package scti
+package ct
 
 import (
 	"context"

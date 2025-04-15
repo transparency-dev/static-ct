@@ -28,12 +28,12 @@ import (
 	"time"
 
 	"github.com/go-sql-driver/mysql"
-	sctfe "github.com/transparency-dev/static-ct"
+	tesseract "github.com/transparency-dev/static-ct"
 	"github.com/transparency-dev/static-ct/storage"
-	awsSCTFE "github.com/transparency-dev/static-ct/storage/aws"
+	"github.com/transparency-dev/static-ct/storage/aws"
 	"github.com/transparency-dev/static-ct/storage/bbolt"
 	tessera "github.com/transparency-dev/trillian-tessera"
-	awsTessera "github.com/transparency-dev/trillian-tessera/storage/aws"
+	taws "github.com/transparency-dev/trillian-tessera/storage/aws"
 	"golang.org/x/mod/sumdb/note"
 	"k8s.io/klog/v2"
 )
@@ -81,7 +81,7 @@ func main() {
 		klog.Exitf("Can't create AWS Secrets Manager signer: %v", err)
 	}
 
-	chainValidationConfig := sctfe.ChainValidationConfig{
+	chainValidationConfig := tesseract.ChainValidationConfig{
 		RootsPEMFile:     *rootsPemFile,
 		RejectExpired:    *rejectExpired,
 		RejectUnexpired:  *rejectUnexpired,
@@ -91,7 +91,7 @@ func main() {
 		NotAfterLimit:    notAfterLimit.t,
 	}
 
-	logHandler, err := sctfe.NewLogHandler(ctx, *origin, signer, chainValidationConfig, newAWSStorage, *httpDeadline, *maskInternalErrors)
+	logHandler, err := tesseract.NewLogHandler(ctx, *origin, signer, chainValidationConfig, newAWSStorage, *httpDeadline, *maskInternalErrors)
 	if err != nil {
 		klog.Exitf("Can't initialize CT HTTP Server: %v", err)
 	}
@@ -143,7 +143,7 @@ func awaitSignal(doneFn func()) {
 
 func newAWSStorage(ctx context.Context, signer note.Signer) (*storage.CTStorage, error) {
 	awsCfg := storageConfigFromFlags()
-	driver, err := awsTessera.New(ctx, awsCfg)
+	driver, err := taws.New(ctx, awsCfg)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize AWS Tessera storage driver: %v", err)
 	}
@@ -154,7 +154,7 @@ func newAWSStorage(ctx context.Context, signer note.Signer) (*storage.CTStorage,
 		return nil, fmt.Errorf("failed to initialize AWS Tessera storage: %v", err)
 	}
 
-	issuerStorage, err := awsSCTFE.NewIssuerStorage(ctx, *bucket, "fingerprints/", "application/pkix-cert")
+	issuerStorage, err := aws.NewIssuerStorage(ctx, *bucket, "fingerprints/", "application/pkix-cert")
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize AWS issuer storage: %v", err)
 	}
@@ -192,7 +192,7 @@ func (t *timestampFlag) Set(w string) error {
 
 // storageConfigFromFlags returns an aws.Config struct populated with values
 // provided via flags.
-func storageConfigFromFlags() awsTessera.Config {
+func storageConfigFromFlags() taws.Config {
 	if *bucket == "" {
 		klog.Exit("--bucket must be set")
 	}
@@ -223,7 +223,7 @@ func storageConfigFromFlags() awsTessera.Config {
 		AllowNativePasswords:    true,
 	}
 
-	return awsTessera.Config{
+	return taws.Config{
 		Bucket:       *bucket,
 		DSN:          c.FormatDSN(),
 		MaxOpenConns: *dbMaxConns,

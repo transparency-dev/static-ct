@@ -1,4 +1,4 @@
-# SCTFE
+# TesseraCT
 
 [![Go Report Card](https://goreportcard.com/badge/github.com/transparency-dev/static-ct)](https://goreportcard.com/report/github.com/transparency-dev/static-ct)
 [![Slack Status](https://img.shields.io/badge/Slack-Chat-blue.svg)](https://transparency-dev.slack.com/)
@@ -11,7 +11,7 @@ to store data. It is based on
 It is under active development.
 
 ## Deployment
-Each Tessera storage backend needs its own SCTFE binary.
+Each Tessera storage backend needs its own TesseraCT binary.
 
 At the moment, these storage backends are supported:
 
