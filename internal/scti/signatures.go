@@ -31,8 +31,9 @@ import (
 
 const nanosPerMilli int64 = int64(time.Millisecond / time.Nanosecond)
 
-// signSCT builds an SCT for a leaf.
-type signSCT func(leaf *rfc6962.MerkleTreeLeaf) (*rfc6962.SignedCertificateTimestamp, error)
+type sctSigner struct {
+	signer crypto.Signer
+}
 
 // serializeSCTSignatureInput serializes the passed in sct and log entry into
 // the correct format for signing.
@@ -63,9 +64,7 @@ func serializeSCTSignatureInput(sct rfc6962.SignedCertificateTimestamp, entry rf
 	}
 }
 
-// TODO(phboneff): create an SCTSigner object
-// TODO(phboneff): see if we can change leaf to idx and entry
-func buildV1SCT(signer crypto.Signer, leaf *rfc6962.MerkleTreeLeaf) (*rfc6962.SignedCertificateTimestamp, error) {
+func (sctSigner *sctSigner) Sign(leaf *rfc6962.MerkleTreeLeaf) (*rfc6962.SignedCertificateTimestamp, error) {
 	// Serialize SCT signature input to get the bytes that need to be signed
 	sctInput := rfc6962.SignedCertificateTimestamp{
 		SCTVersion: rfc6962.V1,
@@ -78,7 +77,7 @@ func buildV1SCT(signer crypto.Signer, leaf *rfc6962.MerkleTreeLeaf) (*rfc6962.Si
 	}
 
 	h := sha256.Sum256(data)
-	signature, err := signer.Sign(rand.Reader, h[:], crypto.SHA256)
+	signature, err := sctSigner.signer.Sign(rand.Reader, h[:], crypto.SHA256)
 	if err != nil {
 		return nil, fmt.Errorf("failed to sign SCT data: %v", err)
 	}
@@ -86,12 +85,12 @@ func buildV1SCT(signer crypto.Signer, leaf *rfc6962.MerkleTreeLeaf) (*rfc6962.Si
 	digitallySigned := rfc6962.DigitallySigned{
 		Algorithm: tls.SignatureAndHashAlgorithm{
 			Hash:      tls.SHA256,
-			Signature: tls.SignatureAlgorithmFromPubKey(signer.Public()),
+			Signature: tls.SignatureAlgorithmFromPubKey(sctSigner.signer.Public()),
 		},
 		Signature: signature,
 	}
 
-	logID, err := getCTLogID(signer.Public())
+	logID, err := getCTLogID(sctSigner.signer.Public())
 	if err != nil {
 		return nil, fmt.Errorf("failed to get logID for signing: %v", err)
 	}

@@ -30,6 +30,9 @@ type log struct {
 	storage Storage
 }
 
+// signSCT builds an SCT for a leaf.
+type signSCT func(leaf *rfc6962.MerkleTreeLeaf) (*rfc6962.SignedCertificateTimestamp, error)
+
 // Storage provides functions to store certificates in a static-ct-api log.
 type Storage interface {
 	// Add assigns an index to the provided Entry, stages the entry for integration, and returns a future for the assigned index.
@@ -71,9 +74,8 @@ func NewLog(ctx context.Context, origin string, signer crypto.Signer, cv ChainVa
 		return nil, fmt.Errorf("unsupported key type: %v", keyType)
 	}
 
-	log.signSCT = func(leaf *rfc6962.MerkleTreeLeaf) (*rfc6962.SignedCertificateTimestamp, error) {
-		return buildV1SCT(signer, leaf)
-	}
+	sctSigner := &sctSigner{signer: signer}
+	log.signSCT = sctSigner.Sign
 
 	log.chainValidator = cv
 

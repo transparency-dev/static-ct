@@ -96,7 +96,7 @@ func setupTestLog(t *testing.T) (*log, string) {
 	t.Helper()
 	storageDir := t.TempDir()
 
-	signer, err := setupSigner(fakeSignature)
+	sctSigner, err := setupSCTSigner(fakeSignature)
 	if err != nil {
 		t.Fatalf("Failed to create test signer: %v", err)
 	}
@@ -112,7 +112,7 @@ func setupTestLog(t *testing.T) (*log, string) {
 		rejectUnexpired: false,
 	}
 
-	log, err := NewLog(t.Context(), origin, signer, cv, newPOSIXStorageFunc(t, storageDir), newFixedTimeSource(fakeTime))
+	log, err := NewLog(t.Context(), origin, sctSigner.signer, cv, newPOSIXStorageFunc(t, storageDir), newFixedTimeSource(fakeTime))
 	if err != nil {
 		t.Fatalf("newLog(): %v", err)
 	}
