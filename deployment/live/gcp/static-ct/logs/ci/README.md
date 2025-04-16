@@ -1,4 +1,4 @@
-# GCP SCTFE CI Environment
+# GCP TesseraCT CI Environment
 
 ## Overview
 
@@ -15,7 +15,7 @@ At a high level, this environment consists of:
 
 ### Automatic Deployment
 
-This GCP SCTFE conformance CI environment is designed to be deployed by the Cloud Build ([Terraform module](/deployment/modules/gcp/cloudbuild/conformance/), [Terragrunt configuration](/deployment/live/gcp/static-ct/cloudbuild/prod/)).
+This GCP TesseraCT conformance CI environment is designed to be deployed by the Cloud Build ([Terraform module](/deployment/modules/gcp/cloudbuild/conformance/), [Terragrunt configuration](/deployment/live/gcp/static-ct/cloudbuild/prod/)).
 
 ### Manual Deployment
 

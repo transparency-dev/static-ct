@@ -25,7 +25,7 @@ awk \
 
 
 ### Automatic Deployment
-This GCP SCTFE preloaded staging environment is designed to be deployed by the Cloud Build ([Terraform module](/deployment/modules/gcp/cloudbuild/tesseract/), [Terragrunt configuration](/deployment/live/gcp/static-ct-staging/cloudbuild/arche2025h1/)).
+This GCP TesseraCT preloaded staging environment is designed to be deployed by the Cloud Build ([Terraform module](/deployment/modules/gcp/cloudbuild/tesseract/), [Terragrunt configuration](/deployment/live/gcp/static-ct-staging/cloudbuild/arche2025h1/)).
 
 ### Manual Deployment
 TODO(phboneff): come back to this, Cloud Run doesn't trigger a deployment if the tag does not change value.
