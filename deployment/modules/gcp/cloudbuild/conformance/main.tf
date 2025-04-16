@@ -75,7 +75,7 @@ resource "google_cloudbuild_trigger" "build_trigger" {
       ]
     }
 
-    ## Build the SCTFE GCP Docker image.
+    ## Build TesseraCT GCP Docker image.
     ## This will be used by the building the conformance Docker image which includes 
     ## the test data.
     step {
@@ -83,8 +83,8 @@ resource "google_cloudbuild_trigger" "build_trigger" {
       name = "gcr.io/cloud-builders/docker"
       args = [
         "build",
-        "-t", "sctfe-gcp:$SHORT_SHA",
-        "-t", "sctfe-gcp:latest",
+        "-t", "tesseract-gcp:$SHORT_SHA",
+        "-t", "tesseract-gcp:latest",
         "-f", "./cmd/gcp/Dockerfile",
         "."
       ]
