@@ -30,7 +30,6 @@ import (
 	"github.com/transparency-dev/static-ct/internal/types/rfc6962"
 	"github.com/transparency-dev/static-ct/internal/types/tls"
 	"github.com/transparency-dev/static-ct/internal/x509util"
-	"github.com/transparency-dev/static-ct/modules/dedup"
 	tessera "github.com/transparency-dev/trillian-tessera"
 	"go.opentelemetry.io/otel/metric"
 	"k8s.io/klog/v2"
@@ -271,43 +270,43 @@ func addChainInternal(ctx context.Context, opts *HandlerOptions, log *log, w htt
 		return http.StatusBadRequest, fmt.Errorf("failed to build MerkleTreeLeaf: %s", err)
 	}
 
-	klog.V(2).Infof("%s: %s => storage.GetCertIndex", log.origin, method)
-	sctDedupInfo, isDup, err := log.storage.GetCertDedupInfo(ctx, chain[0])
-	idx := sctDedupInfo.Idx
+	//klog.V(2).Infof("%s: %s => storage.GetCertIndex", log.origin, method)
+	//sctDedupInfo, isDup, err := log.storage.GetCertDedupInfo(ctx, chain[0])
+	//idx := sctDedupInfo.Idx
+	//if err != nil {
+	//	return http.StatusInternalServerError, fmt.Errorf("couldn't deduplicate the request: %s", err)
+	//}
+
+	//if isDup {
+	//	klog.V(3).Infof("%s: %s - found duplicate entry at index %d", log.origin, method, idx)
+	//	entry.Timestamp = sctDedupInfo.Timestamp
+	//} else {
+	if err := log.storage.AddIssuerChain(ctx, chain[1:]); err != nil {
+		return http.StatusInternalServerError, fmt.Errorf("failed to store issuer chain: %s", err)
+	}
+
+	klog.V(2).Infof("%s: %s => storage.Add", log.origin, method)
+	index, err := log.storage.Add(ctx, entry)()
 	if err != nil {
-		return http.StatusInternalServerError, fmt.Errorf("couldn't deduplicate the request: %s", err)
+		if errors.Is(err, tessera.ErrPushback) {
+			w.Header().Add("Retry-After", "1")
+			return http.StatusServiceUnavailable, fmt.Errorf("received pushback from Tessera sequencer: %v", err)
+		}
+		return http.StatusInternalServerError, fmt.Errorf("couldn't store the leaf: %v", err)
 	}
+	// TODO(phbnf): figure out whether to use Tessera's index.IsDup() or a separate "external" antispam impl.
+	idx := index.Index
 
-	if isDup {
-		klog.V(3).Infof("%s: %s - found duplicate entry at index %d", log.origin, method, idx)
-		entry.Timestamp = sctDedupInfo.Timestamp
-	} else {
-		if err := log.storage.AddIssuerChain(ctx, chain[1:]); err != nil {
-			return http.StatusInternalServerError, fmt.Errorf("failed to store issuer chain: %s", err)
-		}
-
-		klog.V(2).Infof("%s: %s => storage.Add", log.origin, method)
-		index, err := log.storage.Add(ctx, entry)()
-		if err != nil {
-			if errors.Is(err, tessera.ErrPushback) {
-				w.Header().Add("Retry-After", "1")
-				return http.StatusServiceUnavailable, fmt.Errorf("received pushback from Tessera sequencer: %v", err)
-			}
-			return http.StatusInternalServerError, fmt.Errorf("couldn't store the leaf: %v", err)
-		}
-		// TODO(phbnf): figure out whether to use Tessera's index.IsDup() or a separate "external" antispam impl.
-		idx = index.Index
-
-		// We store the index for this certificate in the deduplication storage immediately.
-		// It might be stored again later, if a local deduplication storage is synced, potentially
-		// with a smaller value.
-		klog.V(2).Infof("%s: %s => storage.AddCertIndex", log.origin, method)
-		err = log.storage.AddCertDedupInfo(ctx, chain[0], dedup.SCTDedupInfo{Idx: idx, Timestamp: entry.Timestamp})
-		// TODO: block log writes if deduplication breaks
-		if err != nil {
-			klog.Warningf("AddCertIndex(): failed to store certificate index: %v", err)
-		}
-	}
+	// We store the index for this certificate in the deduplication storage immediately.
+	// It might be stored again later, if a local deduplication storage is synced, potentially
+	// with a smaller value.
+	//klog.V(2).Infof("%s: %s => storage.AddCertIndex", log.origin, method)
+	//err = log.storage.AddCertDedupInfo(ctx, chain[0], dedup.SCTDedupInfo{Idx: idx, Timestamp: entry.Timestamp})
+	//// TODO: block log writes if deduplication breaks
+	//if err != nil {
+	//	klog.Warningf("AddCertIndex(): failed to store certificate index: %v", err)
+	//}
+	//	}
 
 	// Always use the returned leaf as the basis for an SCT.
 	var loggedLeaf rfc6962.MerkleTreeLeaf
