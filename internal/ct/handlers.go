@@ -89,9 +89,11 @@ func setupMetrics() {
 		metric.WithDescription("CT HTTP responses"),
 		metric.WithUnit("{response}")))
 
+	// TODO(phboneff): switch back to s, in Tessera as well.
 	reqDuration = mustCreate(meter.Float64Histogram("tesseract.http.request.duration",
 		metric.WithDescription("CT HTTP response duration"),
-		metric.WithUnit("s")))
+		metric.WithUnit("ms"),
+		metric.WithExplicitBucketBoundaries(otel.LatencyHistogramBuckets...)))
 }
 
 // entrypoints is a list of entrypoint names as exposed in statistics/logging.
