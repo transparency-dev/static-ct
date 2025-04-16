@@ -21,7 +21,7 @@ require (
 	github.com/rivo/tview v0.0.0-20240625185742-b0a7293b8130
 	github.com/transparency-dev/formats v0.0.0-20250414062418-2207ab4ca61e
 	github.com/transparency-dev/merkle v0.0.2
-	github.com/transparency-dev/trillian-tessera v0.1.2-0.20250415164126-6bc6f18ae662
+	github.com/transparency-dev/trillian-tessera v0.1.2-0.20250416132033-2be0b858ec4f
 	go.etcd.io/bbolt v1.4.0
 	go.opentelemetry.io/contrib/detectors/gcp v1.35.0
 	go.opentelemetry.io/otel v1.35.0
