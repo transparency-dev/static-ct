@@ -8,6 +8,7 @@ locals {
   base_name           = "${local.env}-conformance"
   origin_suffix       = ".ct.transparency.dev"
   server_docker_image = "${include.root.locals.location}-docker.pkg.dev/${include.root.locals.project_id}/docker-${local.env}/conformance-gcp:latest"
+  ephemeral           = true
 }
 
 include "root" {
