@@ -665,7 +665,6 @@ func chainFromPEMs(t *testing.T, pems ...string) [][]byte {
 
 // Validate a chain including a pre-issuer.
 func TestPreIssuedCert(t *testing.T) {
-	// TODO(phboneff): add a test to make sure that a pre-isser can't sign an end cert.
 	rawChain := chainFromPEMs(t, []string{
 		testdata.PreCertFromPreIntermediate,
 		testdata.PreIntermediateFromRoot,
@@ -677,14 +676,26 @@ func TestPreIssuedCert(t *testing.T) {
 	}
 
 	for _, tc := range []struct {
-		desc string
-		eku  []x509.ExtKeyUsage
+		desc  string
+		eku   []x509.ExtKeyUsage
+		chain [][]byte
 	}{
 		{
-			desc: "no EKU specified",
+			desc:  "no EKU specified",
+			chain: rawChain,
 		}, {
-			desc: "EKU ServerAuth",
-			eku:  []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+			desc:  "EKU ServerAuth",
+			eku:   []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+			chain: rawChain,
+		}, {
+			// This shouldn't happen with production intermediates, but should
+			// be transparently discoverable in CT logs if it ever happens, so
+			// we allow them in.
+			desc: "pre-intermediate issues end-cert",
+			chain: chainFromPEMs(t, []string{
+				testdata.CertFromPreIntermediate,
+				testdata.PreIntermediateFromRoot,
+				testdata.CACertPEM}...),
 		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
@@ -692,7 +703,7 @@ func TestPreIssuedCert(t *testing.T) {
 				trustedRoots: roots,
 				extKeyUsages: tc.eku,
 			}
-			chain, err := opts.validate(rawChain)
+			chain, err := opts.validate(tc.chain)
 			if err != nil {
 				t.Fatalf("failed to ValidateChain: %v", err)
 			}
