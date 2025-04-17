@@ -8,7 +8,7 @@ module "storage" {
   project_id = var.project_id
   base_name  = var.base_name
   location   = var.location
-  ephemeral  = true
+  ephemeral  = var.ephemeral
 }
 
 module "secretmanager" {

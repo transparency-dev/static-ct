@@ -32,3 +32,9 @@ variable "server_docker_image" {
   description = "The full image URL (path & tag) for the Docker image to deploy in Cloud Run"
   type        = string
 }
+
+variable "ephemeral" {
+  description = "Set to true if this is a throwaway/temporary log instance. Will set attributes on created resources to allow them to be disabled/deleted more easily."
+  default     = false
+  type        = bool
+}
