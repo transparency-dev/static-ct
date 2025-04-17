@@ -33,3 +33,7 @@ output "rds_aurora_cluster_master_user_secret_unsafe" {
   value       = jsondecode(data.aws_secretsmanager_secret_version.db_credentials.secret_string)["password"]
   sensitive   = true # Mark as sensitive, but it can still be exposed
 }
+
+output "antispam_database_name" {
+  value = mysql_database.antispam_db[0].name
+}

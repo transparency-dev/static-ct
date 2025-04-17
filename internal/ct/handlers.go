@@ -270,17 +270,6 @@ func addChainInternal(ctx context.Context, opts *HandlerOptions, log *log, w htt
 		return http.StatusBadRequest, fmt.Errorf("failed to build MerkleTreeLeaf: %s", err)
 	}
 
-	//klog.V(2).Infof("%s: %s => storage.GetCertIndex", log.origin, method)
-	//sctDedupInfo, isDup, err := log.storage.GetCertDedupInfo(ctx, chain[0])
-	//idx := sctDedupInfo.Idx
-	//if err != nil {
-	//	return http.StatusInternalServerError, fmt.Errorf("couldn't deduplicate the request: %s", err)
-	//}
-
-	//if isDup {
-	//	klog.V(3).Infof("%s: %s - found duplicate entry at index %d", log.origin, method, idx)
-	//	entry.Timestamp = sctDedupInfo.Timestamp
-	//} else {
 	if err := log.storage.AddIssuerChain(ctx, chain[1:]); err != nil {
 		return http.StatusInternalServerError, fmt.Errorf("failed to store issuer chain: %s", err)
 	}
@@ -294,23 +283,10 @@ func addChainInternal(ctx context.Context, opts *HandlerOptions, log *log, w htt
 		}
 		return http.StatusInternalServerError, fmt.Errorf("couldn't store the leaf: %v", err)
 	}
-	// TODO(phbnf): figure out whether to use Tessera's index.IsDup() or a separate "external" antispam impl.
-	idx := index.Index
-
-	// We store the index for this certificate in the deduplication storage immediately.
-	// It might be stored again later, if a local deduplication storage is synced, potentially
-	// with a smaller value.
-	//klog.V(2).Infof("%s: %s => storage.AddCertIndex", log.origin, method)
-	//err = log.storage.AddCertDedupInfo(ctx, chain[0], dedup.SCTDedupInfo{Idx: idx, Timestamp: entry.Timestamp})
-	//// TODO: block log writes if deduplication breaks
-	//if err != nil {
-	//	klog.Warningf("AddCertIndex(): failed to store certificate index: %v", err)
-	//}
-	//	}
 
 	// Always use the returned leaf as the basis for an SCT.
 	var loggedLeaf rfc6962.MerkleTreeLeaf
-	leafValue := entry.MerkleTreeLeaf(idx)
+	leafValue := entry.MerkleTreeLeaf(index.Index)
 	if rest, err := tls.Unmarshal(leafValue, &loggedLeaf); err != nil {
 		return http.StatusInternalServerError, fmt.Errorf("failed to reconstruct MerkleTreeLeaf: %s", err)
 	} else if len(rest) > 0 {
@@ -337,7 +313,7 @@ func addChainInternal(ctx context.Context, opts *HandlerOptions, log *log, w htt
 	klog.V(3).Infof("%s: %s <= SCT", log.origin, method)
 	if sct.Timestamp == timeMillis {
 		lastSCTTimestamp.Record(ctx, otel.Clamp64(sct.Timestamp), metric.WithAttributes(originKey.String(log.origin)))
-		lastSCTIndex.Record(ctx, otel.Clamp64(idx), metric.WithAttributes(originKey.String(log.origin)))
+		lastSCTIndex.Record(ctx, otel.Clamp64(index.Index), metric.WithAttributes(originKey.String(log.origin)))
 	}
 
 	return http.StatusOK, nil

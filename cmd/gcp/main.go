@@ -54,7 +54,6 @@ var (
 	origin                     = flag.String("origin", "", "Origin of the log, for checkpoints and the monitoring prefix.")
 	bucket                     = flag.String("bucket", "", "Name of the bucket to store the log in.")
 	spannerDB                  = flag.String("spanner_db_path", "", "Spanner database path: projects/{projectId}/instances/{instanceId}/databases/{databaseId}.")
-	spannerDedupDB             = flag.String("spanner_dedup_db_path", "", "Spanner deduplication database path: projects/{projectId}/instances/{instanceId}/databases/{databaseId}.")
 	spannerAntispamDB          = flag.String("spanner_antispam_db_path", "", "EXPERIMENTAL: Spanner antispam deduplication database path projects/{projectId}/instances/{instanceId}/databases/{databaseId}.")
 	rootsPemFile               = flag.String("roots_pem_file", "", "Path to the file containing root certificates that are acceptable to the log. The certs are served through get-roots endpoint.")
 	rejectExpired              = flag.Bool("reject_expired", false, "If true then the certificate validity period will be checked against the current time during the validation of submissions. This will cause expired certificates to be rejected.")
@@ -162,11 +161,7 @@ func newGCPStorage(ctx context.Context, signer note.Signer) (*storage.CTStorage,
 	var antispam tessera.Antispam
 	// Persistent antispam is currently experimental, so there's no terraform or documentation yet!
 	if *spannerAntispamDB != "" {
-		asOpts := gcp_as.AntispamOpts{
-			MaxBatchSize:      5000,
-			PushbackThreshold: 1024,
-		}
-		antispam, err = gcp_as.NewAntispam(ctx, *spannerAntispamDB, asOpts)
+		antispam, err = gcp_as.NewAntispam(ctx, *spannerAntispamDB, gcp_as.AntispamOpts{})
 		if err != nil {
 			klog.Exitf("Failed to create new GCP antispam storage: %v", err)
 		}
@@ -175,7 +170,7 @@ func newGCPStorage(ctx context.Context, signer note.Signer) (*storage.CTStorage,
 	opts := tessera.NewAppendOptions().
 		WithCheckpointSigner(signer).
 		WithCTLayout().
-		WithAntispam(256, antispam)
+		WithAntispam(2<<18, antispam) // TODO(phbnf): do the math to see what fits in memory
 
 	// TODO(phbnf): figure out the best way to thread the `shutdown` func NewAppends returns back out to main so we can cleanly close Tessera down
 	// when it's time to exit.
@@ -189,12 +184,7 @@ func newGCPStorage(ctx context.Context, signer note.Signer) (*storage.CTStorage,
 		return nil, fmt.Errorf("failed to initialize GCP issuer storage: %v", err)
 	}
 
-	beDedupStorage, err := gcp.NewDedupeStorage(ctx, *spannerDedupDB)
-	if err != nil {
-		return nil, fmt.Errorf("failed to initialize GCP Spanner deduplication database: %v", err)
-	}
-
-	return storage.NewCTStorage(appender, issuerStorage, beDedupStorage)
+	return storage.NewCTStorage(appender, issuerStorage)
 }
 
 type timestampFlag struct {

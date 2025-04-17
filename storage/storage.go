@@ -22,7 +22,6 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/transparency-dev/static-ct/modules/dedup"
 	tessera "github.com/transparency-dev/trillian-tessera"
 	"github.com/transparency-dev/trillian-tessera/ctonly"
 	"golang.org/x/mod/sumdb/note"
@@ -53,15 +52,13 @@ type IssuerStorage interface {
 type CTStorage struct {
 	storeData    func(context.Context, *ctonly.Entry) tessera.IndexFuture
 	storeIssuers func(context.Context, []KV) error
-	dedupStorage dedup.BEDedupStorage
 }
 
 // NewCTStorage instantiates a CTStorage object.
-func NewCTStorage(logStorage *tessera.Appender, issuerStorage IssuerStorage, dedupStorage dedup.BEDedupStorage) (*CTStorage, error) {
+func NewCTStorage(logStorage *tessera.Appender, issuerStorage IssuerStorage) (*CTStorage, error) {
 	ctStorage := &CTStorage{
 		storeData:    tessera.NewCertificateTransparencyAppender(logStorage),
 		storeIssuers: cachedStoreIssuers(issuerStorage),
-		dedupStorage: dedupStorage,
 	}
 	return ctStorage, nil
 }
@@ -127,29 +124,4 @@ func cachedStoreIssuers(s IssuerStorage) func(context.Context, []KV) error {
 		}
 		return nil
 	}
-}
-
-// AddCertDedupInfo stores <cert_hash, SCTDedupInfo> in the deduplication storage.
-func (cts CTStorage) AddCertDedupInfo(ctx context.Context, c *x509.Certificate, sctDedupInfo dedup.SCTDedupInfo) error {
-	ctx, span := tracer.Start(ctx, "tesseract.storage.AddCertDedupInfo")
-	defer span.End()
-
-	key := sha256.Sum256(c.Raw)
-	if err := cts.dedupStorage.Add(ctx, []dedup.LeafDedupInfo{{LeafID: key[:], SCTDedupInfo: sctDedupInfo}}); err != nil {
-		return fmt.Errorf("error storing SCTDedupInfo %+v of \"%x\": %v", sctDedupInfo, key, err)
-	}
-	return nil
-}
-
-// GetCertDedupInfo fetches the SCTDedupInfo of a given certificate from the deduplication storage.
-func (cts CTStorage) GetCertDedupInfo(ctx context.Context, c *x509.Certificate) (dedup.SCTDedupInfo, bool, error) {
-	ctx, span := tracer.Start(ctx, "tesseract.storageGetCertDedupInfo")
-	defer span.End()
-
-	key := sha256.Sum256(c.Raw)
-	sctC, ok, err := cts.dedupStorage.Get(ctx, key[:])
-	if err != nil {
-		return dedup.SCTDedupInfo{}, false, fmt.Errorf("error fetching index of \"%x\": %v", key, err)
-	}
-	return sctC, ok, nil
 }

@@ -66,8 +66,10 @@ export AWS_PROFILE=AdministratorAccess-<REDACTED>
 
 Terraforming the account can be done by:
   1. `cd` to [/deployment/live/aws/test/](/deployment/live/aws/test/) to deploy/change.
-  2. Run `terragrunt apply`.
-
+  2. Run `terragrunt apply`. If this fails to create the antispam database,
+  connect the RDS instance to your VM using the instrunctions bellow, and run
+  `terragrunt apply` again.
+  
 Store the Aurora RDS database and S3 bucket information into the environment variables:
 
 ```sh
@@ -95,7 +97,7 @@ go run ./cmd/aws \
   --db_port=3306 \
   --db_user=tesseract \
   --db_password=${TESSERACT_DB_PASSWORD} \
-  --dedup_path=test-static-ct
+  --antispam_db_name=antispam_db
 ```
 
 In a different terminal you can either mint and submit certificates manually, or
@@ -187,7 +189,7 @@ go run ./cmd/aws \
   --db_port=3306 \
   --db_user=tesseract \
   --db_password=${TESSERACT_DB_PASSWORD} \
-  --dedup_path=test-static-ct
+  --antispam_db_name=antispam_db
   -v=3
 ```
 

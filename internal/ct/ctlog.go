@@ -9,7 +9,6 @@ import (
 	"fmt"
 
 	"github.com/transparency-dev/static-ct/internal/types/rfc6962"
-	"github.com/transparency-dev/static-ct/modules/dedup"
 	"github.com/transparency-dev/static-ct/storage"
 	tessera "github.com/transparency-dev/trillian-tessera"
 	"github.com/transparency-dev/trillian-tessera/ctonly"
@@ -39,10 +38,6 @@ type Storage interface {
 	Add(context.Context, *ctonly.Entry) tessera.IndexFuture
 	// AddIssuerChain stores every the chain certificate in a content-addressable store under their sha256 hash.
 	AddIssuerChain(context.Context, []*x509.Certificate) error
-	// AddCertDedupInfo stores the SCTDedupInfo of certificate in a log under its hash.
-	AddCertDedupInfo(context.Context, *x509.Certificate, dedup.SCTDedupInfo) error
-	// GetCertDedupInfo gets the SCTDedupInfo of certificate in a log from its hash.
-	GetCertDedupInfo(context.Context, *x509.Certificate) (dedup.SCTDedupInfo, bool, error)
 }
 
 // ChainValidator provides functions to validate incoming chains.
