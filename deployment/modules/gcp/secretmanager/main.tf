@@ -27,6 +27,12 @@ resource "tls_private_key" "tesseract_ecdsa_p256" {
   ecdsa_curve = "P256"
 }
 
+// TODO(phbnf): remove after migration
+moved {
+  from = tls_private_key.sctfe_ecdsa_p256
+  to   = tls_private_key.tesseract_ecdsa_p256
+}
+
 resource "google_secret_manager_secret" "tesseract_ecdsa_p256_public_key" {
   secret_id = "${var.base_name}-ecdsa-p256-public-key"
 
@@ -41,10 +47,22 @@ resource "google_secret_manager_secret" "tesseract_ecdsa_p256_public_key" {
   depends_on = [google_project_service.secretmanager_googleapis_com]
 }
 
+// TODO(phbnf): remove after migration
+moved {
+  from = google_secret_manager_secret.sctfe_ecdsa_p256_public_key
+  to = google_secret_manager_secret.tesseract_ecdsa_p256_public_key
+}
+
 resource "google_secret_manager_secret_version" "tesseract_ecdsa_p256_public_key" {
   secret = google_secret_manager_secret.tesseract_ecdsa_p256_public_key.id
 
   secret_data = tls_private_key.tesseract_ecdsa_p256.public_key_pem
+}
+
+// TODO(phbnf): remove after migration
+moved {
+  from = google_secret_manager_secret_version.sctfe_ecdsa_p256_public_key
+  to = google_secret_manager_secret_version.tesseract_ecdsa_p256_public_key
 }
 
 resource "google_secret_manager_secret" "tesseract_ecdsa_p256_private_key" {
@@ -61,8 +79,20 @@ resource "google_secret_manager_secret" "tesseract_ecdsa_p256_private_key" {
   depends_on = [google_project_service.secretmanager_googleapis_com]
 }
 
+// TODO(phbnf): remove after migration
+moved {
+  from = google_secret_manager_secret.sctfe_ecdsa_p256_private_key
+  to = google_secret_manager_secret.tesseract_ecdsa_p256_private_key
+}
+
 resource "google_secret_manager_secret_version" "tesseract_ecdsa_p256_private_key" {
   secret = google_secret_manager_secret.tesseract_ecdsa_p256_private_key.id
 
   secret_data = tls_private_key.tesseract_ecdsa_p256.private_key_pem
+}
+
+// TODO(phbnf): remove after migration
+moved {
+  from = google_secret_manager_secret_version.sctfe_ecdsa_p256_private_key
+  to = google_secret_manager_secret_version.tesseract_ecdsa_p256_private_key
 }
