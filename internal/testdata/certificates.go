@@ -285,6 +285,59 @@ var PreIntermediateFromRoot string
 //go:embed test_leaf_pre_cert_signed_by_pre_intermediate.pem
 var PreCertFromPreIntermediate string
 
+// CertFromPreIntermediate is a cert issued by PreIntermediateFromRoot.
+// This is *NOT* a PreCert, as opposed to PreCertFromPreIntermediate.
+// These certs should not be a thing in the real world, and we only use
+// this one in tests.
+//
+// $ openssl x509  -in internal/testdata/test_leaf_cert_signed_by_pre_intermediate.pem -noout -text
+//
+// Data:
+//
+//   Version: 3 (0x2)
+//   Serial Number: 100 (0x64)
+//   Signature Algorithm: ecdsa-with-SHA384
+//   Issuer: C=GB, O=TrustFabric Transparency.dev Test Intermediate Test CA, CN=TrustFabric Transparency.dev Test Intermediate Test CA
+//   Validity
+//   	Not Before: Dec  5 18:05:50 2024 GMT
+//   	Not After : Dec  5 18:05:50 2025 GMT
+//   Subject: C=GB, ST=London, L=London, O=TrustFabric Transparency.dev Test, OU=TrustFabric, CN=test.transparency.dev
+//   Subject Public Key Info:
+//   	Public Key Algorithm: id-ecPublicKey
+//   		Public-Key: (384 bit)
+//   		pub:
+//   			04:46:10:60:6d:e5:70:0d:fa:8f:ea:8c:70:40:6e:
+//   			eb:dd:15:88:8a:6e:94:54:ac:f7:92:77:53:68:65:
+//   			c1:55:d4:c0:92:2e:b4:08:d9:07:50:d3:12:f4:fb:
+//   			56:08:ff:38:32:41:35:6e:53:12:af:57:88:39:68:
+//   			81:e0:1b:4c:82:4a:de:ac:52:d4:46:a7:a2:55:73:
+//   			78:7a:fd:98:0f:bb:88:5b:bc:f6:7b:9a:77:49:11:
+//   			ec:e6:1b:f3:c3:76:4a
+//   		ASN1 OID: secp384r1
+//   		NIST CURVE: P-384
+//   X509v3 extensions:
+//   	X509v3 Key Usage: critical
+//   		Digital Signature, Key Encipherment
+//   	X509v3 Extended Key Usage:
+//   		TLS Web Server Authentication
+//   	X509v3 Basic Constraints: critical
+//   		CA:FALSE
+//   	X509v3 Authority Key Identifier:
+//   		1F:FE:3D:85:AC:F5:38:C7:90:1C:6C:EA:E7:5F:45:74:83:CC:95:39
+//   	X509v3 Subject Alternative Name:
+//   		DNS:test.transparency.dev
+//   Signature Algorithm: ecdsa-with-SHA384
+//   Signature Value:
+//   30:65:02:30:35:aa:8a:19:87:15:32:a8:a1:2f:a7:46:67:cb:
+//   f5:ac:69:84:ef:2b:8d:e2:49:3f:a5:18:92:f6:e7:1d:b2:f2:
+//   91:76:99:3f:ea:f3:b7:ec:df:94:96:78:b5:54:d2:59:02:31:
+//   00:b0:11:91:9a:bb:6c:3b:f9:14:e4:1f:3e:b4:40:22:0b:46:
+//   45:2a:18:cf:7c:20:b3:a7:56:3c:f6:c2:e0:7c:47:8a:a4:fd:
+//   bf:6b:a2:48:c7:1e:4c:f8:f4:8a:df:5b:14
+
+//go:embed test_leaf_cert_signed_by_pre_intermediate.pem
+var CertFromPreIntermediate string
+
 // Issuance chain 3
 // ================
 // The next section holds:
