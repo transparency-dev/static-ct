@@ -34,7 +34,7 @@ import (
 //
 // Tracing is enabled with statistical sampling, with the probability passed in.
 // Returns a shutdown function which should be called just before exiting the process.
-func initOTel(ctx context.Context, traceFraction float64) func(context.Context) {
+func initOTel(ctx context.Context, traceFraction float64, origin string) func(context.Context) {
 	var shutdownFuncs []func(context.Context) error
 	// shutdown combines shutdown functions from multiple OpenTelemetry
 	// components into a single function.
@@ -54,7 +54,8 @@ func initOTel(ctx context.Context, traceFraction float64) func(context.Context) 
 		resource.WithFromEnv(), // unpacks OTEL_RESOURCE_ATTRIBUTES
 		// Add your own custom attributes to identify your application
 		resource.WithAttributes(
-			semconv.ServiceNameKey.String("tesseract"),
+			semconv.ServiceNameKey.String(origin),
+			semconv.ServiceNamespaceKey.String("tesseract"),
 		),
 		resource.WithDetectors(gcp.NewDetector()),
 	)

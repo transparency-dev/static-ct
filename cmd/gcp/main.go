@@ -70,7 +70,7 @@ func main() {
 	flag.Parse()
 	ctx := context.Background()
 
-	shutdownOTel := initOTel(ctx, *traceFraction)
+	shutdownOTel := initOTel(ctx, *traceFraction, *origin)
 	defer shutdownOTel(ctx)
 
 	signer, err := NewSecretManagerSigner(ctx, *signerPublicKeySecretName, *signerPrivateKeySecretName)
