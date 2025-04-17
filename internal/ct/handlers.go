@@ -93,7 +93,7 @@ func setupMetrics() {
 	reqDuration = mustCreate(meter.Float64Histogram("tesseract.http.request.duration",
 		metric.WithDescription("CT HTTP response duration"),
 		metric.WithUnit("ms"),
-		metric.WithExplicitBucketBoundaries(otel.LatencyHistogramBuckets...)))
+		metric.WithExplicitBucketBoundaries(otel.SubSecondLatencyHistogramBuckets...)))
 }
 
 // entrypoints is a list of entrypoint names as exposed in statistics/logging.
