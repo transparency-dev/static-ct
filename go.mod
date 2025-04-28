@@ -4,8 +4,8 @@ go 1.24.0
 
 require (
 	cloud.google.com/go/secretmanager v1.14.7
-	cloud.google.com/go/spanner v1.79.0
-	cloud.google.com/go/storage v1.51.0
+	cloud.google.com/go/spanner v1.80.0
+	cloud.google.com/go/storage v1.52.0
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/metric v0.51.0
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/trace v1.27.0
 	github.com/RobinUS2/golang-moving-average v1.0.0
@@ -19,9 +19,9 @@ require (
 	github.com/google/go-cmp v0.7.0
 	github.com/kylelemons/godebug v1.1.0
 	github.com/rivo/tview v0.0.0-20240625185742-b0a7293b8130
-	github.com/transparency-dev/formats v0.0.0-20250414062418-2207ab4ca61e
+	github.com/transparency-dev/formats v0.0.0-20250421220931-bb8ad4d07c26
 	github.com/transparency-dev/merkle v0.0.2
-	github.com/transparency-dev/trillian-tessera v0.1.2-0.20250417180933-3f459e774877
+	github.com/transparency-dev/trillian-tessera v0.1.2
 	go.etcd.io/bbolt v1.4.0
 	go.opentelemetry.io/contrib/detectors/gcp v1.35.0
 	go.opentelemetry.io/otel v1.35.0
@@ -31,13 +31,13 @@ require (
 	golang.org/x/crypto v0.37.0
 	golang.org/x/mod v0.24.0
 	golang.org/x/net v0.39.0
-	google.golang.org/api v0.229.0
-	google.golang.org/grpc v1.71.1
+	google.golang.org/api v0.230.0
+	google.golang.org/grpc v1.72.0
 	k8s.io/klog/v2 v2.130.1
 )
 
 require (
-	cel.dev/expr v0.19.2 // indirect
+	cel.dev/expr v0.20.0 // indirect
 	cloud.google.com/go v0.120.0 // indirect
 	cloud.google.com/go/auth v0.16.0 // indirect
 	cloud.google.com/go/auth/oauth2adapt v0.2.8 // indirect
@@ -72,6 +72,7 @@ require (
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/gdamore/encoding v1.0.1 // indirect
 	github.com/globocom/go-buffer v1.2.2 // indirect
+	github.com/go-jose/go-jose/v4 v4.0.5 // indirect
 	github.com/go-logr/logr v1.4.2 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/golang/groupcache v0.0.0-20241129210726-2c02b8208cf8 // indirect
@@ -84,6 +85,8 @@ require (
 	github.com/mattn/go-runewidth v0.0.16 // indirect
 	github.com/planetscale/vtprotobuf v0.6.1-0.20240319094008-0393e58bdf10 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
+	github.com/spiffe/go-spiffe/v2 v2.5.0 // indirect
+	github.com/zeebo/errs v1.4.0 // indirect
 	go.opencensus.io v0.24.0 // indirect
 	go.opentelemetry.io/auto/sdk v1.1.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.60.0 // indirect
