@@ -9,6 +9,7 @@ module "storage" {
   base_name  = var.base_name
   location   = var.location
   ephemeral  = var.ephemeral
+  spanner_pu = var.spanner_pu
 }
 
 module "secretmanager" {
