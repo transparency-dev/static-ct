@@ -95,6 +95,7 @@ resource "google_cloudbuild_trigger" "preloader_trigger" {
   }
 }
 
+// TODO(phboneff): replace with a long running job once the log is public.
 resource "google_cloud_scheduler_job" "deploy_cron" {
   paused = false
   project = var.project_id
@@ -106,7 +107,6 @@ resource "google_cloud_scheduler_job" "deploy_cron" {
 
   attempt_deadline = "120s"
 
-  // TODO(phboneff): use a batch job instead maybe
   http_target {
     http_method = "POST"
     uri         = "https://cloudbuild.googleapis.com/v1/projects/${var.project_id}/locations/${var.location}/triggers/${google_cloudbuild_trigger.preloader_trigger.trigger_id}:run"
