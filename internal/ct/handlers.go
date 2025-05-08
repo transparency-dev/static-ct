@@ -68,7 +68,6 @@ var (
 
 // setupMetrics initializes all the exported metrics.
 func setupMetrics() {
-	// TODO(phboneff): add metrics for deduplication and chain storage.
 	knownLogs = mustCreate(meter.Int64Gauge("tesseract.known_logs",
 		metric.WithDescription("Set to 1 for known logs")))
 
