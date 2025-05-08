@@ -55,6 +55,7 @@ var (
 	bucket                     = flag.String("bucket", "", "Name of the bucket to store the log in.")
 	spannerDB                  = flag.String("spanner_db_path", "", "Spanner database path: projects/{projectId}/instances/{instanceId}/databases/{databaseId}.")
 	spannerAntispamDB          = flag.String("spanner_antispam_db_path", "", "EXPERIMENTAL: Spanner antispam deduplication database path projects/{projectId}/instances/{instanceId}/databases/{databaseId}.")
+	inMemoryAntispamCacheSize  = flag.Uint("inmemory_antispam_cache_size", 2<<10, "Maximum number of entries to keep in the in-memory antispam cache.")
 	rootsPemFile               = flag.String("roots_pem_file", "", "Path to the file containing root certificates that are acceptable to the log. The certs are served through get-roots endpoint.")
 	rejectExpired              = flag.Bool("reject_expired", false, "If true then the certificate validity period will be checked against the current time during the validation of submissions. This will cause expired certificates to be rejected.")
 	rejectUnexpired            = flag.Bool("reject_unexpired", false, "If true then CTFE rejects certificates that are either currently valid or not yet valid.")
@@ -170,7 +171,7 @@ func newGCPStorage(ctx context.Context, signer note.Signer) (*storage.CTStorage,
 	opts := tessera.NewAppendOptions().
 		WithCheckpointSigner(signer).
 		WithCTLayout().
-		WithAntispam(2<<18, antispam) // TODO(phbnf): do the math to see what fits in memory
+		WithAntispam(*inMemoryAntispamCacheSize, antispam)
 
 	// TODO(phbnf): figure out the best way to thread the `shutdown` func NewAppends returns back out to main so we can cleanly close Tessera down
 	// when it's time to exit.

@@ -61,7 +61,7 @@ var (
 	dbPassword                 = flag.String("db_password", "", "AuroraDB password")
 	dbMaxConns                 = flag.Int("db_max_conns", 0, "Maximum connections to the database, defaults to 0, i.e unlimited")
 	dbMaxIdle                  = flag.Int("db_max_idle_conns", 2, "Maximum idle database connections in the connection pool, defaults to 2")
-	dedupPath                  = flag.String("dedup_path", "", "Path to the deduplication database.")
+	inMemoryAntispamCacheSize  = flag.Uint("inmemory_antispam_cache_size", 2<<10, "Maximum number of entries to keep in the in-memory antispam cache.")
 	rootsPemFile               = flag.String("roots_pem_file", "", "Path to the file containing root certificates that are acceptable to the log. The certs are served through get-roots endpoint.")
 	rejectExpired              = flag.Bool("reject_expired", false, "If true then the certificate validity period will be checked against the current time during the validation of submissions. This will cause expired certificates to be rejected.")
 	rejectUnexpired            = flag.Bool("reject_unexpired", false, "If true then CTFE rejects certificates that are either currently valid or not yet valid.")
@@ -160,7 +160,7 @@ func newAWSStorage(ctx context.Context, signer note.Signer) (*storage.CTStorage,
 	appender, _, _, err := tessera.NewAppender(ctx, driver, tessera.NewAppendOptions().
 		WithCheckpointSigner(signer).
 		WithCTLayout().
-		WithAntispam(2<<18, antispam)) // TODO(phbnf): do the math to see what fits in memory
+		WithAntispam(*inMemoryAntispamCacheSize, antispam))
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize AWS Tessera storage: %v", err)
 	}

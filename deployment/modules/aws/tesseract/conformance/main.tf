@@ -173,6 +173,7 @@ resource "aws_ecs_task_definition" "conformance" {
       "--signer_public_key_secret_name=${module.secretsmanager.ecdsa_p256_public_key_id}",
       "--signer_private_key_secret_name=${module.secretsmanager.ecdsa_p256_private_key_id}",
       "--antispam_db_name=${module.storage.antispam_database_name}",
+      "--inmemory_antispam_cache_size=25000000", # About 1GB of memory.
       "-v=2"
     ],
     "logConfiguration" : {
