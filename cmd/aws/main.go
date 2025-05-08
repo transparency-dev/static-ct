@@ -151,9 +151,9 @@ func newAWSStorage(ctx context.Context, signer note.Signer) (*storage.CTStorage,
 
 	var antispam tessera.Antispam
 	if *antispamDBName != "" {
-		antispam, err = aws_as.NewAntispam(ctx, antispamMysqlConfig().FormatDSN(), aws_as.AntispamOpts{})
+		antispam, err = aws_as.NewAntispam(ctx, antispamMySQLConfig().FormatDSN(), aws_as.AntispamOpts{})
 		if err != nil {
-			klog.Exitf("Failed to create new GCP antispam storage: %v", err)
+			klog.Exitf("Failed to create new AWS antispam storage: %v", err)
 		}
 	}
 
@@ -214,7 +214,7 @@ func storageConfigFromFlags() taws.Config {
 	if *dbUser == "" {
 		klog.Exit("--db_user must be set")
 	}
-	// Empty passord isn't an option with AuroraDB MySQL.
+	// Empty password isn't an option with AuroraDB MySQL.
 	if *dbPassword == "" {
 		klog.Exit("--db_password must be set")
 	}
@@ -237,7 +237,7 @@ func storageConfigFromFlags() taws.Config {
 	}
 }
 
-func antispamMysqlConfig() *mysql.Config {
+func antispamMySQLConfig() *mysql.Config {
 	if *antispamDBName == "" {
 		klog.Exit("--antispam_db_name must be set")
 	}
