@@ -64,16 +64,6 @@ resource "google_spanner_database" "log_db" {
   deletion_protection = !var.ephemeral
 }
 
-resource "google_spanner_database" "dedup_db" {
-  instance = google_spanner_instance.log_spanner.name
-  name     = "${var.base_name}-dedup-db"
-  ddl = [
-    "CREATE TABLE IDSeq (id INT64 NOT NULL, h BYTES(MAX) NOT NULL, idx INT64 NOT NULL, timestamp INT64 NOT NULL,) PRIMARY KEY (id, h)",
-  ]
-
-  deletion_protection = !var.ephemeral
-}
-
 resource "google_spanner_database" "antispam_db" {
   instance = google_spanner_instance.log_spanner.name
   name     = "${var.base_name}-antispam-db"

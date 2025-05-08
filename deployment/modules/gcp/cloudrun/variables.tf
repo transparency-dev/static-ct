@@ -43,11 +43,6 @@ variable "log_spanner_db" {
   type        = string
 }
 
-variable "dedup_spanner_db" {
-  description = "Dedup Spanner database"
-  type        = string
-}
-
 variable "antispam_spanner_db" {
   description = "Antispam Spanner database"
   type        = string
