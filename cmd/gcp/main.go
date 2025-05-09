@@ -54,8 +54,8 @@ var (
 	origin                     = flag.String("origin", "", "Origin of the log, for checkpoints and the monitoring prefix.")
 	bucket                     = flag.String("bucket", "", "Name of the bucket to store the log in.")
 	spannerDB                  = flag.String("spanner_db_path", "", "Spanner database path: projects/{projectId}/instances/{instanceId}/databases/{databaseId}.")
-	spannerAntispamDB          = flag.String("spanner_antispam_db_path", "", "EXPERIMENTAL: Spanner antispam deduplication database path projects/{projectId}/instances/{instanceId}/databases/{databaseId}.")
-	inMemoryAntispamCacheSize  = flag.Uint("inmemory_antispam_cache_size", 2<<10, "Maximum number of entries to keep in the in-memory antispam cache.")
+	spannerAntispamDB          = flag.String("spanner_antispam_db_path", "", "Spanner antispam deduplication database path projects/{projectId}/instances/{instanceId}/databases/{databaseId}.")
+	inMemoryAntispamCacheSize  = flag.Uint("inmemory_antispam_cache_size", 256<<10, "Maximum number of entries to keep in the in-memory antispam cache.")
 	rootsPemFile               = flag.String("roots_pem_file", "", "Path to the file containing root certificates that are acceptable to the log. The certs are served through get-roots endpoint.")
 	rejectExpired              = flag.Bool("reject_expired", false, "If true then the certificate validity period will be checked against the current time during the validation of submissions. This will cause expired certificates to be rejected.")
 	rejectUnexpired            = flag.Bool("reject_unexpired", false, "If true then CTFE rejects certificates that are either currently valid or not yet valid.")
@@ -160,7 +160,6 @@ func newGCPStorage(ctx context.Context, signer note.Signer) (*storage.CTStorage,
 	}
 
 	var antispam tessera.Antispam
-	// Persistent antispam is currently experimental, so there's no terraform or documentation yet!
 	if *spannerAntispamDB != "" {
 		antispam, err = gcp_as.NewAntispam(ctx, *spannerAntispamDB, gcp_as.AntispamOpts{})
 		if err != nil {
@@ -175,7 +174,7 @@ func newGCPStorage(ctx context.Context, signer note.Signer) (*storage.CTStorage,
 
 	// TODO(phbnf): figure out the best way to thread the `shutdown` func NewAppends returns back out to main so we can cleanly close Tessera down
 	// when it's time to exit.
-	appender, _, _, err := tessera.NewAppender(ctx, driver, opts)
+	appender, _, reader, err := tessera.NewAppender(ctx, driver, opts)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize GCP Tessera appender: %v", err)
 	}
@@ -185,7 +184,7 @@ func newGCPStorage(ctx context.Context, signer note.Signer) (*storage.CTStorage,
 		return nil, fmt.Errorf("failed to initialize GCP issuer storage: %v", err)
 	}
 
-	return storage.NewCTStorage(appender, issuerStorage)
+	return storage.NewCTStorage(appender, issuerStorage, reader)
 }
 
 type timestampFlag struct {

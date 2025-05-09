@@ -55,8 +55,10 @@ var (
 	testRootPath = "../testdata/test_root_ca_cert.pem"
 
 	// Arbitrary time for use in tests
-	fakeTime       = time.Date(2016, 7, 22, 11, 01, 13, 0, time.UTC)
-	fakeTimeMillis = uint64(fakeTime.UnixNano() / nanosPerMilli)
+	fakeTimeStart = time.Date(2016, 7, 22, 11, 01, 13, 0, time.UTC)
+	// TODO(phbnf): this doesn't need to be gloabal, but it easier until
+	// TimeSource belongs to hOpts.
+	timeSource = newFakeTimeSource(fakeTimeStart)
 
 	// Arbitrary origin for tests
 	origin = "example.com"
@@ -64,10 +66,10 @@ var (
 
 	// Default handler options for tests
 	hOpts = HandlerOptions{
-		Deadline:           time.Millisecond * 500,
+		Deadline:           time.Millisecond * 2000,
 		RequestLog:         &DefaultRequestLog{},
 		MaskInternalErrors: false,
-		TimeSource:         newFixedTimeSource(fakeTime),
+		TimeSource:         timeSource,
 	}
 
 	// POSIX subdirectories
@@ -79,14 +81,24 @@ type fixedTimeSource struct {
 	fakeTime time.Time
 }
 
-// newFixedTimeSource creates a fixedTimeSource instance
-func newFixedTimeSource(t time.Time) *fixedTimeSource {
+// newFakeTimeSource creates a fixedTimeSource instance
+func newFakeTimeSource(t time.Time) *fixedTimeSource {
 	return &fixedTimeSource{fakeTime: t}
+}
+
+// Reset reinitializes the fake time source
+func (f *fixedTimeSource) Reset() {
+	f.fakeTime = fakeTimeStart
 }
 
 // Now returns the time value this instance contains
 func (f *fixedTimeSource) Now() time.Time {
 	return f.fakeTime
+}
+
+// Add1m increments time by 1 minute
+func (f *fixedTimeSource) Add1m() {
+	f.fakeTime = f.fakeTime.Add(time.Minute)
 }
 
 // setupTestLog creates a test TesseraCT log using a POSIX backend.
@@ -112,7 +124,7 @@ func setupTestLog(t *testing.T) (*log, string) {
 		rejectUnexpired: false,
 	}
 
-	log, err := NewLog(t.Context(), origin, sctSigner.signer, cv, newPOSIXStorageFunc(t, storageDir), newFixedTimeSource(fakeTime))
+	log, err := NewLog(t.Context(), origin, sctSigner.signer, cv, newPOSIXStorageFunc(t, storageDir), timeSource)
 	if err != nil {
 		t.Fatalf("newLog(): %v", err)
 	}
@@ -160,9 +172,10 @@ func newPOSIXStorageFunc(t *testing.T, root string) storage.CreateStorage {
 		opts := tessera.NewAppendOptions().
 			WithCheckpointSigner(signer).
 			WithCTLayout().
-			WithAntispam(256, antispam)
+			WithAntispam(256, antispam).
+			WithCheckpointInterval(time.Second)
 
-		appender, _, _, err := tessera.NewAppender(ctx, driver, opts)
+		appender, _, reader, err := tessera.NewAppender(ctx, driver, opts)
 		if err != nil {
 			klog.Fatalf("Failed to initialize POSIX Tessera appender: %v", err)
 		}
@@ -172,7 +185,7 @@ func newPOSIXStorageFunc(t *testing.T, root string) storage.CreateStorage {
 			klog.Fatalf("failed to initialize InMemory issuer storage: %v", err)
 		}
 
-		s, err := storage.NewCTStorage(appender, issuerStorage)
+		s, err := storage.NewCTStorage(appender, issuerStorage, reader)
 		if err != nil {
 			klog.Fatalf("Failed to initialize CTStorage: %v", err)
 		}
@@ -318,7 +331,7 @@ func TestNewPathHandlers(t *testing.T) {
 	})
 }
 
-func parseChain(t *testing.T, isPrecert bool, pemChain []string, root *x509.Certificate) (*ctonly.Entry, []*x509.Certificate) {
+func parseChain(t *testing.T, isPrecert bool, pemChain []string, root *x509.Certificate, timestamp time.Time) (*ctonly.Entry, []*x509.Certificate) {
 	t.Helper()
 	pool := loadCertsIntoPoolOrDie(t, pemChain)
 	leafChain := pool.RawCertificates()
@@ -329,7 +342,7 @@ func parseChain(t *testing.T, isPrecert bool, pemChain []string, root *x509.Cert
 		fullChain[len(leafChain)] = root
 		leafChain = fullChain
 	}
-	entry, err := x509util.EntryFromChain(leafChain, isPrecert, fakeTimeMillis)
+	entry, err := x509util.EntryFromChain(leafChain, isPrecert, uint64(timestamp.UnixMilli()))
 	if err != nil {
 		t.Fatalf("Failed to create entry")
 	}
@@ -447,12 +460,13 @@ func TestAddChainWhitespace(t *testing.T) {
 
 func TestAddChain(t *testing.T) {
 	var tests = []struct {
-		descr       string
-		chain       []string
-		want        int
-		wantIdx     uint64
-		wantLogSize uint64
-		err         error
+		descr         string
+		chain         []string
+		want          int
+		wantIdx       uint64
+		wantLogSize   uint64
+		wantTimestamp time.Time
+		err           error
 	}{
 		{
 			descr: "leaf-only",
@@ -465,45 +479,53 @@ func TestAddChain(t *testing.T) {
 			want:  http.StatusBadRequest,
 		},
 		{
-			descr:       "success",
-			chain:       []string{testdata.CertFromIntermediate, testdata.IntermediateFromRoot, testdata.CACertPEM},
-			wantIdx:     0,
-			wantLogSize: 1,
-			want:        http.StatusOK,
+			descr:         "success",
+			chain:         []string{testdata.CertFromIntermediate, testdata.IntermediateFromRoot, testdata.CACertPEM},
+			wantIdx:       0,
+			wantLogSize:   1,
+			wantTimestamp: fakeTimeStart.Add(3 * time.Minute),
+			want:          http.StatusOK,
 		},
 		{
-			descr:       "success-duplicate",
-			chain:       []string{testdata.CertFromIntermediate, testdata.IntermediateFromRoot, testdata.CACertPEM},
-			wantIdx:     0,
-			wantLogSize: 1,
-			want:        http.StatusOK,
+			descr:         "success-duplicate",
+			chain:         []string{testdata.CertFromIntermediate, testdata.IntermediateFromRoot, testdata.CACertPEM},
+			wantIdx:       0,
+			wantLogSize:   1,
+			wantTimestamp: fakeTimeStart.Add(3 * time.Minute),
+			want:          http.StatusOK,
 		},
 		{
-			descr:       "success-not-duplicate",
-			chain:       []string{testdata.TestCertPEM, testdata.CACertPEM},
-			wantIdx:     1,
-			wantLogSize: 2,
-			want:        http.StatusOK,
+			descr:         "success-not-duplicate",
+			chain:         []string{testdata.TestCertPEM, testdata.CACertPEM},
+			wantIdx:       1,
+			wantLogSize:   2,
+			wantTimestamp: fakeTimeStart.Add(5 * time.Minute),
+			want:          http.StatusOK,
 		},
 		{
-			descr:       "success-without-root",
-			chain:       []string{testdata.CertFromIntermediate, testdata.IntermediateFromRoot},
-			wantIdx:     0,
-			wantLogSize: 2,
-			want:        http.StatusOK,
+			descr:         "success-without-root-duplicate",
+			chain:         []string{testdata.CertFromIntermediate, testdata.IntermediateFromRoot},
+			wantIdx:       0,
+			wantLogSize:   2,
+			wantTimestamp: fakeTimeStart.Add(3 * time.Minute),
+			want:          http.StatusOK,
 		},
 	}
 
 	log, dir := setupTestLog(t)
 	server := setupTestServer(t, log, path.Join(prefix, rfc6962.AddChainPath))
 	defer server.Close()
+	defer timeSource.Reset()
 
 	for _, test := range tests {
+		// Increment time to make it unique for each test case.
+		timeSource.Add1m()
 		t.Run(test.descr, func(t *testing.T) {
 			pool := loadCertsIntoPoolOrDie(t, test.chain)
 			chain := createJSONChain(t, *pool)
 
 			resp, err := http.Post(server.URL+rfc6962.AddChainPath, "application/json", chain)
+
 			if err != nil {
 				t.Fatalf("http.Post(%s)=(_,%q); want (_,nil)", rfc6962.AddChainPath, err)
 			}
@@ -511,7 +533,7 @@ func TestAddChain(t *testing.T) {
 				t.Errorf("http.Post(%s)=(%d,nil); want (%d,nil)", rfc6962.AddChainPath, got, want)
 			}
 			if test.want == http.StatusOK {
-				unseqEntry, wantIssChain := parseChain(t, false, test.chain, log.chainValidator.Roots()[0])
+				unseqEntry, wantIssChain := parseChain(t, false, test.chain, log.chainValidator.Roots()[0], test.wantTimestamp)
 
 				var gotRsp rfc6962.AddChainResponse
 				if err := json.NewDecoder(resp.Body).Decode(&gotRsp); err != nil {
@@ -523,7 +545,7 @@ func TestAddChain(t *testing.T) {
 				if got, want := gotRsp.ID, demoLogID[:]; !bytes.Equal(got, want) {
 					t.Errorf("resp.ID=%v; want %v", got, want)
 				}
-				if got, want := gotRsp.Timestamp, fakeTimeMillis; got != want {
+				if got, want := gotRsp.Timestamp, uint64(test.wantTimestamp.UnixMilli()); got != want {
 					t.Errorf("resp.Timestamp=%d; want %d", got, want)
 				}
 				if got, want := hex.EncodeToString(gotRsp.Signature), "040300067369676e6564"; got != want {
@@ -586,12 +608,13 @@ func TestAddChain(t *testing.T) {
 
 func TestAddPreChain(t *testing.T) {
 	var tests = []struct {
-		descr       string
-		chain       []string
-		want        int
-		wantIdx     uint64
-		wantLogSize uint64
-		err         error
+		descr         string
+		chain         []string
+		want          int
+		wantIdx       uint64
+		wantLogSize   uint64
+		wantTimestamp time.Time
+		err           error
 	}{
 		{
 			descr: "leaf-signed-by-different",
@@ -604,40 +627,47 @@ func TestAddPreChain(t *testing.T) {
 			want:  http.StatusBadRequest,
 		},
 		{
-			descr:       "success",
-			chain:       []string{testdata.PrecertPEMValid, testdata.CACertPEM},
-			want:        http.StatusOK,
-			wantIdx:     0,
-			wantLogSize: 1,
+			descr:         "success",
+			chain:         []string{testdata.PrecertPEMValid, testdata.CACertPEM},
+			want:          http.StatusOK,
+			wantIdx:       0,
+			wantLogSize:   1,
+			wantTimestamp: fakeTimeStart.Add(3 * time.Minute),
 		},
 		{
-			descr:       "success-duplicate",
-			chain:       []string{testdata.PrecertPEMValid, testdata.CACertPEM},
-			want:        http.StatusOK,
-			wantIdx:     0,
-			wantLogSize: 1,
+			descr:         "success-duplicate",
+			chain:         []string{testdata.PrecertPEMValid, testdata.CACertPEM},
+			want:          http.StatusOK,
+			wantIdx:       0,
+			wantLogSize:   1,
+			wantTimestamp: fakeTimeStart.Add(3 * time.Minute),
 		},
 		{
-			descr:       "success-with-intermediate",
-			chain:       []string{testdata.PreCertFromIntermediate, testdata.IntermediateFromRoot, testdata.CACertPEM},
-			want:        http.StatusOK,
-			wantIdx:     1,
-			wantLogSize: 2,
+			descr:         "success-with-intermediate",
+			chain:         []string{testdata.PreCertFromIntermediate, testdata.IntermediateFromRoot, testdata.CACertPEM},
+			want:          http.StatusOK,
+			wantIdx:       1,
+			wantLogSize:   2,
+			wantTimestamp: fakeTimeStart.Add(5 * time.Minute),
 		},
 		{
-			descr:       "success-without-root",
-			chain:       []string{testdata.PrecertPEMValid},
-			want:        http.StatusOK,
-			wantIdx:     0,
-			wantLogSize: 2,
+			descr:         "success-without-root-duplicate",
+			chain:         []string{testdata.PrecertPEMValid},
+			want:          http.StatusOK,
+			wantIdx:       0,
+			wantLogSize:   2,
+			wantTimestamp: fakeTimeStart.Add(3 * time.Minute),
 		},
 	}
 
 	log, dir := setupTestLog(t)
 	server := setupTestServer(t, log, path.Join(prefix, rfc6962.AddPreChainPath))
 	defer server.Close()
+	defer timeSource.Reset()
 
 	for _, test := range tests {
+		// Increment time to make it unique for each test case.
+		timeSource.Add1m()
 		t.Run(test.descr, func(t *testing.T) {
 			pool := loadCertsIntoPoolOrDie(t, test.chain)
 			chain := createJSONChain(t, *pool)
@@ -650,7 +680,7 @@ func TestAddPreChain(t *testing.T) {
 				t.Errorf("http.Post(%s)=(%d,nil); want (%d,nil)", rfc6962.AddPreChainPath, got, want)
 			}
 			if test.want == http.StatusOK {
-				unseqEntry, wantIssChain := parseChain(t, true, test.chain, log.chainValidator.Roots()[0])
+				unseqEntry, wantIssChain := parseChain(t, true, test.chain, log.chainValidator.Roots()[0], test.wantTimestamp)
 
 				var gotRsp rfc6962.AddChainResponse
 				if err := json.NewDecoder(resp.Body).Decode(&gotRsp); err != nil {
@@ -662,7 +692,7 @@ func TestAddPreChain(t *testing.T) {
 				if got, want := gotRsp.ID, demoLogID[:]; !bytes.Equal(got, want) {
 					t.Errorf("resp.ID=%v; want %v", got, want)
 				}
-				if got, want := gotRsp.Timestamp, fakeTimeMillis; got != want {
+				if got, want := gotRsp.Timestamp, uint64(test.wantTimestamp.UnixMilli()); got != want {
 					t.Errorf("resp.Timestamp=%d; want %d", got, want)
 				}
 				if got, want := hex.EncodeToString(gotRsp.Signature), "040300067369676e6564"; got != want {

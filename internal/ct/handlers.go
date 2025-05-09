@@ -118,11 +118,11 @@ func (a appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	originAttr := originKey.String(a.log.origin)
 	operationAttr := operationKey.String(a.name)
 	reqCounter.Add(r.Context(), 1, metric.WithAttributes(originAttr, operationAttr))
-	startTime := a.opts.TimeSource.Now()
+	startTime := time.Now()
 	logCtx := a.opts.RequestLog.start(r.Context())
 	a.opts.RequestLog.origin(logCtx, a.log.origin)
 	defer func() {
-		latency := a.opts.TimeSource.Now().Sub(startTime).Seconds()
+		latency := time.Since(startTime).Seconds()
 		reqDuration.Record(r.Context(), latency, metric.WithAttributes(originAttr, operationAttr, codeKey.Int(statusCode)))
 	}()
 
@@ -146,7 +146,7 @@ func (a appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// impose a deadline on this onward request.
-	ctx, cancel := context.WithDeadline(logCtx, deadlineTime(a.opts))
+	ctx, cancel := context.WithTimeout(logCtx, a.opts.Deadline)
 	defer cancel()
 
 	var err error
@@ -178,6 +178,7 @@ type HandlerOptions struct {
 	// or returned to the user containing the full error message.
 	MaskInternalErrors bool
 	// TimeSource indicated the system time and can be injfected for testing.
+	// TODO(phbnf): hide inside the log
 	TimeSource TimeSource
 }
 
@@ -274,7 +275,7 @@ func addChainInternal(ctx context.Context, opts *HandlerOptions, log *log, w htt
 	}
 
 	klog.V(2).Infof("%s: %s => storage.Add", log.origin, method)
-	index, err := log.storage.Add(ctx, entry)()
+	index, dedupedTimeMillis, err := log.storage.Add(ctx, entry)
 	if err != nil {
 		if errors.Is(err, tessera.ErrPushback) {
 			w.Header().Add("Retry-After", "1")
@@ -282,10 +283,11 @@ func addChainInternal(ctx context.Context, opts *HandlerOptions, log *log, w htt
 		}
 		return http.StatusInternalServerError, fmt.Errorf("couldn't store the leaf: %v", err)
 	}
+	entry.Timestamp = dedupedTimeMillis
 
 	// Always use the returned leaf as the basis for an SCT.
 	var loggedLeaf rfc6962.MerkleTreeLeaf
-	leafValue := entry.MerkleTreeLeaf(index.Index)
+	leafValue := entry.MerkleTreeLeaf(index)
 	if rest, err := tls.Unmarshal(leafValue, &loggedLeaf); err != nil {
 		return http.StatusInternalServerError, fmt.Errorf("failed to reconstruct MerkleTreeLeaf: %s", err)
 	} else if len(rest) > 0 {
@@ -312,7 +314,7 @@ func addChainInternal(ctx context.Context, opts *HandlerOptions, log *log, w htt
 	klog.V(3).Infof("%s: %s <= SCT", log.origin, method)
 	if sct.Timestamp == timeMillis {
 		lastSCTTimestamp.Record(ctx, otel.Clamp64(sct.Timestamp), metric.WithAttributes(originKey.String(log.origin)))
-		lastSCTIndex.Record(ctx, otel.Clamp64(index.Index), metric.WithAttributes(originKey.String(log.origin)))
+		lastSCTIndex.Record(ctx, otel.Clamp64(index), metric.WithAttributes(originKey.String(log.origin)))
 	}
 
 	return http.StatusOK, nil
@@ -353,11 +355,6 @@ func getRoots(ctx context.Context, opts *HandlerOptions, log *log, w http.Respon
 	}
 
 	return http.StatusOK, nil
-}
-
-// deadlineTime calculates the future time a request should expire based on our config.
-func deadlineTime(opts *HandlerOptions) time.Time {
-	return opts.TimeSource.Now().Add(opts.Deadline)
 }
 
 // marshalAndWriteAddChainResponse is used by add-chain and add-pre-chain to create and write
