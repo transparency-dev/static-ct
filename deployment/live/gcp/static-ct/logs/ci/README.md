@@ -8,7 +8,7 @@ define a CI environment to run the SCTFE on Cloud Run, backed by Trillian Tesser
 At a high level, this environment consists of:
 - One Spanner instance with two databases:
   - one for Tessera
-  - one for deduplication
+  - one for antispam 
 - A GCS Bucket
 - Secret Manager
 - Cloud Run

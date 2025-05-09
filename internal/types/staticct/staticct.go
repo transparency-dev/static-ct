@@ -37,6 +37,8 @@ type EntryBundle struct {
 
 // UnmarshalText implements encoding/TextUnmarshaler and reads EntryBundles
 // which are encoded using the Static CT API spec.
+// TODO(phbnf): we can probably parse every individual leaf directly, since most callers
+// of this method tend to do so.
 func (t *EntryBundle) UnmarshalText(raw []byte) error {
 	entries := make([][]byte, 0, layout.EntryBundleWidth)
 	s := cryptobyte.String(raw)

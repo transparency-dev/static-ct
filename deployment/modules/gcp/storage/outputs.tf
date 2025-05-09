@@ -13,7 +13,7 @@ output "log_spanner_db" {
   value       = google_spanner_database.log_db
 }
 
-output "dedup_spanner_db" {
-  description = "Dedup Spanner database"
-  value       = google_spanner_database.dedup_db
+output "antispam_spanner_db" {
+  description = "Antispam Spanner database"
+  value       = google_spanner_database.antispam_db
 }

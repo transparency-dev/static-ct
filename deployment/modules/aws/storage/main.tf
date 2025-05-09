@@ -4,6 +4,10 @@ terraform {
       source  = "hashicorp/aws"
       version = "5.92.0"
     }
+    mysql = {
+      source  = "petoju/mysql"
+      version = "3.0.71"
+    }
   }
 }
 
@@ -49,4 +53,21 @@ data "aws_secretsmanager_secret_version" "db_credentials" {
     aws_rds_cluster.log_rds_cluster,
     aws_rds_cluster_instance.cluster_instances
   ]
+}
+
+# Configure the MySQL provider based on the outcome of
+# creating the aws_db_instance.
+# This requires that the machine running terraform has access
+# to the DB instance created above. This is _NOT_ the case when
+# GitHub actions are applying the terraform.
+provider "mysql" {
+  endpoint = aws_rds_cluster_instance.cluster_instances[0].endpoint
+  username = aws_rds_cluster.log_rds_cluster.master_username
+  password = jsondecode(data.aws_secretsmanager_secret_version.db_credentials.secret_string)["password"]
+}
+
+# Create a second database for antispam.
+resource "mysql_database" "antispam_db" {
+  name  = "antispam_db"
+  count = var.create_antispam_db ? 1 : 0
 }

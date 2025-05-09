@@ -15,15 +15,21 @@
 package storage
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"crypto/x509"
 	"encoding/hex"
+	"errors"
 	"fmt"
+	"os"
+	"strconv"
 	"sync"
+	"time"
 
-	"github.com/transparency-dev/static-ct/modules/dedup"
+	"github.com/transparency-dev/static-ct/internal/types/staticct"
 	tessera "github.com/transparency-dev/trillian-tessera"
+	"github.com/transparency-dev/trillian-tessera/api/layout"
 	"github.com/transparency-dev/trillian-tessera/ctonly"
 	"golang.org/x/mod/sumdb/note"
 	"k8s.io/klog/v2"
@@ -49,30 +55,88 @@ type IssuerStorage interface {
 	AddIssuersIfNotExist(ctx context.Context, kv []KV) error
 }
 
-// CTStorage implements ct.Storage.
+// CTStorage implements ct.Storage and tessera.LogReader.
 type CTStorage struct {
 	storeData    func(context.Context, *ctonly.Entry) tessera.IndexFuture
 	storeIssuers func(context.Context, []KV) error
-	dedupStorage dedup.BEDedupStorage
+	reader       tessera.LogReader
 }
 
 // NewCTStorage instantiates a CTStorage object.
-func NewCTStorage(logStorage *tessera.Appender, issuerStorage IssuerStorage, dedupStorage dedup.BEDedupStorage) (*CTStorage, error) {
+func NewCTStorage(logStorage *tessera.Appender, issuerStorage IssuerStorage, reader tessera.LogReader) (*CTStorage, error) {
 	ctStorage := &CTStorage{
 		storeData:    tessera.NewCertificateTransparencyAppender(logStorage),
 		storeIssuers: cachedStoreIssuers(issuerStorage),
-		dedupStorage: dedupStorage,
+		reader:       reader,
 	}
 	return ctStorage, nil
 }
 
+func (cts *CTStorage) ReadCheckpoint(ctx context.Context) ([]byte, error) {
+	return cts.reader.ReadCheckpoint(ctx)
+}
+
+// TODO(phbnf): cache timestamps (or more) to avoid reparsing the entire leaf bundle
+func (cts *CTStorage) dedupFuture(ctx context.Context, f tessera.IndexFuture) (index, timestamp uint64, err error) {
+	ctx, span := tracer.Start(ctx, "tesseract.storage.dedupFuture")
+	defer span.End()
+
+	awaiter := tessera.NewPublicationAwaiter(ctx, cts.reader.ReadCheckpoint, 10*time.Millisecond)
+	idx, cpRaw, err := awaiter.Await(ctx, f)
+	if err != nil {
+		return 0, 0, fmt.Errorf("error waiting for Tessera future and its integration: %v", err)
+	}
+
+	// A https://c2sp.org/static-ct-api logsize is on the second line
+	l := bytes.SplitN(cpRaw, []byte("\n"), 3)
+	if len(l) < 2 {
+		return 0, 0, errors.New("invalid checkpoint - no size")
+	}
+	ckptSize, err := strconv.ParseUint(string(l[1]), 10, 64)
+	if err != nil {
+		return 0, 0, fmt.Errorf("invalid checkpoint - can't extract size: %v", err)
+	}
+
+	eBIdx := idx.Index / layout.EntryBundleWidth
+	eBRaw, err := cts.reader.ReadEntryBundle(ctx, idx.Index/layout.EntryBundleWidth, layout.PartialTileSize(0, idx.Index, ckptSize))
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return 0, 0, fmt.Errorf("leaf bundle at index %d not found: %v", eBIdx, err)
+		}
+		return 0, 0, fmt.Errorf("failed to fetch entry bundle at index %d: %v", eBIdx, err)
+	}
+	eb := staticct.EntryBundle{}
+	if err := eb.UnmarshalText(eBRaw); err != nil {
+		return 0, 0, fmt.Errorf("failed to unmarshal entry bundle at index %d: %v", eBIdx, err)
+	}
+
+	eIdx := idx.Index % layout.EntryBundleWidth
+	if uint64(len(eb.Entries)) < eIdx {
+		return 0, 0, fmt.Errorf("failed to read entry %d in entry bundle %d", eIdx, eBIdx)
+	}
+	e := staticct.Entry{}
+	if err := e.UnmarshalText([]byte(eb.Entries[eIdx])); err != nil {
+		return 0, 0, fmt.Errorf("failed to unmarshal entry %d in entry bundle %d: %v", eIdx, eBIdx, e)
+	}
+
+	return idx.Index, e.Timestamp, nil
+}
+
 // Add stores CT entries.
-func (cts *CTStorage) Add(ctx context.Context, entry *ctonly.Entry) tessera.IndexFuture {
+func (cts *CTStorage) Add(ctx context.Context, entry *ctonly.Entry) (uint64, uint64, error) {
 	ctx, span := tracer.Start(ctx, "tesseract.storage.Add")
 	defer span.End()
 
-	// TODO(phboneff): add deduplication and chain storage
-	return cts.storeData(ctx, entry)
+	future := cts.storeData(ctx, entry)
+	idx, err := future()
+	if err != nil {
+		return 0, 0, fmt.Errorf("error waiting for Tessera future: %v", err)
+	}
+	if idx.IsDup {
+		return cts.dedupFuture(ctx, future)
+	}
+	return idx.Index, entry.Timestamp, nil
+
 }
 
 // AddIssuerChain stores every chain certificate under its sha256.
@@ -127,29 +191,4 @@ func cachedStoreIssuers(s IssuerStorage) func(context.Context, []KV) error {
 		}
 		return nil
 	}
-}
-
-// AddCertDedupInfo stores <cert_hash, SCTDedupInfo> in the deduplication storage.
-func (cts CTStorage) AddCertDedupInfo(ctx context.Context, c *x509.Certificate, sctDedupInfo dedup.SCTDedupInfo) error {
-	ctx, span := tracer.Start(ctx, "tesseract.storage.AddCertDedupInfo")
-	defer span.End()
-
-	key := sha256.Sum256(c.Raw)
-	if err := cts.dedupStorage.Add(ctx, []dedup.LeafDedupInfo{{LeafID: key[:], SCTDedupInfo: sctDedupInfo}}); err != nil {
-		return fmt.Errorf("error storing SCTDedupInfo %+v of \"%x\": %v", sctDedupInfo, key, err)
-	}
-	return nil
-}
-
-// GetCertDedupInfo fetches the SCTDedupInfo of a given certificate from the deduplication storage.
-func (cts CTStorage) GetCertDedupInfo(ctx context.Context, c *x509.Certificate) (dedup.SCTDedupInfo, bool, error) {
-	ctx, span := tracer.Start(ctx, "tesseract.storageGetCertDedupInfo")
-	defer span.End()
-
-	key := sha256.Sum256(c.Raw)
-	sctC, ok, err := cts.dedupStorage.Get(ctx, key[:])
-	if err != nil {
-		return dedup.SCTDedupInfo{}, false, fmt.Errorf("error fetching index of \"%x\": %v", key, err)
-	}
-	return sctC, ok, nil
 }
