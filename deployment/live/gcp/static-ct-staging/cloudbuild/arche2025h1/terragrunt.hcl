@@ -8,6 +8,7 @@ locals {
   project_id     = get_env("GOOGLE_PROJECT", "static-ct-staging")
   location       = get_env("GOOGLE_REGION", "us-central1")
   github_owner   = get_env("GITHUB_OWNER", "transparency-dev")
+  log_terragrunt = "deployment/live/gcp/static-ct-staging/logs/arche2025h1"
 }
 
 inputs = local

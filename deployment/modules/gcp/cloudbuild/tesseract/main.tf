@@ -101,7 +101,7 @@ resource "google_cloudbuild_trigger" "build_trigger" {
       wait_for = ["docker_build_conformance_gcp"]
     }
 
-    ## Apply the deployment/live/gcp/static-staging/logs/arche2025h1 terragrunt config.
+    ## Apply the deployment/live/gcp/static-staging/logs/XXX terragrunt config.
     ## This will bring up or update the conformance infrastructure, including a service
     ## running the conformance server docker image built above.
     step {
@@ -110,7 +110,7 @@ resource "google_cloudbuild_trigger" "build_trigger" {
       script = <<EOT
         terragrunt --terragrunt-non-interactive --terragrunt-no-color apply -auto-approve -no-color 2>&1
       EOT
-      dir    = "deployment/live/gcp/static-ct-staging/logs/arche2025h1"
+      dir    = var.log_terragrunt
       env = [
         "GOOGLE_PROJECT=${var.project_id}",
         "TF_IN_AUTOMATION=1",
@@ -133,7 +133,7 @@ resource "google_cloudbuild_trigger" "build_trigger" {
         cat /workspace/conformance_bucket_name
         cat /workspace/conformance_log_public_key.pem
       EOT
-      dir    = "deployment/live/gcp/static-ct-staging/logs/arche2025h1"
+      dir    = var.log_terragrunt
       env = [
         "GOOGLE_PROJECT=${var.project_id}",
         "TF_IN_AUTOMATION=1",
