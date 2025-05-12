@@ -170,7 +170,7 @@ func newAWSStorage(ctx context.Context, signer note.Signer) (*storage.CTStorage,
 		return nil, fmt.Errorf("failed to initialize AWS issuer storage: %v", err)
 	}
 
-	return storage.NewCTStorage(appender, issuerStorage, reader)
+	return storage.NewCTStorage(ctx, appender, issuerStorage, reader)
 }
 
 type timestampFlag struct {

@@ -60,14 +60,17 @@ type CTStorage struct {
 	storeData    func(context.Context, *ctonly.Entry) tessera.IndexFuture
 	storeIssuers func(context.Context, []KV) error
 	reader       tessera.LogReader
+	awaiter      *tessera.PublicationAwaiter
 }
 
 // NewCTStorage instantiates a CTStorage object.
-func NewCTStorage(logStorage *tessera.Appender, issuerStorage IssuerStorage, reader tessera.LogReader) (*CTStorage, error) {
+func NewCTStorage(ctx context.Context, logStorage *tessera.Appender, issuerStorage IssuerStorage, reader tessera.LogReader) (*CTStorage, error) {
+	awaiter := tessera.NewPublicationAwaiter(ctx, reader.ReadCheckpoint, 200*time.Millisecond)
 	ctStorage := &CTStorage{
 		storeData:    tessera.NewCertificateTransparencyAppender(logStorage),
 		storeIssuers: cachedStoreIssuers(issuerStorage),
 		reader:       reader,
+		awaiter:      awaiter,
 	}
 	return ctStorage, nil
 }
@@ -81,8 +84,7 @@ func (cts *CTStorage) dedupFuture(ctx context.Context, f tessera.IndexFuture) (i
 	ctx, span := tracer.Start(ctx, "tesseract.storage.dedupFuture")
 	defer span.End()
 
-	awaiter := tessera.NewPublicationAwaiter(ctx, cts.reader.ReadCheckpoint, 10*time.Millisecond)
-	idx, cpRaw, err := awaiter.Await(ctx, f)
+	idx, cpRaw, err := cts.awaiter.Await(ctx, f)
 	if err != nil {
 		return 0, 0, fmt.Errorf("error waiting for Tessera future and its integration: %v", err)
 	}
@@ -112,14 +114,15 @@ func (cts *CTStorage) dedupFuture(ctx context.Context, f tessera.IndexFuture) (i
 
 	eIdx := idx.Index % layout.EntryBundleWidth
 	if uint64(len(eb.Entries)) < eIdx {
-		return 0, 0, fmt.Errorf("failed to read entry %d in entry bundle %d", eIdx, eBIdx)
+		return 0, 0, fmt.Errorf("entry bundle at index %d has only %d entries, but wanted at least %d", eBIdx, eIdx, eBIdx)
 	}
 	e := staticct.Entry{}
-	if err := e.UnmarshalText([]byte(eb.Entries[eIdx])); err != nil {
-		return 0, 0, fmt.Errorf("failed to unmarshal entry %d in entry bundle %d: %v", eIdx, eBIdx, e)
+	t, err := staticct.UnmarshalTimestamp([]byte(eb.Entries[eIdx]))
+	if err != nil {
+		return 0, 0, fmt.Errorf("failed to extract timestamp from entry %d in entry bundle %d: %v", eIdx, eBIdx, e)
 	}
 
-	return idx.Index, e.Timestamp, nil
+	return idx.Index, t, nil
 }
 
 // Add stores CT entries.
