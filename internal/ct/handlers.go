@@ -68,6 +68,9 @@ var (
 
 // setupMetrics initializes all the exported metrics.
 func setupMetrics() {
+	// TODO(phboneff): add metrics for chain storage.
+	// TODO(phboneff): add metrics for deduplication.
+	// TODO(phboneff): break down metrics by whether or not the response has been deduped.
 	knownLogs = mustCreate(meter.Int64Gauge("tesseract.known_logs",
 		metric.WithDescription("Set to 1 for known logs")))
 
@@ -146,6 +149,7 @@ func (a appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// impose a deadline on this onward request.
+	// TODO(phbnf): fine tune together with deduplication
 	ctx, cancel := context.WithTimeout(logCtx, a.opts.Deadline)
 	defer cancel()
 
