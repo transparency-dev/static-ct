@@ -31,6 +31,7 @@ var (
 	codeKey      = attribute.Key("http.response.status_code")
 	operationKey = attribute.Key("tesseract.operation")
 	originKey    = attribute.Key("tesseract.origin")
+	dedupedKey   = attribute.Key("tesseract.dedup")
 )
 
 func mustCreate[T any](t T, err error) T {

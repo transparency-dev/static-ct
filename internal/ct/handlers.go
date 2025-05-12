@@ -31,6 +31,7 @@ import (
 	"github.com/transparency-dev/tesseract/internal/types/tls"
 	"github.com/transparency-dev/tesseract/internal/x509util"
 	tessera "github.com/transparency-dev/trillian-tessera"
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 	"k8s.io/klog/v2"
 )
@@ -108,7 +109,7 @@ type pathHandlers map[string]appHandler
 type appHandler struct {
 	log     *log
 	opts    *HandlerOptions
-	handler func(context.Context, *HandlerOptions, *log, http.ResponseWriter, *http.Request) (int, error)
+	handler func(context.Context, *HandlerOptions, *log, http.ResponseWriter, *http.Request) (int, []attribute.KeyValue, error)
 	name    entrypointName
 	method  string // http.MethodGet or http.MethodPost
 }
@@ -116,17 +117,17 @@ type appHandler struct {
 // ServeHTTP for an AppHandler invokes the underlying handler function but
 // does additional common error and stats processing.
 func (a appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	var statusCode int
-
 	originAttr := originKey.String(a.log.origin)
 	operationAttr := operationKey.String(a.name)
-	reqCounter.Add(r.Context(), 1, metric.WithAttributes(originAttr, operationAttr))
+	attrs := []attribute.KeyValue{originAttr, operationAttr}
+
+	reqCounter.Add(r.Context(), 1, metric.WithAttributes(attrs...))
 	startTime := time.Now()
 	logCtx := a.opts.RequestLog.start(r.Context())
 	a.opts.RequestLog.origin(logCtx, a.log.origin)
 	defer func() {
 		latency := time.Since(startTime).Seconds()
-		reqDuration.Record(r.Context(), latency, metric.WithAttributes(originAttr, operationAttr, codeKey.Int(statusCode)))
+		reqDuration.Record(r.Context(), latency, metric.WithAttributes(attrs...))
 	}()
 
 	klog.V(2).Infof("%s: request %v %q => %s", a.log.origin, r.Method, r.URL, a.name)
@@ -153,11 +154,13 @@ func (a appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(logCtx, a.opts.Deadline)
 	defer cancel()
 
-	var err error
-	statusCode, err = a.handler(ctx, a.opts, a.log, w, r)
+	statusCode, hattrs, err := a.handler(ctx, a.opts, a.log, w, r)
+	for _, attr := range hattrs {
+		attrs = append(attrs, attr)
+	}
 	a.opts.RequestLog.status(ctx, statusCode)
 	klog.V(2).Infof("%s: %s <= st=%d", a.log.origin, a.name, statusCode)
-	rspCounter.Add(r.Context(), 1, metric.WithAttributes(originAttr, operationAttr, codeKey.Int(statusCode)))
+	rspCounter.Add(r.Context(), 1, metric.WithAttributes(attrs...))
 	if err != nil {
 		klog.Warningf("%s: %s handler error: %v", a.log.origin, a.name, err)
 		a.opts.sendHTTPError(w, statusCode, err)
@@ -240,7 +243,7 @@ func parseBodyAsJSONChain(r *http.Request) (rfc6962.AddChainRequest, error) {
 
 // addChainInternal is called by add-chain and add-pre-chain as the logic involved in
 // processing these requests is almost identical
-func addChainInternal(ctx context.Context, opts *HandlerOptions, log *log, w http.ResponseWriter, r *http.Request, isPrecert bool) (int, error) {
+func addChainInternal(ctx context.Context, opts *HandlerOptions, log *log, w http.ResponseWriter, r *http.Request, isPrecert bool) (int, []attribute.KeyValue, error) {
 	var method entrypointName
 	if isPrecert {
 		method = addPreChainName
@@ -251,7 +254,7 @@ func addChainInternal(ctx context.Context, opts *HandlerOptions, log *log, w htt
 	// Check the contents of the request and convert to slice of certificates.
 	addChainReq, err := parseBodyAsJSONChain(r)
 	if err != nil {
-		return http.StatusBadRequest, fmt.Errorf("%s: failed to parse add-chain body: %s", log.origin, err)
+		return http.StatusBadRequest, nil, fmt.Errorf("%s: failed to parse add-chain body: %s", log.origin, err)
 	}
 	// Log the DERs now because they might not parse as valid X.509.
 	for _, der := range addChainReq.Chain {
@@ -259,7 +262,7 @@ func addChainInternal(ctx context.Context, opts *HandlerOptions, log *log, w htt
 	}
 	chain, err := log.chainValidator.Validate(addChainReq, isPrecert)
 	if err != nil {
-		return http.StatusBadRequest, fmt.Errorf("failed to verify add-chain contents: %s", err)
+		return http.StatusBadRequest, nil, fmt.Errorf("failed to verify add-chain contents: %s", err)
 	}
 	for _, cert := range chain {
 		opts.RequestLog.addCertToChain(ctx, cert)
@@ -271,11 +274,11 @@ func addChainInternal(ctx context.Context, opts *HandlerOptions, log *log, w htt
 
 	entry, err := x509util.EntryFromChain(chain, isPrecert, timeMillis)
 	if err != nil {
-		return http.StatusBadRequest, fmt.Errorf("failed to build MerkleTreeLeaf: %s", err)
+		return http.StatusBadRequest, nil, fmt.Errorf("failed to build MerkleTreeLeaf: %s", err)
 	}
 
 	if err := log.storage.AddIssuerChain(ctx, chain[1:]); err != nil {
-		return http.StatusInternalServerError, fmt.Errorf("failed to store issuer chain: %s", err)
+		return http.StatusInternalServerError, nil, fmt.Errorf("failed to store issuer chain: %s", err)
 	}
 
 	klog.V(2).Infof("%s: %s => storage.Add", log.origin, method)
@@ -283,9 +286,14 @@ func addChainInternal(ctx context.Context, opts *HandlerOptions, log *log, w htt
 	if err != nil {
 		if errors.Is(err, tessera.ErrPushback) {
 			w.Header().Add("Retry-After", "1")
-			return http.StatusServiceUnavailable, fmt.Errorf("received pushback from Tessera sequencer: %v", err)
+			return http.StatusServiceUnavailable, nil, fmt.Errorf("received pushback from Tessera sequencer: %v", err)
 		}
-		return http.StatusInternalServerError, fmt.Errorf("couldn't store the leaf: %v", err)
+		return http.StatusInternalServerError, nil, fmt.Errorf("couldn't store the leaf: %v", err)
+	}
+	dedupedAttribute := dedupedKey.Bool(false)
+	isDup := dedupedTimeMillis != timeMillis
+	if isDup {
+		dedupedAttribute = dedupedKey.Bool(true)
 	}
 	entry.Timestamp = dedupedTimeMillis
 
@@ -293,52 +301,52 @@ func addChainInternal(ctx context.Context, opts *HandlerOptions, log *log, w htt
 	var loggedLeaf rfc6962.MerkleTreeLeaf
 	leafValue := entry.MerkleTreeLeaf(index)
 	if rest, err := tls.Unmarshal(leafValue, &loggedLeaf); err != nil {
-		return http.StatusInternalServerError, fmt.Errorf("failed to reconstruct MerkleTreeLeaf: %s", err)
+		return http.StatusInternalServerError, nil, fmt.Errorf("failed to reconstruct MerkleTreeLeaf: %s", err)
 	} else if len(rest) > 0 {
-		return http.StatusInternalServerError, fmt.Errorf("extra data (%d bytes) on reconstructing MerkleTreeLeaf", len(rest))
+		return http.StatusInternalServerError, nil, fmt.Errorf("extra data (%d bytes) on reconstructing MerkleTreeLeaf", len(rest))
 	}
 
 	// As the Log server has definitely got the Merkle tree leaf, we can
 	// generate an SCT and respond with it.
 	sct, err := log.signSCT(&loggedLeaf)
 	if err != nil {
-		return http.StatusInternalServerError, fmt.Errorf("failed to generate SCT: %s", err)
+		return http.StatusInternalServerError, nil, fmt.Errorf("failed to generate SCT: %s", err)
 	}
 	sctBytes, err := tls.Marshal(*sct)
 	if err != nil {
-		return http.StatusInternalServerError, fmt.Errorf("failed to marshall SCT: %s", err)
+		return http.StatusInternalServerError, nil, fmt.Errorf("failed to marshall SCT: %s", err)
 	}
 	// We could possibly fail to issue the SCT after this but it's v. unlikely.
 	opts.RequestLog.issueSCT(ctx, sctBytes)
 	err = marshalAndWriteAddChainResponse(sct, w)
 	if err != nil {
 		// reason is logged and http status is already set
-		return http.StatusInternalServerError, fmt.Errorf("failed to write response: %s", err)
+		return http.StatusInternalServerError, nil, fmt.Errorf("failed to write response: %s", err)
 	}
 	klog.V(3).Infof("%s: %s <= SCT", log.origin, method)
-	if sct.Timestamp == timeMillis {
+	if !isDup {
 		lastSCTTimestamp.Record(ctx, otel.Clamp64(sct.Timestamp), metric.WithAttributes(originKey.String(log.origin)))
 		lastSCTIndex.Record(ctx, otel.Clamp64(index), metric.WithAttributes(originKey.String(log.origin)))
 	}
 
-	return http.StatusOK, nil
+	return http.StatusOK, []attribute.KeyValue{dedupedAttribute}, nil
 }
 
-func addChain(ctx context.Context, opts *HandlerOptions, log *log, w http.ResponseWriter, r *http.Request) (int, error) {
+func addChain(ctx context.Context, opts *HandlerOptions, log *log, w http.ResponseWriter, r *http.Request) (int, []attribute.KeyValue, error) {
 	ctx, span := tracer.Start(ctx, "tesseract.addChain")
 	defer span.End()
 
 	return addChainInternal(ctx, opts, log, w, r, false)
 }
 
-func addPreChain(ctx context.Context, opts *HandlerOptions, log *log, w http.ResponseWriter, r *http.Request) (int, error) {
+func addPreChain(ctx context.Context, opts *HandlerOptions, log *log, w http.ResponseWriter, r *http.Request) (int, []attribute.KeyValue, error) {
 	ctx, span := tracer.Start(ctx, "tesseract.addPreChain")
 	defer span.End()
 
 	return addChainInternal(ctx, opts, log, w, r, true)
 }
 
-func getRoots(ctx context.Context, opts *HandlerOptions, log *log, w http.ResponseWriter, _ *http.Request) (int, error) {
+func getRoots(ctx context.Context, opts *HandlerOptions, log *log, w http.ResponseWriter, _ *http.Request) (int, []attribute.KeyValue, error) {
 	_, span := tracer.Start(ctx, "tesseract.getRoots")
 	defer span.End()
 
@@ -355,10 +363,10 @@ func getRoots(ctx context.Context, opts *HandlerOptions, log *log, w http.Respon
 	err := enc.Encode(jsonMap)
 	if err != nil {
 		klog.Warningf("%s: get_roots failed: %v", log.origin, err)
-		return http.StatusInternalServerError, fmt.Errorf("get-roots failed with: %s", err)
+		return http.StatusInternalServerError, nil, fmt.Errorf("get-roots failed with: %s", err)
 	}
 
-	return http.StatusOK, nil
+	return http.StatusOK, nil, nil
 }
 
 // marshalAndWriteAddChainResponse is used by add-chain and add-pre-chain to create and write
