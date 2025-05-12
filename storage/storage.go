@@ -100,7 +100,7 @@ func (cts *CTStorage) dedupFuture(ctx context.Context, f tessera.IndexFuture) (i
 	}
 
 	eBIdx := idx.Index / layout.EntryBundleWidth
-	eBRaw, err := cts.reader.ReadEntryBundle(ctx, idx.Index/layout.EntryBundleWidth, layout.PartialTileSize(0, idx.Index, ckptSize))
+	eBRaw, err := cts.reader.ReadEntryBundle(ctx, eBIdx, layout.PartialTileSize(0, eBIdx, ckptSize))
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			return 0, 0, fmt.Errorf("leaf bundle at index %d not found: %v", eBIdx, err)
@@ -113,7 +113,7 @@ func (cts *CTStorage) dedupFuture(ctx context.Context, f tessera.IndexFuture) (i
 	}
 
 	eIdx := idx.Index % layout.EntryBundleWidth
-	if uint64(len(eb.Entries)) < eIdx {
+	if uint64(len(eb.Entries)) <= eIdx {
 		return 0, 0, fmt.Errorf("entry bundle at index %d has only %d entries, but wanted at least %d", eBIdx, eIdx, eBIdx)
 	}
 	e := staticct.Entry{}
