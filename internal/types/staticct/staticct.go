@@ -172,7 +172,7 @@ func UnmarshalTimestamp(raw []byte) (uint64, error) {
 	s := cryptobyte.String(raw)
 	var t uint64
 
-	if !s.ReadUint64(&t) || t > math.MaxInt64 {
+	if !s.ReadUint64(&t) {
 		return 0, fmt.Errorf("invalid data tile: timestamp can't be extracted")
 	}
 	if t > math.MaxInt64 {
