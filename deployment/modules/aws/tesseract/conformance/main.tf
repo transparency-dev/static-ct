@@ -20,7 +20,7 @@ module "storage" {
   base_name          = var.base_name
   region             = var.region
   ephemeral          = var.ephemeral
-  create_antispam_db = true
+  create_antispam_db = var.create_antispam_db
 }
 
 module "secretsmanager" {
@@ -171,7 +171,7 @@ resource "aws_ecs_task_definition" "conformance" {
       "--db_port=3306",
       "--signer_public_key_secret_name=${module.secretsmanager.ecdsa_p256_public_key_id}",
       "--signer_private_key_secret_name=${module.secretsmanager.ecdsa_p256_private_key_id}",
-      "--antispam_db_name=${module.storage.antispam_database_name}",
+      "--antispam_db_name=${var.antispam_database_name}",
       "--inmemory_antispam_cache_size=25000000", # About 1GB of memory.
       "-v=2"
     ],
