@@ -42,3 +42,14 @@ variable "ecs_conformance_task_role" {
   description = "Role assumed by conformance containers when they run."
   type        = string
 }
+
+variable "create_antispam_db" {
+  description = "Set to true to create another database to be used by the antispam implementation."
+  type        = bool
+  default     = false
+}
+
+variable "antispam_database_name" {
+  description = "The name of the antispam database."
+  type        = string
+}

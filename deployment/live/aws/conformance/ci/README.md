@@ -7,7 +7,7 @@ define a CI environment to run TesseraCT, backed by Trillian Tessera.
 
 At a high level, this environment consists of:
 
-- Aurora MySQL database
+- Aurora MySQL database, used by Tessera both for sequencing and antispam
 - S3 Bucket
 - Secrets Manager
 - ECS
