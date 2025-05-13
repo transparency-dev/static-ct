@@ -30,7 +30,6 @@ import (
 	"github.com/transparency-dev/static-ct/internal/types/rfc6962"
 	"github.com/transparency-dev/static-ct/internal/types/tls"
 	"github.com/transparency-dev/static-ct/internal/x509util"
-	"github.com/transparency-dev/static-ct/modules/dedup"
 	tessera "github.com/transparency-dev/trillian-tessera"
 	"go.opentelemetry.io/otel/metric"
 	"k8s.io/klog/v2"
@@ -69,7 +68,9 @@ var (
 
 // setupMetrics initializes all the exported metrics.
 func setupMetrics() {
-	// TODO(phboneff): add metrics for deduplication and chain storage.
+	// TODO(phboneff): add metrics for chain storage.
+	// TODO(phboneff): add metrics for deduplication.
+	// TODO(phboneff): break down metrics by whether or not the response has been deduped.
 	knownLogs = mustCreate(meter.Int64Gauge("tesseract.known_logs",
 		metric.WithDescription("Set to 1 for known logs")))
 
@@ -120,11 +121,11 @@ func (a appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	originAttr := originKey.String(a.log.origin)
 	operationAttr := operationKey.String(a.name)
 	reqCounter.Add(r.Context(), 1, metric.WithAttributes(originAttr, operationAttr))
-	startTime := a.opts.TimeSource.Now()
+	startTime := time.Now()
 	logCtx := a.opts.RequestLog.start(r.Context())
 	a.opts.RequestLog.origin(logCtx, a.log.origin)
 	defer func() {
-		latency := a.opts.TimeSource.Now().Sub(startTime).Seconds()
+		latency := time.Since(startTime).Seconds()
 		reqDuration.Record(r.Context(), latency, metric.WithAttributes(originAttr, operationAttr, codeKey.Int(statusCode)))
 	}()
 
@@ -148,7 +149,8 @@ func (a appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// impose a deadline on this onward request.
-	ctx, cancel := context.WithDeadline(logCtx, deadlineTime(a.opts))
+	// TODO(phbnf): fine tune together with deduplication
+	ctx, cancel := context.WithTimeout(logCtx, a.opts.Deadline)
 	defer cancel()
 
 	var err error
@@ -180,6 +182,7 @@ type HandlerOptions struct {
 	// or returned to the user containing the full error message.
 	MaskInternalErrors bool
 	// TimeSource indicated the system time and can be injfected for testing.
+	// TODO(phbnf): hide inside the log
 	TimeSource TimeSource
 }
 
@@ -271,47 +274,24 @@ func addChainInternal(ctx context.Context, opts *HandlerOptions, log *log, w htt
 		return http.StatusBadRequest, fmt.Errorf("failed to build MerkleTreeLeaf: %s", err)
 	}
 
-	klog.V(2).Infof("%s: %s => storage.GetCertIndex", log.origin, method)
-	sctDedupInfo, isDup, err := log.storage.GetCertDedupInfo(ctx, chain[0])
-	idx := sctDedupInfo.Idx
+	if err := log.storage.AddIssuerChain(ctx, chain[1:]); err != nil {
+		return http.StatusInternalServerError, fmt.Errorf("failed to store issuer chain: %s", err)
+	}
+
+	klog.V(2).Infof("%s: %s => storage.Add", log.origin, method)
+	index, dedupedTimeMillis, err := log.storage.Add(ctx, entry)
 	if err != nil {
-		return http.StatusInternalServerError, fmt.Errorf("couldn't deduplicate the request: %s", err)
+		if errors.Is(err, tessera.ErrPushback) {
+			w.Header().Add("Retry-After", "1")
+			return http.StatusServiceUnavailable, fmt.Errorf("received pushback from Tessera sequencer: %v", err)
+		}
+		return http.StatusInternalServerError, fmt.Errorf("couldn't store the leaf: %v", err)
 	}
-
-	if isDup {
-		klog.V(3).Infof("%s: %s - found duplicate entry at index %d", log.origin, method, idx)
-		entry.Timestamp = sctDedupInfo.Timestamp
-	} else {
-		if err := log.storage.AddIssuerChain(ctx, chain[1:]); err != nil {
-			return http.StatusInternalServerError, fmt.Errorf("failed to store issuer chain: %s", err)
-		}
-
-		klog.V(2).Infof("%s: %s => storage.Add", log.origin, method)
-		index, err := log.storage.Add(ctx, entry)()
-		if err != nil {
-			if errors.Is(err, tessera.ErrPushback) {
-				w.Header().Add("Retry-After", "1")
-				return http.StatusServiceUnavailable, fmt.Errorf("received pushback from Tessera sequencer: %v", err)
-			}
-			return http.StatusInternalServerError, fmt.Errorf("couldn't store the leaf: %v", err)
-		}
-		// TODO(phbnf): figure out whether to use Tessera's index.IsDup() or a separate "external" antispam impl.
-		idx = index.Index
-
-		// We store the index for this certificate in the deduplication storage immediately.
-		// It might be stored again later, if a local deduplication storage is synced, potentially
-		// with a smaller value.
-		klog.V(2).Infof("%s: %s => storage.AddCertIndex", log.origin, method)
-		err = log.storage.AddCertDedupInfo(ctx, chain[0], dedup.SCTDedupInfo{Idx: idx, Timestamp: entry.Timestamp})
-		// TODO: block log writes if deduplication breaks
-		if err != nil {
-			klog.Warningf("AddCertIndex(): failed to store certificate index: %v", err)
-		}
-	}
+	entry.Timestamp = dedupedTimeMillis
 
 	// Always use the returned leaf as the basis for an SCT.
 	var loggedLeaf rfc6962.MerkleTreeLeaf
-	leafValue := entry.MerkleTreeLeaf(idx)
+	leafValue := entry.MerkleTreeLeaf(index)
 	if rest, err := tls.Unmarshal(leafValue, &loggedLeaf); err != nil {
 		return http.StatusInternalServerError, fmt.Errorf("failed to reconstruct MerkleTreeLeaf: %s", err)
 	} else if len(rest) > 0 {
@@ -338,7 +318,7 @@ func addChainInternal(ctx context.Context, opts *HandlerOptions, log *log, w htt
 	klog.V(3).Infof("%s: %s <= SCT", log.origin, method)
 	if sct.Timestamp == timeMillis {
 		lastSCTTimestamp.Record(ctx, otel.Clamp64(sct.Timestamp), metric.WithAttributes(originKey.String(log.origin)))
-		lastSCTIndex.Record(ctx, otel.Clamp64(idx), metric.WithAttributes(originKey.String(log.origin)))
+		lastSCTIndex.Record(ctx, otel.Clamp64(index), metric.WithAttributes(originKey.String(log.origin)))
 	}
 
 	return http.StatusOK, nil
@@ -379,11 +359,6 @@ func getRoots(ctx context.Context, opts *HandlerOptions, log *log, w http.Respon
 	}
 
 	return http.StatusOK, nil
-}
-
-// deadlineTime calculates the future time a request should expire based on our config.
-func deadlineTime(opts *HandlerOptions) time.Time {
-	return opts.TimeSource.Now().Add(opts.Deadline)
 }
 
 // marshalAndWriteAddChainResponse is used by add-chain and add-pre-chain to create and write

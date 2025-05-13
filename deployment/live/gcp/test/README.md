@@ -14,7 +14,7 @@ define a test environment to run the SCTFE, backed by Trillian Tessera.
 At a high level, this environment consists of:
 - One Spanner instance with two databases:
   - one for Tessera
-  - one for deduplication
+  - one for antispam
 - A GCS Bucket
 - Secret Manager
 
@@ -56,7 +56,7 @@ On the VM, run the following command to bring up the SCTFE:
 go run ./cmd/gcp/ \
   --bucket=${GOOGLE_PROJECT}-${TESSERA_BASE_NAME}-bucket \
   --spanner_db_path=projects/${GOOGLE_PROJECT}/instances/${TESSERA_BASE_NAME}/databases/${TESSERA_BASE_NAME}-db \
-  --spanner_dedup_db_path=projects/${GOOGLE_PROJECT}/instances/${TESSERA_BASE_NAME}/databases/${TESSERA_BASE_NAME}-dedup-db \
+  --spanner_antispam_db_path=projects/${GOOGLE_PROJECT}/instances/${TESSERA_BASE_NAME}/databases/${TESSERA_BASE_NAME}-antispam-db \
   --roots_pem_file=./internal/testdata/fake-ca.cert \
   --origin=${TESSERA_BASE_NAME} \
   --signer_public_key_secret_name=${SCTFE_SIGNER_ECDSA_P256_PUBLIC_KEY_ID} \
@@ -147,7 +147,7 @@ go run ./cmd/gcp/ \
   --spanner_db_path=projects/${GOOGLE_PROJECT}/instances/${TESSERA_BASE_NAME}/databases/${TESSERA_BASE_NAME}-db \
   --roots_pem_file=/tmp/hammercfg/roots.pem \
   --origin=${TESSERA_BASE_NAME} \
-  --spanner_dedup_db_path=projects/${GOOGLE_PROJECT}/instances/${TESSERA_BASE_NAME}/databases/${TESSERA_BASE_NAME}-dedup-db \
+  --spanner_antispam_db_path=projects/${GOOGLE_PROJECT}/instances/${TESSERA_BASE_NAME}/databases/${TESSERA_BASE_NAME}-antispam-db \
   --signer_public_key_secret_name=${SCTFE_SIGNER_ECDSA_P256_PUBLIC_KEY_ID} \
   --signer_private_key_secret_name=${SCTFE_SIGNER_ECDSA_P256_PRIVATE_KEY_ID} \
   -v=3

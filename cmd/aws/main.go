@@ -31,9 +31,9 @@ import (
 	tesseract "github.com/transparency-dev/static-ct"
 	"github.com/transparency-dev/static-ct/storage"
 	"github.com/transparency-dev/static-ct/storage/aws"
-	"github.com/transparency-dev/static-ct/storage/bbolt"
 	tessera "github.com/transparency-dev/trillian-tessera"
 	taws "github.com/transparency-dev/trillian-tessera/storage/aws"
+	aws_as "github.com/transparency-dev/trillian-tessera/storage/aws/antispam"
 	"golang.org/x/mod/sumdb/note"
 	"k8s.io/klog/v2"
 )
@@ -54,13 +54,14 @@ var (
 	origin                     = flag.String("origin", "", "Origin of the log, for checkpoints and the monitoring prefix.")
 	bucket                     = flag.String("bucket", "", "Name of the bucket to store the log in.")
 	dbName                     = flag.String("db_name", "", "AuroraDB name")
+	antispamDBName             = flag.String("antispam_db_name", "", "AuroraDB antispam name")
 	dbHost                     = flag.String("db_host", "", "AuroraDB host")
 	dbPort                     = flag.Int("db_port", 3306, "AuroraDB port")
 	dbUser                     = flag.String("db_user", "", "AuroraDB user")
 	dbPassword                 = flag.String("db_password", "", "AuroraDB password")
 	dbMaxConns                 = flag.Int("db_max_conns", 0, "Maximum connections to the database, defaults to 0, i.e unlimited")
 	dbMaxIdle                  = flag.Int("db_max_idle_conns", 2, "Maximum idle database connections in the connection pool, defaults to 2")
-	dedupPath                  = flag.String("dedup_path", "", "Path to the deduplication database.")
+	inMemoryAntispamCacheSize  = flag.Uint("inmemory_antispam_cache_size", 256<<10, "Maximum number of entries to keep in the in-memory antispam cache.")
 	rootsPemFile               = flag.String("roots_pem_file", "", "Path to the file containing root certificates that are acceptable to the log. The certs are served through get-roots endpoint.")
 	rejectExpired              = flag.Bool("reject_expired", false, "If true then the certificate validity period will be checked against the current time during the validation of submissions. This will cause expired certificates to be rejected.")
 	rejectUnexpired            = flag.Bool("reject_unexpired", false, "If true then CTFE rejects certificates that are either currently valid or not yet valid.")
@@ -147,9 +148,19 @@ func newAWSStorage(ctx context.Context, signer note.Signer) (*storage.CTStorage,
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize AWS Tessera storage driver: %v", err)
 	}
-	appender, _, _, err := tessera.NewAppender(ctx, driver, tessera.NewAppendOptions().
+
+	var antispam tessera.Antispam
+	if *antispamDBName != "" {
+		antispam, err = aws_as.NewAntispam(ctx, antispamMySQLConfig().FormatDSN(), aws_as.AntispamOpts{})
+		if err != nil {
+			klog.Exitf("Failed to create new AWS antispam storage: %v", err)
+		}
+	}
+
+	appender, _, reader, err := tessera.NewAppender(ctx, driver, tessera.NewAppendOptions().
 		WithCheckpointSigner(signer).
-		WithCTLayout())
+		WithCTLayout().
+		WithAntispam(*inMemoryAntispamCacheSize, antispam))
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize AWS Tessera storage: %v", err)
 	}
@@ -159,12 +170,7 @@ func newAWSStorage(ctx context.Context, signer note.Signer) (*storage.CTStorage,
 		return nil, fmt.Errorf("failed to initialize AWS issuer storage: %v", err)
 	}
 
-	beDedupStorage, err := bbolt.NewStorage(*dedupPath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to initialize BBolt deduplication database: %v", err)
-	}
-
-	return storage.NewCTStorage(appender, issuerStorage, beDedupStorage)
+	return storage.NewCTStorage(ctx, appender, issuerStorage, reader)
 }
 
 type timestampFlag struct {
@@ -208,7 +214,7 @@ func storageConfigFromFlags() taws.Config {
 	if *dbUser == "" {
 		klog.Exit("--db_user must be set")
 	}
-	// Empty passord isn't an option with AuroraDB MySQL.
+	// Empty password isn't an option with AuroraDB MySQL.
 	if *dbPassword == "" {
 		klog.Exit("--db_password must be set")
 	}
@@ -228,5 +234,34 @@ func storageConfigFromFlags() taws.Config {
 		DSN:          c.FormatDSN(),
 		MaxOpenConns: *dbMaxConns,
 		MaxIdleConns: *dbMaxIdle,
+	}
+}
+
+func antispamMySQLConfig() *mysql.Config {
+	if *antispamDBName == "" {
+		klog.Exit("--antispam_db_name must be set")
+	}
+	if *dbHost == "" {
+		klog.Exit("--db_host must be set")
+	}
+	if *dbPort == 0 {
+		klog.Exit("--db_port must be set")
+	}
+	if *dbUser == "" {
+		klog.Exit("--db_user must be set")
+	}
+	// Empty passord isn't an option with AuroraDB MySQL.
+	if *dbPassword == "" {
+		klog.Exit("--db_password must be set")
+	}
+
+	return &mysql.Config{
+		User:                    *dbUser,
+		Passwd:                  *dbPassword,
+		Net:                     "tcp",
+		Addr:                    fmt.Sprintf("%s:%d", *dbHost, *dbPort),
+		DBName:                  *antispamDBName,
+		AllowCleartextPasswords: true,
+		AllowNativePasswords:    true,
 	}
 }

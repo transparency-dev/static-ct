@@ -16,10 +16,11 @@ locals {
 module "storage" {
   source = "../../storage"
 
-  prefix_name = var.prefix_name
-  base_name   = var.base_name
-  region      = var.region
-  ephemeral   = var.ephemeral
+  prefix_name        = var.prefix_name
+  base_name          = var.base_name
+  region             = var.region
+  ephemeral          = var.ephemeral
+  create_antispam_db = true
 }
 
 module "secretsmanager" {
@@ -168,9 +169,10 @@ resource "aws_ecs_task_definition" "conformance" {
       "--db_name=tesseract",
       "--db_host=${module.storage.rds_aurora_cluster_endpoint}",
       "--db_port=3306",
-      "--dedup_path=ci-static-ct",
       "--signer_public_key_secret_name=${module.secretsmanager.ecdsa_p256_public_key_id}",
       "--signer_private_key_secret_name=${module.secretsmanager.ecdsa_p256_private_key_id}",
+      "--antispam_db_name=${module.storage.antispam_database_name}",
+      "--inmemory_antispam_cache_size=25000000", # About 1GB of memory.
       "-v=2"
     ],
     "logConfiguration" : {

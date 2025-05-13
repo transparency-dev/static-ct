@@ -37,6 +37,8 @@ type EntryBundle struct {
 
 // UnmarshalText implements encoding/TextUnmarshaler and reads EntryBundles
 // which are encoded using the Static CT API spec.
+// TODO(phbnf): we can probably parse every individual leaf directly, since most callers
+// of this method tend to do so.
 func (t *EntryBundle) UnmarshalText(raw []byte) error {
 	entries := make([][]byte, 0, layout.EntryBundleWidth)
 	s := cryptobyte.String(raw)
@@ -162,6 +164,21 @@ type Entry struct {
 	FingerprintsChain [][32]byte
 	RawExtensions     string
 	LeafIndex         uint64
+}
+
+// UnmarshalText implements encoding/TextUnmarshaler and reads EntryBundles
+// which are encoded using the Static CT API spec.
+func UnmarshalTimestamp(raw []byte) (uint64, error) {
+	s := cryptobyte.String(raw)
+	var t uint64
+
+	if !s.ReadUint64(&t) {
+		return 0, fmt.Errorf("invalid data tile: timestamp can't be extracted")
+	}
+	if t > math.MaxInt64 {
+		return 0, fmt.Errorf("invalid data tile: timestamp %d > math.MaxInt64", t)
+	}
+	return t, nil
 }
 
 // UnmarshalText implements encoding/TextUnmarshaler and reads EntryBundles

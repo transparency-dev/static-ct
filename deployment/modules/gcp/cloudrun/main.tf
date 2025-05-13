@@ -12,7 +12,7 @@ terraform {
 locals {
   cloudrun_service_account_id = var.env == "" ? "cloudrun-sa" : "cloudrun-${var.env}-sa"
   spanner_log_db_path         = "projects/${var.project_id}/instances/${var.log_spanner_instance}/databases/${var.log_spanner_db}"
-  spanner_dedup_db_path       = "projects/${var.project_id}/instances/${var.log_spanner_instance}/databases/${var.dedup_spanner_db}"
+  spanner_antispam_db_path    = "projects/${var.project_id}/instances/${var.log_spanner_instance}/databases/${var.antispam_spanner_db}"
 }
 
 resource "google_project_service" "cloudrun_api" {
@@ -44,11 +44,12 @@ resource "google_cloud_run_v2_service" "default" {
         "--http_endpoint=:6962",
         "--bucket=${var.bucket}",
         "--spanner_db_path=${local.spanner_log_db_path}",
-        "--spanner_dedup_db_path=${local.spanner_dedup_db_path}",
+        "--spanner_antispam_db_path=${local.spanner_antispam_db_path}",
         "--roots_pem_file=/bin/test_root_ca_cert.pem",
         "--origin=${var.base_name}${var.origin_suffix}",
         "--signer_public_key_secret_name=${var.signer_public_key_secret_name}",
         "--signer_private_key_secret_name=${var.signer_private_key_secret_name}",
+      	"--inmemory_antispam_cache_size=25000000", # About 1GB of memory.
       ]
       ports {
         container_port = 6962
