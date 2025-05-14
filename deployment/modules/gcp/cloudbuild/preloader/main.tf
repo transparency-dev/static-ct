@@ -35,7 +35,7 @@ resource "google_project_service" "serviceusage_api" {
 }
 
 resource "google_cloudbuild_trigger" "preloader_trigger" {
-  name            = "preloader-${var.env}"
+  name            = "preloader-${var.docker_env}"
   service_account = "projects/${var.project_id}/serviceAccounts/${local.cloudbuild_service_account}"
   location        = var.location
 
