@@ -35,7 +35,7 @@ resource "google_project_service" "serviceusage_api" {
 }
 
 resource "google_cloudbuild_trigger" "preloader_trigger" {
-  name            = "preloader-${var.docker_env}"
+  name            = "preloader-${var.base_name}"
   service_account = "projects/${var.project_id}/serviceAccounts/${local.cloudbuild_service_account}"
   location        = var.location
 
@@ -100,7 +100,7 @@ resource "google_cloud_scheduler_job" "deploy_cron" {
   paused = false
   project = var.project_id
   region  = var.location
-  name    = "deploy-cron-${docker_env}"
+  name    = "deploy-cron-${var.base_name}"
 
   schedule  = "50 * * * *"
   time_zone = "America/Los_Angeles"

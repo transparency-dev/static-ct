@@ -13,8 +13,8 @@ variable "env" {
   type        = string
 }
 
-variable "docker_env" {
-  description = "Unique identifier for the Docker env, e.g. dev or ci or prod"
+variable "base_name" {
+  description = "Base name to use when naming resources"
   type        = string
 }
 
