@@ -176,7 +176,7 @@ func (a appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 type HandlerOptions struct {
 	// Deadline is a timeout for HTTP requests.
 	Deadline time.Duration
-	// RequestLog provides structured logging of CTFE requests.
+	// RequestLog provides structured logging of TesseraCT requests.
 	RequestLog requestLog
 	// MaskInternalErrors indicates if internal server errors should be masked
 	// or returned to the user containing the full error message.

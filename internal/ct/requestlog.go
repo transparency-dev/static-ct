@@ -25,9 +25,9 @@ import (
 
 const vLevel = 9
 
-// requestLog allows implementations to do structured logging of CTFE
+// requestLog allows implementations to do structured logging of TesseraCT
 // request parameters, submitted chains and other internal details that
-// are useful for log operators when debugging issues. CTFE handlers will
+// are useful for log operators when debugging issues. TesseraCT handlers will
 // call the appropriate methods during request processing. The implementation
 // is responsible for collating and storing the resulting logging information.
 type requestLog interface {
