@@ -100,7 +100,7 @@ resource "google_cloud_scheduler_job" "deploy_cron" {
   paused = false
   project = var.project_id
   region  = var.location
-  name    = "deploy-cron"
+  name    = "deploy-cron-${docker_env}"
 
   schedule  = "50 * * * *"
   time_zone = "America/Los_Angeles"
