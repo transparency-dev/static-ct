@@ -103,7 +103,7 @@ resource "google_cloudbuild_trigger" "build_trigger" {
 
     ## Apply the deployment/live/gcp/static-staging/logs/XXX terragrunt configs.
     ## This will bring up or update TesseraCT's infrastructure, including a service
-    ## running the conformance server docker image built above.
+    ## running the server docker image built above.
     dynamic "step" {
       for_each = var.logs_terragrunts
       iterator = tg_path
