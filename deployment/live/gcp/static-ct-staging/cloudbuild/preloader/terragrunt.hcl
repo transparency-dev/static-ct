@@ -15,7 +15,7 @@ remote_state {
   config = {
     project  = local.project_id
     location = local.location
-    bucket   = "${local.project_id}-cloudbuild-preloader-${local.base_name}-terraform-state"
+    bucket   = "${local.project_id}-preloader-${local.base_name}-terraform-state"
     prefix   = "terraform.tfstate"
 
     gcs_bucket_labels = {
