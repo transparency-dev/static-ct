@@ -76,8 +76,8 @@ Store the Aurora RDS database and S3 bucket information into the environment var
 export TESSERACT_DB_HOST=$(terragrunt output -raw rds_aurora_cluster_endpoint)
 export TESSERACT_DB_PASSWORD=$(aws secretsmanager get-secret-value --secret-id $(terragrunt output -json rds_aurora_cluster_master_user_secret | jq --raw-output .[0].secret_arn) --query SecretString --output text | jq --raw-output .password)
 export TESSERACT_BUCKET_NAME=$(terragrunt output -raw s3_bucket_name)
-export SCTFE_SIGNER_ECDSA_P256_PUBLIC_KEY_ID=$(terragrunt output -raw ecdsa_p256_public_key_id)
-export SCTFE_SIGNER_ECDSA_P256_PRIVATE_KEY_ID=$(terragrunt output -raw ecdsa_p256_private_key_id)
+export TESSERACT_SIGNER_ECDSA_P256_PUBLIC_KEY_ID=$(terragrunt output -raw ecdsa_p256_public_key_id)
+export TESSERACT_SIGNER_ECDSA_P256_PRIVATE_KEY_ID=$(terragrunt output -raw ecdsa_p256_private_key_id)
 ```
 
 Connect the VM and Aurora database following [these instructions](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/tutorial-ec2-rds-option1.html#option1-task3-connect-ec2-instance-to-rds-database), it takes a few clicks in the UI.
@@ -100,8 +100,8 @@ go run ./cmd/aws \
   --db_user=tesseract \
   --db_password=${TESSERACT_DB_PASSWORD} \
   --antispam_db_name=antispam_db \
-  --signer_public_key_secret_name=${SCTFE_SIGNER_ECDSA_P256_PUBLIC_KEY_ID} \
-  --signer_private_key_secret_name=${SCTFE_SIGNER_ECDSA_P256_PRIVATE_KEY_ID}
+  --signer_public_key_secret_name=${TESSERACT_SIGNER_ECDSA_P256_PUBLIC_KEY_ID} \
+  --signer_private_key_secret_name=${TESSERACT_SIGNER_ECDSA_P256_PRIVATE_KEY_ID}
 ```
 
 In a different terminal you can either mint and submit certificates manually, or
@@ -194,8 +194,8 @@ go run ./cmd/aws \
   --db_user=tesseract \
   --db_password=${TESSERACT_DB_PASSWORD} \
   --antispam_db_name=antispam_db \
-  --signer_public_key_secret_name=${SCTFE_SIGNER_ECDSA_P256_PUBLIC_KEY_ID} \
-  --signer_private_key_secret_name=${SCTFE_SIGNER_ECDSA_P256_PRIVATE_KEY_ID}
+  --signer_public_key_secret_name=${TESSERACT_SIGNER_ECDSA_P256_PUBLIC_KEY_ID} \
+  --signer_private_key_secret_name=${TESSERACT_SIGNER_ECDSA_P256_PRIVATE_KEY_ID}
   -v=3
 ```
 
