@@ -101,47 +101,57 @@ resource "google_cloudbuild_trigger" "build_trigger" {
       wait_for = ["docker_build_conformance_gcp"]
     }
 
-    ## Apply the deployment/live/gcp/static-staging/logs/XXX terragrunt config.
+    ## Apply the deployment/live/gcp/static-staging/logs/XXX terragrunt configs.
     ## This will bring up or update the conformance infrastructure, including a service
     ## running the conformance server docker image built above.
-    step {
-      id     = "terraform_apply_conformance_staging"
-      name   = "alpine/terragrunt"
-      script = <<EOT
-        terragrunt --terragrunt-non-interactive --terragrunt-no-color apply -auto-approve -no-color 2>&1
-      EOT
-      dir    = var.log_terragrunt
-      env = [
-        "GOOGLE_PROJECT=${var.project_id}",
-        "TF_IN_AUTOMATION=1",
-        "TF_INPUT=false",
-        "TF_VAR_project_id=${var.project_id}",
-        "DOCKER_CONTAINER_TAG=$SHORT_SHA"
-      ]
-      wait_for = ["docker_push_conformance_gcp"]
+    dynamic "step" {
+      for_each = var.logs_terragrunts
+      iterator = tg_path
+
+      content {
+        id     = "terraform_apply_conformance_staging_${tg_path.key}"
+        name   = "alpine/terragrunt"
+        script = <<EOT
+          terragrunt --terragrunt-non-interactive --terragrunt-no-color apply -auto-approve -no-color 2>&1
+        EOT
+        dir    = tg_path.value
+        env = [
+          "GOOGLE_PROJECT=${var.project_id}",
+          "TF_IN_AUTOMATION=1",
+          "TF_INPUT=false",
+          "TF_VAR_project_id=${var.project_id}",
+          "DOCKER_CONTAINER_TAG=$SHORT_SHA"
+        ]
+        wait_for = tg_path.key > 0 ? ["docker_push_conformance_gcp", "terraform_apply_conformance_staging_${tg_path.key - 1}"] : ["docker_push_conformance_gcp"]
+      }
     }
 
     ## Print terraform output.
-    step {
-      id     = "terraform_print_output"
-      name   = "alpine/terragrunt"
-      script = <<EOT
-        terragrunt --terragrunt-no-color output --raw conformance_url -no-color > /workspace/conformance_url
-        terragrunt --terragrunt-no-color output --raw conformance_bucket_name -no-color > /workspace/conformance_bucket_name
-        terragrunt --terragrunt-no-color output --raw ecdsa_p256_public_key_data -no-color > /workspace/conformance_log_public_key.pem
-        cat /workspace/conformance_url
-        cat /workspace/conformance_bucket_name
-        cat /workspace/conformance_log_public_key.pem
-      EOT
-      dir    = var.log_terragrunt
-      env = [
-        "GOOGLE_PROJECT=${var.project_id}",
-        "TF_IN_AUTOMATION=1",
-        "TF_INPUT=false",
-        "TF_VAR_project_id=${var.project_id}",
-        "DOCKER_CONTAINER_TAG=$SHORT_SHA"
-      ]
-      wait_for = ["terraform_apply_conformance_staging"]
+    dynamic "step" {
+      for_each = var.logs_terragrunts
+      iterator = tg_path
+
+      content {
+        id     = "terraform_print_output_${tg_path.key}"
+        name   = "alpine/terragrunt"
+        script = <<EOT
+          terragrunt --terragrunt-no-color output --raw conformance_url -no-color > /workspace/conformance_url
+          terragrunt --terragrunt-no-color output --raw conformance_bucket_name -no-color > /workspace/conformance_bucket_name
+          terragrunt --terragrunt-no-color output --raw ecdsa_p256_public_key_data -no-color > /workspace/conformance_log_public_key.pem
+          cat /workspace/conformance_url
+          cat /workspace/conformance_bucket_name
+          cat /workspace/conformance_log_public_key.pem
+        EOT
+        dir    = tg_path.value
+        env = [
+          "GOOGLE_PROJECT=${var.project_id}",
+          "TF_IN_AUTOMATION=1",
+          "TF_INPUT=false",
+          "TF_VAR_project_id=${var.project_id}",
+          "DOCKER_CONTAINER_TAG=$SHORT_SHA"
+        ]
+        wait_for = ["terraform_apply_conformance_staging_${tg_path.key}"]
+      }
     }
 
     options {
