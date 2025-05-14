@@ -82,11 +82,11 @@ export SCTFE_SIGNER_ECDSA_P256_PRIVATE_KEY_ID=$(terragrunt output -raw ecdsa_p25
 
 Connect the VM and Aurora database following [these instructions](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/tutorial-ec2-rds-option1.html#option1-task3-connect-ec2-instance-to-rds-database), it takes a few clicks in the UI.
 
-## Run the TesseraCT
+## Run TesseraCT
 
 ### With fake chains
 
-On the VM, run the following command to bring up the TesseraCT:
+On the VM, run the following command to bring up TesseraCT:
 
 ```bash
 go run ./cmd/aws \
@@ -121,7 +121,7 @@ openssl x509 -req -days 3650 -in /tmp/httpschain/cert.csr -CAkey internal/testda
 cat internal/testdata/fake-ca.cert >> /tmp/httpschain/chain.pem
 ```
 
-Finally, submit the chain to the TesseraCT:
+Finally, submit the chain to TesseraCT:
 
 ```bash
 go run github.com/google/certificate-transparency-go/client/ctclient@master upload --cert_chain=/tmp/httpschain/chain.pem --skip_https_verify --log_uri=http://localhost:6962/test-static-ct
@@ -129,7 +129,7 @@ go run github.com/google/certificate-transparency-go/client/ctclient@master uplo
 
 #### Automatically generate chains
 
-Save the TesseraCT repo's path:
+Save TesseraCT repo's path:
 
 ```bash
 export TESSERACT_REPO=$(pwd)
@@ -179,7 +179,7 @@ go run ./client/ctclient get-roots --log_uri=${SRC_LOG_URI} --text=false > /tmp/
 sed -i 's-""-"/tmp/hammercfg/roots.pem"-g' /tmp/hammercfg/hammer.cfg
 ```
 
-Run the TesseraCT with the same roots:
+Run TesseraCT with the same roots:
 
 ```bash
 cd ${TESSERACT_REPO}
