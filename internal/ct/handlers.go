@@ -30,7 +30,7 @@ import (
 	"github.com/transparency-dev/tesseract/internal/types/rfc6962"
 	"github.com/transparency-dev/tesseract/internal/types/tls"
 	"github.com/transparency-dev/tesseract/internal/x509util"
-	tessera "github.com/transparency-dev/trillian-tessera"
+	"github.com/transparency-dev/tessera"
 	"go.opentelemetry.io/otel/metric"
 	"k8s.io/klog/v2"
 )

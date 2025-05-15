@@ -4,7 +4,7 @@ go 1.24.0
 
 require (
 	cloud.google.com/go/secretmanager v1.14.7
-	cloud.google.com/go/storage v1.53.0
+	cloud.google.com/go/storage v1.54.0
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/metric v0.51.0
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/trace v1.27.0
 	github.com/RobinUS2/golang-moving-average v1.0.0
@@ -20,7 +20,7 @@ require (
 	github.com/rivo/tview v0.0.0-20240625185742-b0a7293b8130
 	github.com/transparency-dev/formats v0.0.0-20250421220931-bb8ad4d07c26
 	github.com/transparency-dev/merkle v0.0.2
-	github.com/transparency-dev/trillian-tessera v0.1.2
+	github.com/transparency-dev/tessera v0.1.3-0.20250515140624-30fe5eb85177
 	go.opentelemetry.io/contrib/detectors/gcp v1.35.0
 	go.opentelemetry.io/otel v1.35.0
 	go.opentelemetry.io/otel/metric v1.35.0
@@ -103,8 +103,8 @@ require (
 	golang.org/x/text v0.25.0 // indirect
 	golang.org/x/time v0.11.0 // indirect
 	google.golang.org/genproto v0.0.0-20250303144028-a0af3efb3deb // indirect
-	google.golang.org/genproto/googleapis/api v0.0.0-20250428153025-10db94c68c34 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20250428153025-10db94c68c34 // indirect
+	google.golang.org/genproto/googleapis/api v0.0.0-20250505200425-f936aa4a68b2 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20250505200425-f936aa4a68b2 // indirect
 	google.golang.org/grpc v1.72.0 // indirect
 	google.golang.org/protobuf v1.36.6 // indirect
 )

@@ -30,7 +30,7 @@ import (
 	"github.com/transparency-dev/tesseract/internal/client"
 	"github.com/transparency-dev/tesseract/internal/types/rfc6962"
 	"github.com/transparency-dev/tesseract/internal/x509util"
-	"github.com/transparency-dev/trillian-tessera/api/layout"
+	"github.com/transparency-dev/tessera/api/layout"
 	"k8s.io/klog/v2"
 )
 
