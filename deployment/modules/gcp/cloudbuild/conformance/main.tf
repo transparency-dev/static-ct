@@ -51,7 +51,7 @@ resource "google_cloudbuild_trigger" "build_trigger" {
 
   github {
     owner = var.github_owner
-    name  = "static-ct"
+    name  = "tesseract"
     push {
       branch = "^main$"
     }
