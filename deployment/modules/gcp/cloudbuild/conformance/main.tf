@@ -79,7 +79,7 @@ resource "google_cloudbuild_trigger" "build_trigger" {
     ## This will be used by the building the conformance Docker image which includes 
     ## the test data.
     step {
-      id   = "docker_build_sctfe_gcp"
+      id   = "docker_build_tesseract_gcp"
       name = "gcr.io/cloud-builders/docker"
       args = [
         "build",
@@ -90,7 +90,7 @@ resource "google_cloudbuild_trigger" "build_trigger" {
       ]
     }
 
-    ## Build the SCTFE GCP Conformance Docker container image.
+    ## Build TesseraCT GCP Conformance Docker container image.
     step {
       id   = "docker_build_conformance_gcp"
       name = "gcr.io/cloud-builders/docker"
@@ -101,7 +101,7 @@ resource "google_cloudbuild_trigger" "build_trigger" {
         "-f", "./cmd/gcp/ci/Dockerfile",
         "."
       ]
-      wait_for = ["docker_build_sctfe_gcp"]
+      wait_for = ["docker_build_tesseract_gcp"]
     }
 
     ## Push the conformance Docker container image to Artifact Registry.
@@ -140,8 +140,8 @@ resource "google_cloudbuild_trigger" "build_trigger" {
       id     = "terraform_print_output"
       name   = "alpine/terragrunt"
       script = <<EOT
-        terragrunt --terragrunt-no-color output --raw conformance_url -no-color > /workspace/conformance_url
-        terragrunt --terragrunt-no-color output --raw conformance_bucket_name -no-color > /workspace/conformance_bucket_name
+        terragrunt --terragrunt-no-color output --raw tesseract_url -no-color > /workspace/conformance_url
+        terragrunt --terragrunt-no-color output --raw tesseract_bucket_name -no-color > /workspace/conformance_bucket_name
         terragrunt --terragrunt-no-color output --raw ecdsa_p256_public_key_data -no-color > /workspace/conformance_log_public_key.pem
       EOT
       dir    = "deployment/live/gcp/static-ct/logs/ci"

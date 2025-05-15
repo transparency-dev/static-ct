@@ -22,16 +22,16 @@ resource "google_project_service" "secretmanager_googleapis_com" {
 # recommended.
 #
 # See https://registry.terraform.io/providers/hashicorp/tls/latest/docs/resources/private_key.
-resource "tls_private_key" "sctfe_ecdsa_p256" {
+resource "tls_private_key" "tesseract_ecdsa_p256" {
   algorithm   = "ECDSA"
   ecdsa_curve = "P256"
 }
 
-resource "google_secret_manager_secret" "sctfe_ecdsa_p256_public_key" {
+resource "google_secret_manager_secret" "tesseract_ecdsa_p256_public_key" {
   secret_id = "${var.base_name}-ecdsa-p256-public-key"
 
   labels = {
-    label = "sctfe-public-key"
+    label = "tesseract-public-key"
   }
 
   replication {
@@ -41,17 +41,17 @@ resource "google_secret_manager_secret" "sctfe_ecdsa_p256_public_key" {
   depends_on = [google_project_service.secretmanager_googleapis_com]
 }
 
-resource "google_secret_manager_secret_version" "sctfe_ecdsa_p256_public_key" {
-  secret = google_secret_manager_secret.sctfe_ecdsa_p256_public_key.id
+resource "google_secret_manager_secret_version" "tesseract_ecdsa_p256_public_key" {
+  secret = google_secret_manager_secret.tesseract_ecdsa_p256_public_key.id
 
-  secret_data = tls_private_key.sctfe_ecdsa_p256.public_key_pem
+  secret_data = tls_private_key.tesseract_ecdsa_p256.public_key_pem
 }
 
-resource "google_secret_manager_secret" "sctfe_ecdsa_p256_private_key" {
+resource "google_secret_manager_secret" "tesseract_ecdsa_p256_private_key" {
   secret_id = "${var.base_name}-ecdsa-p256-private-key"
 
   labels = {
-    label = "sctfe-private-key"
+    label = "tesseract-private-key"
   }
 
   replication {
@@ -61,8 +61,8 @@ resource "google_secret_manager_secret" "sctfe_ecdsa_p256_private_key" {
   depends_on = [google_project_service.secretmanager_googleapis_com]
 }
 
-resource "google_secret_manager_secret_version" "sctfe_ecdsa_p256_private_key" {
-  secret = google_secret_manager_secret.sctfe_ecdsa_p256_private_key.id
+resource "google_secret_manager_secret_version" "tesseract_ecdsa_p256_private_key" {
+  secret = google_secret_manager_secret.tesseract_ecdsa_p256_private_key.id
 
-  secret_data = tls_private_key.sctfe_ecdsa_p256.private_key_pem
+  secret_data = tls_private_key.tesseract_ecdsa_p256.private_key_pem
 }
