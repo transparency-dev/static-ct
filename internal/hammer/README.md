@@ -17,6 +17,7 @@ Example usage to test a deployment of `cmd/gcp`:
 
 ```shell
 go run ./internal/hammer \
+  --origin=test-static-ct \
   --log_public_key=MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEZtouPtPylIR8RgvqdsXxTXEuOjL50GQvmkg25JpNnoNNbZZDVt1niU7xm4BwYu1JERIjTV2LlmyRbCBHCmG6Jg== \
   --log_url=https://storage.googleapis.com/transparency-dev-playground-test-static-ct-bucket \
   --write_log_url=http://localhost:6962/test-static-ct
@@ -35,6 +36,7 @@ If the timeout of 1 minute is reached first, then it exits with an exit code of 
 
 ```shell
 go run ./internal/hammer \
+  --origin=test-static-ct \
   --log_public_key=MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEZtouPtPylIR8RgvqdsXxTXEuOjL50GQvmkg25JpNnoNNbZZDVt1niU7xm4BwYu1JERIjTV2LlmyRbCBHCmG6Jg== \
   --log_url=https://storage.googleapis.com/transparency-dev-playground-test-static-ct-bucket \
   --write_log_url=http://localhost:6962/test-static-ct
