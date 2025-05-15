@@ -25,7 +25,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/smithy-go"
-	"github.com/transparency-dev/static-ct/storage"
+	"github.com/transparency-dev/tesseract/storage"
 	"k8s.io/klog/v2"
 )
 

@@ -22,7 +22,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/transparency-dev/static-ct/internal/lax509"
+	"github.com/transparency-dev/tesseract/internal/lax509"
 	"k8s.io/klog/v2"
 )
 

@@ -22,7 +22,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/transparency-dev/static-ct/storage"
+	"github.com/transparency-dev/tesseract/storage"
 )
 
 func TestNewIssuerStorage(t *testing.T) {

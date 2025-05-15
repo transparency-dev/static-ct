@@ -27,7 +27,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/transparency-dev/static-ct/internal/types/staticct"
+	"github.com/transparency-dev/tesseract/internal/types/staticct"
 	tessera "github.com/transparency-dev/trillian-tessera"
 	"github.com/transparency-dev/trillian-tessera/api/layout"
 	"github.com/transparency-dev/trillian-tessera/ctonly"

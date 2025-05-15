@@ -18,7 +18,7 @@ import (
 	"go.opentelemetry.io/otel"
 )
 
-const name = "github.com/transparency-dev/static-ct/storage"
+const name = "github.com/transparency-dev/tesseract/storage"
 
 var (
 	tracer = otel.Tracer(name)

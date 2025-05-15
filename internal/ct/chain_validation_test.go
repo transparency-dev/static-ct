@@ -23,9 +23,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/transparency-dev/static-ct/internal/testdata"
-	"github.com/transparency-dev/static-ct/internal/types/rfc6962"
-	"github.com/transparency-dev/static-ct/internal/x509util"
+	"github.com/transparency-dev/tesseract/internal/testdata"
+	"github.com/transparency-dev/tesseract/internal/types/rfc6962"
+	"github.com/transparency-dev/tesseract/internal/x509util"
 )
 
 func TestParseExtKeyUsages(t *testing.T) {

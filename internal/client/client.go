@@ -30,7 +30,7 @@ import (
 	"github.com/transparency-dev/merkle/compact"
 	"github.com/transparency-dev/merkle/proof"
 	"github.com/transparency-dev/merkle/rfc6962"
-	"github.com/transparency-dev/static-ct/internal/types/staticct"
+	"github.com/transparency-dev/tesseract/internal/types/staticct"
 	"github.com/transparency-dev/trillian-tessera/api"
 	"github.com/transparency-dev/trillian-tessera/api/layout"
 	"golang.org/x/mod/sumdb/note"

@@ -28,9 +28,9 @@ import (
 	"time"
 
 	"github.com/go-sql-driver/mysql"
-	tesseract "github.com/transparency-dev/static-ct"
-	"github.com/transparency-dev/static-ct/storage"
-	"github.com/transparency-dev/static-ct/storage/aws"
+	"github.com/transparency-dev/tesseract"
+	"github.com/transparency-dev/tesseract/storage"
+	"github.com/transparency-dev/tesseract/storage/aws"
 	tessera "github.com/transparency-dev/trillian-tessera"
 	taws "github.com/transparency-dev/trillian-tessera/storage/aws"
 	aws_as "github.com/transparency-dev/trillian-tessera/storage/aws/antispam"

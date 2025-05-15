@@ -28,9 +28,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/transparency-dev/static-ct/internal/client"
-	"github.com/transparency-dev/static-ct/internal/types/rfc6962"
-	"github.com/transparency-dev/static-ct/internal/types/staticct"
+	"github.com/transparency-dev/tesseract/internal/client"
+	"github.com/transparency-dev/tesseract/internal/types/rfc6962"
+	"github.com/transparency-dev/tesseract/internal/types/staticct"
 	"k8s.io/klog/v2"
 )
 

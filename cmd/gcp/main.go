@@ -28,9 +28,9 @@ import (
 	"syscall"
 	"time"
 
-	tesseract "github.com/transparency-dev/static-ct"
-	"github.com/transparency-dev/static-ct/storage"
-	"github.com/transparency-dev/static-ct/storage/gcp"
+	"github.com/transparency-dev/tesseract"
+	"github.com/transparency-dev/tesseract/storage"
+	"github.com/transparency-dev/tesseract/storage/gcp"
 	tessera "github.com/transparency-dev/trillian-tessera"
 	tgcp "github.com/transparency-dev/trillian-tessera/storage/gcp"
 	gcp_as "github.com/transparency-dev/trillian-tessera/storage/gcp/antispam"

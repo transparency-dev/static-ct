@@ -24,9 +24,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/transparency-dev/static-ct/internal/lax509"
-	"github.com/transparency-dev/static-ct/internal/types/rfc6962"
-	"github.com/transparency-dev/static-ct/internal/x509util"
+	"github.com/transparency-dev/tesseract/internal/lax509"
+	"github.com/transparency-dev/tesseract/internal/types/rfc6962"
+	"github.com/transparency-dev/tesseract/internal/x509util"
 	"k8s.io/klog/v2"
 )
 

@@ -20,7 +20,7 @@ import (
 	"k8s.io/klog/v2"
 )
 
-const name = "github.com/transparency-dev/static-ct/internal/ct"
+const name = "github.com/transparency-dev/tesseract/internal/ct"
 
 var (
 	meter  = otel.Meter(name)

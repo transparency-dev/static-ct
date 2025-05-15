@@ -25,7 +25,7 @@ import (
 	"path"
 	"strings"
 
-	"github.com/transparency-dev/static-ct/storage"
+	"github.com/transparency-dev/tesseract/storage"
 	"k8s.io/klog/v2"
 )
 

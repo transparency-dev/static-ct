@@ -11,7 +11,7 @@ The performance tests were conducted in a controlled environment with determinis
 
 ### GCP
 
-The indicative figures below were measured using the [CT hammer tool](/internal/hammer/) as of [commit `2872ea2`](https://github.com/transparency-dev/static-ct/commit/2872ea2387b2d3077eb832112277eb19a7a907bd). 
+The indicative figures below were measured using the [CT hammer tool](/internal/hammer/) as of [commit `2872ea2`](https://github.com/transparency-dev/tesseract/commit/2872ea2387b2d3077eb832112277eb19a7a907bd). 
 
 The table below shows the measured performance over 12 hours in each instance type:
 
@@ -131,7 +131,7 @@ MiB Swap:      0.0 total,      0.0 free,      0.0 used.   2989.2 avail Mem
 
 ### AWS
 
-The indicative figures below were measured using the [CT hammer tool](/internal/hammer/) as of [commit `2940bba`](https://github.com/transparency-dev/static-ct/commit/2940bba60a49bad1b78ae8f2ded2c893b1b133ad). 
+The indicative figures below were measured using the [CT hammer tool](/internal/hammer/) as of [commit `2940bba`](https://github.com/transparency-dev/tesseract/commit/2940bba60a49bad1b78ae8f2ded2c893b1b133ad). 
 
 #### t3a.small EC2 Instance + Aurora MySQL db.r5.large
 

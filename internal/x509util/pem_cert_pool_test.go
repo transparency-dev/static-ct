@@ -19,7 +19,7 @@ import (
 	"encoding/pem"
 	"testing"
 
-	"github.com/transparency-dev/static-ct/internal/x509util"
+	"github.com/transparency-dev/tesseract/internal/x509util"
 )
 
 func TestLoadSingleCertFromPEMs(t *testing.T) {

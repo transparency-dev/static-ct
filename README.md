@@ -1,6 +1,6 @@
 # TesseraCT
 
-[![Go Report Card](https://goreportcard.com/badge/github.com/transparency-dev/static-ct)](https://goreportcard.com/report/github.com/transparency-dev/static-ct)
+[![Go Report Card](https://goreportcard.com/badge/github.com/transparency-dev/tesseract)](https://goreportcard.com/report/github.com/transparency-dev/tesseract)
 [![Slack Status](https://img.shields.io/badge/Slack-Chat-blue.svg)](https://transparency-dev.slack.com/)
 
 This personality implements [Static CT API](https://c2sp.org/static-ct-api) 
