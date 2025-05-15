@@ -24,8 +24,8 @@ import (
 	"time"
 
 	tfl "github.com/transparency-dev/formats/log"
-	"github.com/transparency-dev/static-ct/internal/types/rfc6962"
-	"github.com/transparency-dev/static-ct/internal/types/tls"
+	"github.com/transparency-dev/tesseract/internal/types/rfc6962"
+	"github.com/transparency-dev/tesseract/internal/types/tls"
 	"golang.org/x/mod/sumdb/note"
 )
 

@@ -25,10 +25,10 @@ import (
 	"time"
 
 	"github.com/kylelemons/godebug/pretty"
-	"github.com/transparency-dev/static-ct/internal/testdata"
-	"github.com/transparency-dev/static-ct/internal/types/rfc6962"
-	"github.com/transparency-dev/static-ct/internal/types/tls"
-	"github.com/transparency-dev/static-ct/internal/x509util"
+	"github.com/transparency-dev/tesseract/internal/testdata"
+	"github.com/transparency-dev/tesseract/internal/types/rfc6962"
+	"github.com/transparency-dev/tesseract/internal/types/tls"
+	"github.com/transparency-dev/tesseract/internal/x509util"
 )
 
 var (

@@ -27,9 +27,9 @@ import (
 	"github.com/transparency-dev/formats/log"
 	"github.com/transparency-dev/merkle/proof"
 	hasher "github.com/transparency-dev/merkle/rfc6962"
-	"github.com/transparency-dev/static-ct/internal/client"
-	"github.com/transparency-dev/static-ct/internal/types/rfc6962"
-	"github.com/transparency-dev/static-ct/internal/x509util"
+	"github.com/transparency-dev/tesseract/internal/client"
+	"github.com/transparency-dev/tesseract/internal/types/rfc6962"
+	"github.com/transparency-dev/tesseract/internal/x509util"
 	"github.com/transparency-dev/trillian-tessera/api/layout"
 	"k8s.io/klog/v2"
 )

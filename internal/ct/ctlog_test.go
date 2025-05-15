@@ -14,8 +14,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/transparency-dev/static-ct/internal/x509util"
-	"github.com/transparency-dev/static-ct/storage"
+	"github.com/transparency-dev/tesseract/internal/x509util"
+	"github.com/transparency-dev/tesseract/storage"
 	"golang.org/x/mod/sumdb/note"
 )
 

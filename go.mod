@@ -1,4 +1,4 @@
-module github.com/transparency-dev/static-ct
+module github.com/transparency-dev/tesseract
 
 go 1.24.0
 

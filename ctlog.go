@@ -25,9 +25,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/transparency-dev/static-ct/internal/ct"
-	"github.com/transparency-dev/static-ct/internal/x509util"
-	"github.com/transparency-dev/static-ct/storage"
+	"github.com/transparency-dev/tesseract/internal/ct"
+	"github.com/transparency-dev/tesseract/internal/x509util"
+	"github.com/transparency-dev/tesseract/storage"
 )
 
 // ChainValidationConfig contains parameters to configure chain validation.

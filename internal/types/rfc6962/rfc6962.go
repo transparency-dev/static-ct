@@ -7,7 +7,7 @@ import (
 	"encoding/base64"
 	"fmt"
 
-	"github.com/transparency-dev/static-ct/internal/types/tls"
+	"github.com/transparency-dev/tesseract/internal/types/tls"
 )
 
 ///////////////////////////////////////////////////////////////////////////////

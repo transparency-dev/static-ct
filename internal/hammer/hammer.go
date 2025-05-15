@@ -36,8 +36,8 @@ import (
 	"time"
 
 	tdnote "github.com/transparency-dev/formats/note"
-	"github.com/transparency-dev/static-ct/internal/client"
-	"github.com/transparency-dev/static-ct/internal/hammer/loadtest"
+	"github.com/transparency-dev/tesseract/internal/client"
+	"github.com/transparency-dev/tesseract/internal/hammer/loadtest"
 	"golang.org/x/mod/sumdb/note"
 	"golang.org/x/net/http2"
 

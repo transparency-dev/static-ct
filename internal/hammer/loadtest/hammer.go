@@ -19,7 +19,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/transparency-dev/static-ct/internal/client"
+	"github.com/transparency-dev/tesseract/internal/client"
 
 	"k8s.io/klog/v2"
 )
