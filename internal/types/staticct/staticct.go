@@ -20,7 +20,7 @@ import (
 	"fmt"
 	"math"
 
-	"github.com/transparency-dev/trillian-tessera/api/layout"
+	"github.com/transparency-dev/tessera/api/layout"
 	"golang.org/x/crypto/cryptobyte"
 )
 

@@ -31,9 +31,9 @@ import (
 	"github.com/transparency-dev/tesseract"
 	"github.com/transparency-dev/tesseract/storage"
 	"github.com/transparency-dev/tesseract/storage/gcp"
-	tessera "github.com/transparency-dev/trillian-tessera"
-	tgcp "github.com/transparency-dev/trillian-tessera/storage/gcp"
-	gcp_as "github.com/transparency-dev/trillian-tessera/storage/gcp/antispam"
+	"github.com/transparency-dev/tessera"
+	tgcp "github.com/transparency-dev/tessera/storage/gcp"
+	gcp_as "github.com/transparency-dev/tessera/storage/gcp/antispam"
 	"golang.org/x/mod/sumdb/note"
 	"k8s.io/klog/v2"
 )

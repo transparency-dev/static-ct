@@ -28,9 +28,9 @@ import (
 	"time"
 
 	"github.com/transparency-dev/tesseract/internal/types/staticct"
-	tessera "github.com/transparency-dev/trillian-tessera"
-	"github.com/transparency-dev/trillian-tessera/api/layout"
-	"github.com/transparency-dev/trillian-tessera/ctonly"
+	"github.com/transparency-dev/tessera"
+	"github.com/transparency-dev/tessera/api/layout"
+	"github.com/transparency-dev/tessera/ctonly"
 	"golang.org/x/mod/sumdb/note"
 	"k8s.io/klog/v2"
 )

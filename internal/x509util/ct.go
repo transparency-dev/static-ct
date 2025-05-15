@@ -24,7 +24,7 @@ import (
 	"time"
 
 	"github.com/transparency-dev/tesseract/internal/types/rfc6962"
-	"github.com/transparency-dev/trillian-tessera/ctonly"
+	"github.com/transparency-dev/tessera/ctonly"
 )
 
 var (

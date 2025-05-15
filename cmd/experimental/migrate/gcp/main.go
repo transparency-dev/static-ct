@@ -27,11 +27,11 @@ import (
 	"strconv"
 	"strings"
 
-	tessera "github.com/transparency-dev/trillian-tessera"
-	"github.com/transparency-dev/trillian-tessera/api/layout"
-	"github.com/transparency-dev/trillian-tessera/client"
-	"github.com/transparency-dev/trillian-tessera/storage/gcp"
-	gcp_as "github.com/transparency-dev/trillian-tessera/storage/gcp/antispam"
+	"github.com/transparency-dev/tessera"
+	"github.com/transparency-dev/tessera/api/layout"
+	"github.com/transparency-dev/tessera/client"
+	"github.com/transparency-dev/tessera/storage/gcp"
+	gcp_as "github.com/transparency-dev/tessera/storage/gcp/antispam"
 	"k8s.io/klog/v2"
 )
 
