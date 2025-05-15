@@ -43,7 +43,7 @@ resource "google_cloudbuild_trigger" "preloader_trigger" {
   # This is a temporary mechanism to speed up development.
   github {
     owner = var.github_owner
-    name  = "static-ct"
+    name  = "tesseract"
     push {
       tag = "^staging-deploy-(.+)$"
     }
