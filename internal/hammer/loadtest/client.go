@@ -29,6 +29,7 @@ import (
 	"time"
 
 	"github.com/transparency-dev/tesseract/internal/client"
+	"github.com/transparency-dev/tesseract/internal/client/gcp"
 	"github.com/transparency-dev/tesseract/internal/types/rfc6962"
 	"github.com/transparency-dev/tesseract/internal/types/staticct"
 	"k8s.io/klog/v2"
@@ -103,7 +104,7 @@ func newFetcher(ctx context.Context, root *url.URL, bearerToken string) fetcher 
 	case "file":
 		return client.FileFetcher{Root: root.Path}
 	case "gs":
-		c, err := client.NewGSFetcher(ctx, root.Host, nil)
+		c, err := gcp.NewGSFetcher(ctx, root.Host, nil)
 		if err != nil {
 			klog.Exitf("NewGSFetcher: %v", err)
 		}
