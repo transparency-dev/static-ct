@@ -112,7 +112,7 @@ func main() {
 		klog.Exitf("Failed to create verifier: %v", err)
 	}
 
-	f, w, err := loadtest.NewLogClients(logURL, writeLogURL, loadtest.ClientOpts{
+	f, w, err := loadtest.NewLogClients(ctx, logURL, writeLogURL, loadtest.ClientOpts{
 		Client:           hc,
 		BearerToken:      *bearerToken,
 		BearerTokenWrite: *bearerTokenWrite,
