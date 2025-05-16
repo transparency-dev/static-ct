@@ -51,7 +51,7 @@ type ClientOpts struct {
 
 // NewLogClients returns a fetcher and a writer that will read
 // and write leaves to all logs in the `log_url` flag set.
-func NewLogClients(readLogURLs, writeLogURLs []string, opts ClientOpts) (LogReader, LeafWriter, error) {
+func NewLogClients(ctx context.Context, readLogURLs, writeLogURLs []string, opts ClientOpts) (LogReader, LeafWriter, error) {
 	if len(readLogURLs) == 0 {
 		return nil, nil, fmt.Errorf("URL(s) for reading log must be provided")
 	}
@@ -75,7 +75,7 @@ func NewLogClients(readLogURLs, writeLogURLs []string, opts ClientOpts) (LogRead
 
 	fetchers := []fetcher{}
 	for _, s := range readLogURLs {
-		fetchers = append(fetchers, newFetcher(rootUrlOrDie(s), opts.BearerToken))
+		fetchers = append(fetchers, newFetcher(ctx, rootUrlOrDie(s), opts.BearerToken))
 	}
 	writers := []httpLeafWriter{}
 	for _, s := range writeLogURLs {
@@ -89,7 +89,7 @@ func NewLogClients(readLogURLs, writeLogURLs []string, opts ClientOpts) (LogRead
 }
 
 // newFetcher creates a Fetcher for the log at the given root location.
-func newFetcher(root *url.URL, bearerToken string) fetcher {
+func newFetcher(ctx context.Context, root *url.URL, bearerToken string) fetcher {
 	switch root.Scheme {
 	case "http", "https":
 		c, err := client.NewHTTPFetcher(root, nil)
@@ -102,6 +102,12 @@ func newFetcher(root *url.URL, bearerToken string) fetcher {
 		return c
 	case "file":
 		return client.FileFetcher{Root: root.Path}
+	case "gs":
+		c, err := client.NewGSFetcher(ctx, root.Host, nil)
+		if err != nil {
+			klog.Exitf("NewGSFetcher: %v", err)
+		}
+		return c
 	}
 	klog.Exitf("Unknown scheme on log URL: %q", root.Scheme)
 	return nil
