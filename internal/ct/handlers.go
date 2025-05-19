@@ -287,11 +287,8 @@ func addChainInternal(ctx context.Context, opts *HandlerOptions, log *log, w htt
 		}
 		return http.StatusInternalServerError, nil, fmt.Errorf("couldn't store the leaf: %v", err)
 	}
-	dedupedAttribute := duplicateKey.Bool(false)
 	isDup := dedupedTimeMillis != timeMillis
-	if isDup {
-		dedupedAttribute = duplicateKey.Bool(true)
-	}
+	dedupedAttribute := duplicateKey.Bool(isDup)
 	entry.Timestamp = dedupedTimeMillis
 
 	// Always use the returned leaf as the basis for an SCT.
