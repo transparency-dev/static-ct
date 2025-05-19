@@ -29,7 +29,7 @@ require (
 	golang.org/x/crypto v0.38.0
 	golang.org/x/mod v0.24.0
 	golang.org/x/net v0.40.0
-	google.golang.org/api v0.232.0
+	google.golang.org/api v0.233.0
 	k8s.io/klog/v2 v2.130.1
 )
 
