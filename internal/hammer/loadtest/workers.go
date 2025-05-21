@@ -27,10 +27,10 @@ import (
 	"github.com/transparency-dev/formats/log"
 	"github.com/transparency-dev/merkle/proof"
 	hasher "github.com/transparency-dev/merkle/rfc6962"
+	"github.com/transparency-dev/tessera/api/layout"
 	"github.com/transparency-dev/tesseract/internal/client"
 	"github.com/transparency-dev/tesseract/internal/types/rfc6962"
 	"github.com/transparency-dev/tesseract/internal/x509util"
-	"github.com/transparency-dev/tessera/api/layout"
 	"k8s.io/klog/v2"
 )
 
@@ -220,13 +220,14 @@ func (w *LogWriter) Run(ctx context.Context) {
 		panic("LogWriter was run multiple times")
 	}
 	ctx, w.cancel = context.WithCancel(ctx)
+	newLeaf := w.gen()
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case <-w.throttle:
 		}
-		newLeaf := w.gen()
+
 		lt := LeafTime{QueuedAt: time.Now()}
 		index, timestamp, err := w.writer(ctx, newLeaf)
 		if err != nil {
@@ -264,6 +265,7 @@ func (w *LogWriter) Run(ctx context.Context) {
 		}
 
 		klog.V(2).Infof("Wrote leaf at index %d", index)
+		newLeaf = w.gen()
 	}
 }
 
