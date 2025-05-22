@@ -284,7 +284,7 @@ func addChainInternal(ctx context.Context, opts *HandlerOptions, log *log, w htt
 	index, dedupedTimeMillis, err := log.storage.Add(ctx, entry)
 	if err != nil {
 		if errors.Is(err, tessera.ErrPushback) {
-			w.Header().Add("Retry-After", strconv.Itoa(rand.IntN(5)+1)) // random retry within [1,5] seconds
+			w.Header().Add("Retry-After", strconv.Itoa(rand.IntN(5)+1)) // random retry within [1,6) seconds
 			return http.StatusTooManyRequests, nil, errors.New(http.StatusText(http.StatusTooManyRequests))
 		}
 		return http.StatusInternalServerError, nil, fmt.Errorf("couldn't store the leaf: %v", err)
