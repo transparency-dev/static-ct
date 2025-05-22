@@ -21,7 +21,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math/rand/v2"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -282,8 +284,8 @@ func addChainInternal(ctx context.Context, opts *HandlerOptions, log *log, w htt
 	index, dedupedTimeMillis, err := log.storage.Add(ctx, entry)
 	if err != nil {
 		if errors.Is(err, tessera.ErrPushback) {
-			w.Header().Add("Retry-After", "1")
-			return http.StatusServiceUnavailable, nil, fmt.Errorf("received pushback from Tessera sequencer: %v", err)
+			w.Header().Add("Retry-After", strconv.Itoa(rand.IntN(5)+1)) // random retry within [1,5] seconds
+			return http.StatusTooManyRequests, nil, errors.New(http.StatusText(http.StatusTooManyRequests))
 		}
 		return http.StatusInternalServerError, nil, fmt.Errorf("couldn't store the leaf: %v", err)
 	}
