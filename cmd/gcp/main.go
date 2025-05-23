@@ -28,12 +28,12 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/transparency-dev/tesseract"
-	"github.com/transparency-dev/tesseract/storage"
-	"github.com/transparency-dev/tesseract/storage/gcp"
 	"github.com/transparency-dev/tessera"
 	tgcp "github.com/transparency-dev/tessera/storage/gcp"
 	gcp_as "github.com/transparency-dev/tessera/storage/gcp/antispam"
+	"github.com/transparency-dev/tesseract"
+	"github.com/transparency-dev/tesseract/storage"
+	"github.com/transparency-dev/tesseract/storage/gcp"
 	"golang.org/x/mod/sumdb/note"
 	"k8s.io/klog/v2"
 )
@@ -64,6 +64,7 @@ var (
 	signerPublicKeySecretName  = flag.String("signer_public_key_secret_name", "", "Public key secret name for checkpoints and SCTs signer. Format: projects/{projectId}/secrets/{secretName}/versions/{secretVersion}.")
 	signerPrivateKeySecretName = flag.String("signer_private_key_secret_name", "", "Private key secret name for checkpoints and SCTs signer. Format: projects/{projectId}/secrets/{secretName}/versions/{secretVersion}.")
 	traceFraction              = flag.Float64("trace_fraction", 0, "Fraction of open-telemetry span traces to sample")
+	otelProjectID              = flag.String("otel_project_id", "", "GCP project ID for OpenTelemetry exporter. This is only required for local runs.")
 )
 
 // nolint:staticcheck
@@ -72,7 +73,7 @@ func main() {
 	flag.Parse()
 	ctx := context.Background()
 
-	shutdownOTel := initOTel(ctx, *traceFraction, *origin)
+	shutdownOTel := initOTel(ctx, *traceFraction, *origin, *otelProjectID)
 	defer shutdownOTel(ctx)
 
 	signer, err := NewSecretManagerSigner(ctx, *signerPublicKeySecretName, *signerPrivateKeySecretName)
