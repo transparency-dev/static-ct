@@ -34,7 +34,7 @@ import (
 //
 // Tracing is enabled with statistical sampling, with the probability passed in.
 // Returns a shutdown function which should be called just before exiting the process.
-func initOTel(ctx context.Context, traceFraction float64, origin string) func(context.Context) {
+func initOTel(ctx context.Context, traceFraction float64, origin string, projectID string) func(context.Context) {
 	var shutdownFuncs []func(context.Context) error
 	// shutdown combines shutdown functions from multiple OpenTelemetry
 	// components into a single function.
@@ -63,7 +63,11 @@ func initOTel(ctx context.Context, traceFraction float64, origin string) func(co
 		klog.Exitf("Failed to detect resources: %v", err)
 	}
 
-	me, err := mexporter.New()
+	mopts := []mexporter.Option{}
+	if projectID != "" {
+		mopts = append(mopts, mexporter.WithProjectID(projectID))
+	}
+	me, err := mexporter.New(mopts...)
 	if err != nil {
 		klog.Exitf("Failed to create metric exporter: %v", err)
 		return nil
@@ -76,7 +80,11 @@ func initOTel(ctx context.Context, traceFraction float64, origin string) func(co
 	shutdownFuncs = append(shutdownFuncs, mp.Shutdown)
 	otel.SetMeterProvider(mp)
 
-	te, err := texporter.New()
+	topts := []texporter.Option{}
+	if projectID != "" {
+		topts = append(topts, texporter.WithProjectID(projectID))
+	}
+	te, err := texporter.New(topts...)
 	if err != nil {
 		klog.Exitf("Failed to create trace exporter: %v", err)
 		return nil
