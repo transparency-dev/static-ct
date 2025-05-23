@@ -10,9 +10,10 @@ installed, and your favourite terminal multiplexer.
 ## Overview
 
 This config uses the [gcp/test](/deployment/modules/gcp/test) module to
-define a test environment to run TesseraCT, backed by Trillian Tessera.
+deploy resources necessary to run a test TesseraCT log. TesseraCT itself
+will run on a VM.
 
-At a high level, this environment consists of:
+At a high level, these resources consists of:
 
 - One Spanner instance with two databases:
   - one for Tessera
@@ -22,14 +23,7 @@ At a high level, this environment consists of:
 
 ## Manual deployment
 
-First authenticate via `gcloud` as a principle with sufficient ACLs for
-the project:
-
-```bash
-gcloud auth application-default login
-```
-
-Set the required environment variables:
+First, set the required environment variables:
 
 ```bash
 export GOOGLE_PROJECT={VALUE}
@@ -37,23 +31,39 @@ export GOOGLE_REGION={VALUE} # e.g: us-central1
 export TESSERA_BASE_NAME={VALUE} # e.g: test-static-ct
 ```
 
-Terraforming the project can be done by:
+> ![TIP]
+> `TESSERA_BASE_NAME` will be used to prefix the name of various resources, and
+> must be less than 21 characters to avoid hitting naming limits.
 
-1. `cd` to the relevant directory for the environment to deploy/change (e.g. `ci`)
-2. Run `terragrunt apply`
+Then authenticate via `gcloud` as a principle with sufficient ACLs for
+the project:
 
-Store the Secret Manager resource ID of signer key pair into the environment variables:
+```bash
+gcloud auth application-default login --project=$GOOGLE_PROJECT
+```
+
+Apply the Terragrunt config to deploy resources:
 
 ```sh
-export TESSERACT_SIGNER_ECDSA_P256_PUBLIC_KEY_ID=$(terragrunt output -raw ecdsa_p256_public_key_id)
-export TESSERACT_SIGNER_ECDSA_P256_PRIVATE_KEY_ID=$(terragrunt output -raw ecdsa_p256_private_key_id)
+terragrunt apply --terragrunt_working_dir=deployment/live/gcp/test
+```
+
+> ![NOTE]
+> The first time you run this command, Terragrunt will ask whether you want to
+> create a Terragrunt remote state bucket. Answer `y`.
+
+Store the Secret Manager resource ID of signer key pair into environment variables:
+
+```sh
+export TESSERACT_SIGNER_ECDSA_P256_PUBLIC_KEY_ID=$(terragrunt output -raw ecdsa_p256_public_key_id -terragrunt-working-dir=deployment/live/gcp/test)
+export TESSERACT_SIGNER_ECDSA_P256_PRIVATE_KEY_ID=$(terragrunt output -raw ecdsa_p256_private_key_id -terragrunt-working-dir=deployment/live/gcp/test)
 ```
 
 ## Run TesseraCT
 
 ### With fake chains
 
-On the VM, run the following command to bring up TesseraCT:
+On the VM, run the following command to bring TesseraCT up:
 
 ```bash
 go run ./cmd/gcp/ \
