@@ -20,10 +20,10 @@ Each deployment environment requires its own TesseraCT binary and Tessera infras
 
 This repository contains binary main files for [GCP](./cmd/gcp/) and
 [AWS](./cmd/aws/), together with configuration and instructions to deploy
-TesseraCT in various environments.
+TesseraCT in various environments:
 
-- **Test logs** are meant to be brought up quickly for ad-hoc testing from a
-Virtual Machine.
+- **Test logs** are meant to be brought up and turned down quickly for ad-hoc
+testing from a Virtual Machine.
 - **Continuous Integration (CI) logs** are brought up every merge on the main
 branch, undergo automated testing, and are then brought down.
 - **Staging logs** are
@@ -73,10 +73,10 @@ rather than [RFC6962](https://www.rfc-editor.org/rfc/rfc6962).
 rather than [Trillian](https://github.com/google/trillian). This means that
 TesseraCT integrates entries faster, is cheaper to maintain, requires running a
 single binary rather than 3, and does not need additional services for leader election.
-- **Multi tenancy**: One TesseraCT instance serves a single CT log, as opposed
+- **Single tenancy**: One TesseraCT instance serves a single CT log, as opposed
 to the CTFE which could serve multiple logs per instance. To run multiple logs,
 simply bring up multiple independent TesseraCT stacks. For reliability, each log
-can still be served by multiple TesseraCT instances.
+can still be served by multiple TesseraCT _instances_.
 - **Configuration**: TesseraCT is fully configured using flags, and does not
 need a proto config anymore.
 - **Chain parsing**: TesseraCT uses [internal/lax509](./internal/lax509/) to
@@ -99,7 +99,7 @@ This repo is licensed under the Apache 2.0 license, see [LICENSE](/LICENSE) for 
 ## 👋 Contact
 
 Are you interested in running a TesseraCT instance? Do you have a feature
-request? You can find us there:
+request? You can find us here:
 
 - [GitHub issues](https://github.com/transparency-dev/tessera/issues)
 - [Slack](https://transparency-dev.slack.com/) ([invitation](https://join.slack.com/t/transparency-dev/shared_invite/zt-27pkqo21d-okUFhur7YZ0rFoJVIOPznQ))
