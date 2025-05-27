@@ -2,20 +2,24 @@
 
 ## Overview
 
-This config uses the [gcp/cloudrun](/deployment/modules/gcp/tesseract/cloudrun) module to
-define a CI environment to run TesseraCT on Cloud Run, backed by Trillian Tessera.
+This config uses the [gcp/cloudrun](/deployment/modules/gcp/tesseract/cloudrun)
+module to define a CI environment to run TesseraCT on Cloud Run, backed by
+Trillian Tessera.
 
 At a high level, this environment consists of:
+
 - One Spanner instance with two databases:
   - one for Tessera
-  - one for antispam 
+  - one for antispam
 - A GCS Bucket
 - Secret Manager
 - Cloud Run
 
 ### Automatic Deployment
 
-This GCP TesseraCT conformance CI environment is designed to be deployed by the Cloud Build ([Terraform module](/deployment/modules/gcp/cloudbuild/conformance/), [Terragrunt configuration](/deployment/live/gcp/static-ct/cloudbuild/prod/)).
+This GCP TesseraCT conformance CI environment is designed to be deployed by the
+Cloud Build ([Terraform module](/deployment/modules/gcp/cloudbuild/conformance/),
+[Terragrunt configuration](/deployment/live/gcp/static-ct/cloudbuild/prod/)).
 
 ### Manual Deployment
 
@@ -34,7 +38,12 @@ export GOOGLE_REGION={VALUE} # e.g: us-central1
 unset TESSERA_BASE_NAME
 ```
 
-You need an Artifact Registry repository to store container images; adapt the configs and commands below to use your registry of choice. The rest of these instructions assume that the repository is hosted on GCP, and called `${GOOGLE_REGION}-docker.pkg.dev/${GOOGLE_PROJECT}/docker-ci`. For reference, here's a [terraform module](/deployment/modules/gcp/artifactregistry/) you can use to set up such a registry.
+You need an Artifact Registry repository to store container images; adapt the
+configs and commands below to use your registry of choice. The rest of these
+instructions assume that the repository is hosted on GCP, and called
+`${GOOGLE_REGION}-docker.pkg.dev/${GOOGLE_PROJECT}/docker-ci`. For reference,
+here's a [terraform module](/deployment/modules/gcp/artifactregistry/) you can
+use to set up such a registry.
 
 Build and push the Docker image to Artifact Registry repository:
 
@@ -47,5 +56,7 @@ docker push ${GOOGLE_REGION}-docker.pkg.dev/${GOOGLE_PROJECT}/docker-ci/conforma
 ```
 
 Terraforming the project can be done by:
-  1. `cd` to [/deployment/live/gcp/static-ct/logs/ci/](/deployment/live/gcp/static-ct/logs/ci/).
+
+  1. `cd` to
+  [/deployment/live/gcp/static-ct/logs/ci/](/deployment/live/gcp/static-ct/logs/ci/).
   2. Run `terragrunt apply`.
