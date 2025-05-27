@@ -100,6 +100,6 @@ This repo is licensed under the Apache 2.0 license, see [LICENSE](/LICENSE) for 
 Are you interested in running a TesseraCT instance? Do you have a feature
 request? you can find us here:
 
-- [GitHub issues](https://github.com/transparency-dev/tessera/issues)
+- [GitHub issues](https://github.com/transparency-dev/tesseract/issues)
 - [Slack](https://transparency-dev.slack.com/) ([invitation](https://join.slack.com/t/transparency-dev/shared_invite/zt-27pkqo21d-okUFhur7YZ0rFoJVIOPznQ))
 - [Mailing list](https://groups.google.com/forum/#!forum/trillian-transparency)
