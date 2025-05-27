@@ -1,9 +1,10 @@
 # GCP TesseraCT Test Environment
 
 ## Prerequisites
+
 You'll need to have a VM running in the same GCP project that you can SSH to,
-with [Go](https://go.dev/doc/install) and 
-[terragrunt](https://terragrunt.gruntwork.io/docs/getting-started/install/) 
+with [Go](https://go.dev/doc/install) and
+[terragrunt](https://terragrunt.gruntwork.io/docs/getting-started/install/)
 installed, and your favourite terminal multiplexer.
 
 ## Overview
@@ -12,13 +13,14 @@ This config uses the [gcp/test](/deployment/modules/gcp/test) module to
 define a test environment to run TesseraCT, backed by Trillian Tessera.
 
 At a high level, this environment consists of:
+
 - One Spanner instance with two databases:
   - one for Tessera
   - one for antispam
 - A GCS Bucket
 - Secret Manager
 
-## Manual deployment 
+## Manual deployment
 
 First authenticate via `gcloud` as a principle with sufficient ACLs for
 the project:
@@ -36,8 +38,9 @@ export TESSERA_BASE_NAME={VALUE} # e.g: test-static-ct
 ```
 
 Terraforming the project can be done by:
-  1. `cd` to the relevant directory for the environment to deploy/change (e.g. `ci`)
-  2. Run `terragrunt apply`
+
+1. `cd` to the relevant directory for the environment to deploy/change (e.g. `ci`)
+2. Run `terragrunt apply`
 
 Store the Secret Manager resource ID of signer key pair into the environment variables:
 
@@ -94,7 +97,9 @@ Save TesseraCT repo's path:
 export TESSERACT_REPO=$(pwd)
 ```
 
-Clone the [certificate-transparency-go](https://github.com/google/certificate-transparency-go) repo, and from there run:
+Clone the
+[certificate-transparency-go](https://github.com/google/certificate-transparency-go)
+repo, and from there run:
 
 ```bash
 go run ./trillian/integration/ct_hammer/ \
@@ -128,7 +133,9 @@ export SRC_LOG_URI=https://ct.googleapis.com/logs/xenon2022
 ```
 
 Then, get fetch the roots the source logs accepts, and edit configs accordingly.
-To do so, clone the [certificate-transparency-go](https://github.com/google/certificate-transparency-go) repo, and from there run:
+To do so, clone the
+[certificate-transparency-go](https://github.com/google/certificate-transparency-go)
+repo, and from there run:
 
 ```bash
 export CTGO_REPO=$(pwd)
