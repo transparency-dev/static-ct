@@ -29,11 +29,10 @@ branch, undergo automated testing, and are then brought down.
 - **Staging logs** are
 not-yet-ready-for-production, but production-like logs.
 
-| Infra      | Binary               | Test log                         | CI logs                                            | Staging logs                                            |
-|------------|----------------------|----------------------------------|----------------------------------------------------|---------------------------------------------------------|
-| -----------| ---------------------| ---------------------------------| ---------------------------------------------------| --------------------------------------------------------|
-| GCP        | [cmd/gcp](./cmd/gcp/)| [VM](./deployment/live/gcp/test/)| [Cloud Run](deployment/live/gcp/static-ct/logs/ci/)| [Cloud Run](deployment/live/gcp/static-ct-staging/logs/)|
-| AWS        | [cmd/aws](./cmd/aws/)| [VM](./deployment/live/aws/test/)| [Fargate](deployment/live/aws/test/)               |                                                         |
+| Cloud| Binary               | Test log                         | CI logs                                            | Staging logs                                            |
+|------|----------------------|----------------------------------|----------------------------------------------------|---------------------------------------------------------|
+| GCP  | [cmd/gcp](./cmd/gcp/)| [VM](./deployment/live/gcp/test/)| [Cloud Run](deployment/live/gcp/static-ct/logs/ci/)| [Cloud Run](deployment/live/gcp/static-ct-staging/logs/)|
+| AWS  | [cmd/aws](./cmd/aws/)| [VM](./deployment/live/aws/test/)| [Fargate](deployment/live/aws/test/)               |                                                         |
 
 ## 🙋 FAQ
 
@@ -99,7 +98,7 @@ This repo is licensed under the Apache 2.0 license, see [LICENSE](/LICENSE) for 
 ## 👋 Contact
 
 Are you interested in running a TesseraCT instance? Do you have a feature
-request? You can find us here:
+request? you can find us here:
 
 - [GitHub issues](https://github.com/transparency-dev/tessera/issues)
 - [Slack](https://transparency-dev.slack.com/) ([invitation](https://join.slack.com/t/transparency-dev/shared_invite/zt-27pkqo21d-okUFhur7YZ0rFoJVIOPznQ))
