@@ -39,8 +39,8 @@ import (
 )
 
 func init() {
-	flag.Var(&notAfterStart, "not_after_start", "Start of the range of acceptable NotAfter values, inclusive. Leaving this unset implies no lower bound to the range. RFC3339 UTC format, e.g: 2024-01-02T15:04:05Z.")
-	flag.Var(&notAfterLimit, "not_after_limit", "Cut off point of notAfter dates - only notAfter dates strictly *before* notAfterLimit will be accepted. Leaving this unset means no upper bound on the accepted range. RFC3339 UTC format, e.g: 2024-01-02T15:04:05Z.")
+	flag.Var(&notAfterStart, "not_after_start", "Start of the range of acceptable NotAfter values, inclusive. Leaving this unset or empty implies no lower bound to the range. RFC3339 UTC format, e.g: 2024-01-02T15:04:05Z.")
+	flag.Var(&notAfterLimit, "not_after_limit", "Cut off point of notAfter dates - only notAfter dates strictly *before* notAfterLimit will be accepted. Leaving this unset or empty means no upper bound on the accepted range. RFC3339 UTC format, e.g: 2024-01-02T15:04:05Z.")
 }
 
 // Global flags that affect all log instances.
@@ -200,7 +200,9 @@ func (t *timestampFlag) String() string {
 }
 
 func (t *timestampFlag) Set(w string) error {
-	if !strings.HasSuffix(w, "Z") {
+	if w == "" {
+		return nil
+	} else if !strings.HasSuffix(w, "Z") {
 		return fmt.Errorf("timestamps MUST be in UTC, got %v", w)
 	}
 	tt, err := time.Parse(time.RFC3339, w)
