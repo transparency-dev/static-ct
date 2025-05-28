@@ -27,10 +27,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/transparency-dev/tesseract/internal/types/staticct"
 	"github.com/transparency-dev/tessera"
 	"github.com/transparency-dev/tessera/api/layout"
 	"github.com/transparency-dev/tessera/ctonly"
+	"github.com/transparency-dev/tesseract/internal/types/staticct"
 	"golang.org/x/mod/sumdb/note"
 	"k8s.io/klog/v2"
 )
