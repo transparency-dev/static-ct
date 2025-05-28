@@ -28,12 +28,12 @@ import (
 	"time"
 
 	"github.com/go-sql-driver/mysql"
-	"github.com/transparency-dev/tesseract"
-	"github.com/transparency-dev/tesseract/storage"
-	"github.com/transparency-dev/tesseract/storage/aws"
 	"github.com/transparency-dev/tessera"
 	taws "github.com/transparency-dev/tessera/storage/aws"
 	aws_as "github.com/transparency-dev/tessera/storage/aws/antispam"
+	"github.com/transparency-dev/tesseract"
+	"github.com/transparency-dev/tesseract/storage"
+	"github.com/transparency-dev/tesseract/storage/aws"
 	"golang.org/x/mod/sumdb/note"
 	"k8s.io/klog/v2"
 )
