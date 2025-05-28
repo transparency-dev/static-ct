@@ -78,7 +78,8 @@ var (
 	bearerToken      = flag.String("bearer_token", "", "The bearer token for auth. For GCP this is the result of `gcloud auth print-access-token`")
 	bearerTokenWrite = flag.String("bearer_token_write", "", "The bearer token for auth to write. For GCP this is the result of `gcloud auth print-identity-token`. If unset will default to --bearer_token.")
 
-	forceHTTP2 = flag.Bool("force_http2", false, "Use HTTP/2 connections *only*")
+	httpTimeout = flag.Duration("http_timeout", 30*time.Second, "Timeout for HTTP requests")
+	forceHTTP2  = flag.Bool("force_http2", false, "Use HTTP/2 connections *only*")
 
 	hc = &http.Client{
 		Transport: &http.Transport{
@@ -86,7 +87,7 @@ var (
 			MaxIdleConnsPerHost: 256,
 			DisableKeepAlives:   false,
 		},
-		Timeout: 5 * time.Second,
+		Timeout: *httpTimeout,
 	}
 )
 
