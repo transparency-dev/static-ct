@@ -63,6 +63,7 @@ var (
 	rejectExtensions           = flag.String("reject_extension", "", "A list of X.509 extension OIDs, in dotted string form (e.g. '2.3.4.5') which, if present, should cause submissions to be rejected.")
 	signerPublicKeySecretName  = flag.String("signer_public_key_secret_name", "", "Public key secret name for checkpoints and SCTs signer. Format: projects/{projectId}/secrets/{secretName}/versions/{secretVersion}.")
 	signerPrivateKeySecretName = flag.String("signer_private_key_secret_name", "", "Private key secret name for checkpoints and SCTs signer. Format: projects/{projectId}/secrets/{secretName}/versions/{secretVersion}.")
+	checkpointInterval         = flag.Duration("checkpoint_interval", -1*time.Second, fmt.Sprintf("Interval between checkpoint publishing. If unset, the Tessera default value is %s. Minimum value is 1200ms.", tessera.DefaultCheckpointInterval))
 	traceFraction              = flag.Float64("trace_fraction", 0, "Fraction of open-telemetry span traces to sample")
 	otelProjectID              = flag.String("otel_project_id", "", "GCP project ID for OpenTelemetry exporter. This is only required for local runs.")
 )
@@ -172,6 +173,9 @@ func newGCPStorage(ctx context.Context, signer note.Signer) (*storage.CTStorage,
 		WithCheckpointSigner(signer).
 		WithCTLayout().
 		WithAntispam(*inMemoryAntispamCacheSize, antispam)
+	if *checkpointInterval > 0 {
+		opts = opts.WithCheckpointInterval(*checkpointInterval)
+	}
 
 	// TODO(phbnf): figure out the best way to thread the `shutdown` func NewAppends returns back out to main so we can cleanly close Tessera down
 	// when it's time to exit.

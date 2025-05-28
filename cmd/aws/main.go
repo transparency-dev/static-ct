@@ -69,6 +69,7 @@ var (
 	rejectExtensions           = flag.String("reject_extension", "", "A list of X.509 extension OIDs, in dotted string form (e.g. '2.3.4.5') which, if present, should cause submissions to be rejected.")
 	signerPublicKeySecretName  = flag.String("signer_public_key_secret_name", "", "Public key secret name for checkpoints and SCTs signer")
 	signerPrivateKeySecretName = flag.String("signer_private_key_secret_name", "", "Private key secret name for checkpoints and SCTs signer")
+	checkpointInterval         = flag.Duration("checkpoint_interval", -1*time.Second, fmt.Sprintf("Interval between checkpoint publishing. If unset, the Tessera default value is %s. Minimum value is 1s.", tessera.DefaultCheckpointInterval))
 )
 
 // nolint:staticcheck
@@ -157,10 +158,15 @@ func newAWSStorage(ctx context.Context, signer note.Signer) (*storage.CTStorage,
 		}
 	}
 
-	appender, _, reader, err := tessera.NewAppender(ctx, driver, tessera.NewAppendOptions().
+	opts := tessera.NewAppendOptions().
 		WithCheckpointSigner(signer).
 		WithCTLayout().
-		WithAntispam(*inMemoryAntispamCacheSize, antispam))
+		WithAntispam(*inMemoryAntispamCacheSize, antispam)
+	if *checkpointInterval > 0 {
+		opts = opts.WithCheckpointInterval(*checkpointInterval)
+	}
+
+	appender, _, reader, err := tessera.NewAppender(ctx, driver, opts)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize AWS Tessera storage: %v", err)
 	}
