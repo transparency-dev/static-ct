@@ -27,10 +27,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/transparency-dev/tesseract/internal/types/staticct"
 	"github.com/transparency-dev/tessera"
 	"github.com/transparency-dev/tessera/api/layout"
 	"github.com/transparency-dev/tessera/ctonly"
+	"github.com/transparency-dev/tesseract/internal/types/staticct"
 	"golang.org/x/mod/sumdb/note"
 	"k8s.io/klog/v2"
 )
@@ -57,20 +57,22 @@ type IssuerStorage interface {
 
 // CTStorage implements ct.Storage and tessera.LogReader.
 type CTStorage struct {
-	storeData    func(context.Context, *ctonly.Entry) tessera.IndexFuture
-	storeIssuers func(context.Context, []KV) error
-	reader       tessera.LogReader
-	awaiter      *tessera.PublicationAwaiter
+	storeData     func(context.Context, *ctonly.Entry) tessera.IndexFuture
+	storeIssuers  func(context.Context, []KV) error
+	reader        tessera.LogReader
+	awaiter       *tessera.PublicationAwaiter
+	enableAwaiter bool
 }
 
 // NewCTStorage instantiates a CTStorage object.
-func NewCTStorage(ctx context.Context, logStorage *tessera.Appender, issuerStorage IssuerStorage, reader tessera.LogReader) (*CTStorage, error) {
+func NewCTStorage(ctx context.Context, logStorage *tessera.Appender, issuerStorage IssuerStorage, reader tessera.LogReader, enableAwaiter bool) (*CTStorage, error) {
 	awaiter := tessera.NewPublicationAwaiter(ctx, reader.ReadCheckpoint, 200*time.Millisecond)
 	ctStorage := &CTStorage{
-		storeData:    tessera.NewCertificateTransparencyAppender(logStorage),
-		storeIssuers: cachedStoreIssuers(issuerStorage),
-		reader:       reader,
-		awaiter:      awaiter,
+		storeData:     tessera.NewCertificateTransparencyAppender(logStorage),
+		storeIssuers:  cachedStoreIssuers(issuerStorage),
+		reader:        reader,
+		awaiter:       awaiter,
+		enableAwaiter: enableAwaiter,
 	}
 	return ctStorage, nil
 }
@@ -79,15 +81,19 @@ func (cts *CTStorage) ReadCheckpoint(ctx context.Context) ([]byte, error) {
 	return cts.reader.ReadCheckpoint(ctx)
 }
 
-// TODO(phbnf): cache timestamps (or more) to avoid reparsing the entire leaf bundle
 func (cts *CTStorage) dedupFuture(ctx context.Context, f tessera.IndexFuture) (index, timestamp uint64, err error) {
-	ctx, span := tracer.Start(ctx, "tesseract.storage.dedupFuture")
-	defer span.End()
-
 	idx, cpRaw, err := cts.awaiter.Await(ctx, f)
 	if err != nil {
-		return 0, 0, fmt.Errorf("error waiting for Tessera future and its integration: %v", err)
+		return 0, 0, fmt.Errorf("error waiting for Tessera index future and its integration: %v", err)
 	}
+
+	return cts.dedup(ctx, idx, cpRaw)
+}
+
+// TODO(phbnf): cache timestamps (or more) to avoid reparsing the entire leaf bundle
+func (cts *CTStorage) dedup(ctx context.Context, idx tessera.Index, cpRaw []byte) (index, timestamp uint64, err error) {
+	ctx, span := tracer.Start(ctx, "tesseract.storage.dedup")
+	defer span.End()
 
 	// A https://c2sp.org/static-ct-api logsize is on the second line
 	l := bytes.SplitN(cpRaw, []byte("\n"), 3)
@@ -131,15 +137,28 @@ func (cts *CTStorage) Add(ctx context.Context, entry *ctonly.Entry) (uint64, uin
 	defer span.End()
 
 	future := cts.storeData(ctx, entry)
-	idx, err := future()
-	if err != nil {
-		return 0, 0, fmt.Errorf("error waiting for Tessera future: %v", err)
-	}
-	if idx.IsDup {
-		return cts.dedupFuture(ctx, future)
-	}
-	return idx.Index, entry.Timestamp, nil
 
+	if cts.enableAwaiter {
+		idx, cpRaw, err := cts.awaiter.Await(ctx, future)
+		if err != nil {
+			return 0, 0, fmt.Errorf("error waiting for Tessera index future and its integration: %v", err)
+		}
+		if idx.IsDup {
+			return cts.dedup(ctx, idx, cpRaw)
+		}
+
+		return idx.Index, entry.Timestamp, nil
+	} else {
+		idx, err := future()
+		if err != nil {
+			return 0, 0, fmt.Errorf("error waiting for Tessera index future: %v", err)
+		}
+		if idx.IsDup {
+			return cts.dedupFuture(ctx, future)
+		}
+
+		return idx.Index, entry.Timestamp, nil
+	}
 }
 
 // AddIssuerChain stores every chain certificate under its sha256.

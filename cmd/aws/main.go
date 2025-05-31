@@ -28,12 +28,12 @@ import (
 	"time"
 
 	"github.com/go-sql-driver/mysql"
-	"github.com/transparency-dev/tesseract"
-	"github.com/transparency-dev/tesseract/storage"
-	"github.com/transparency-dev/tesseract/storage/aws"
 	"github.com/transparency-dev/tessera"
 	taws "github.com/transparency-dev/tessera/storage/aws"
 	aws_as "github.com/transparency-dev/tessera/storage/aws/antispam"
+	"github.com/transparency-dev/tesseract"
+	"github.com/transparency-dev/tesseract/storage"
+	"github.com/transparency-dev/tesseract/storage/aws"
 	"golang.org/x/mod/sumdb/note"
 	"k8s.io/klog/v2"
 )
@@ -69,6 +69,7 @@ var (
 	rejectExtensions           = flag.String("reject_extension", "", "A list of X.509 extension OIDs, in dotted string form (e.g. '2.3.4.5') which, if present, should cause submissions to be rejected.")
 	signerPublicKeySecretName  = flag.String("signer_public_key_secret_name", "", "Public key secret name for checkpoints and SCTs signer")
 	signerPrivateKeySecretName = flag.String("signer_private_key_secret_name", "", "Private key secret name for checkpoints and SCTs signer")
+	enablePublicationAwaiter   = flag.Bool("enable_publication_awaiter", false, "If true then the certificate is integrated into log before returning the response.")
 )
 
 // nolint:staticcheck
@@ -170,7 +171,7 @@ func newAWSStorage(ctx context.Context, signer note.Signer) (*storage.CTStorage,
 		return nil, fmt.Errorf("failed to initialize AWS issuer storage: %v", err)
 	}
 
-	return storage.NewCTStorage(ctx, appender, issuerStorage, reader)
+	return storage.NewCTStorage(ctx, appender, issuerStorage, reader, *enablePublicationAwaiter)
 }
 
 type timestampFlag struct {
