@@ -73,7 +73,8 @@ go run ./cmd/gcp/ \
   --roots_pem_file=./internal/testdata/fake-ca.cert \
   --origin=${TESSERA_BASE_NAME} \
   --signer_public_key_secret_name=${TESSERACT_SIGNER_ECDSA_P256_PUBLIC_KEY_ID} \
-  --signer_private_key_secret_name=${TESSERACT_SIGNER_ECDSA_P256_PRIVATE_KEY_ID}
+  --signer_private_key_secret_name=${TESSERACT_SIGNER_ECDSA_P256_PRIVATE_KEY_ID} \
+  --otel_project_id=${GOOGLE_PROJECT}
 ```
 
 In a different terminal you can either mint and submit certificates manually, or
@@ -160,6 +161,7 @@ go run ./cmd/gcp/ \
   --spanner_antispam_db_path=projects/${GOOGLE_PROJECT}/instances/${TESSERA_BASE_NAME}/databases/${TESSERA_BASE_NAME}-antispam-db \
   --signer_public_key_secret_name=${TESSERACT_SIGNER_ECDSA_P256_PUBLIC_KEY_ID} \
   --signer_private_key_secret_name=${TESSERACT_SIGNER_ECDSA_P256_PRIVATE_KEY_ID} \
+  --otel_project_id=${GOOGLE_PROJECT}
   -v=3
 ```
 
