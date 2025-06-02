@@ -6,9 +6,13 @@ The Cloud Build pipeline is triggered when a commit in the repo is tagged with
 `^staging-deploy-(.+)$` and is responsible for:
 
 1. Building the `cmd/gcp` and `cmd/gcp/staging` Docker images from the last
-commit with a `^staging-deploy-(.+)$` tag, 1. Update [staging logs'](/deployment/live/gcp/static-ct-staging/logs/)
-Cloud Run service with the latest Docker image, 1. Update [staging logs'](/deployment/live/gcp/static-ct-staging/logs/)
-infrastructure with the latest Terraform config.
+commit with a `^staging-deploy-(.+)$` tag.
+1. Updating [staging
+logs'](/deployment/live/gcp/static-ct-staging/logs/) Cloud Run service with the
+latest Docker image.
+1. Updating [staging
+logs'](/deployment/live/gcp/static-ct-staging/logs/) infrastructure with the
+latest Terraform config.
 
 ## Initial setup
 
