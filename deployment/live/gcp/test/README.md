@@ -1,33 +1,29 @@
 # GCP TesseraCT Test Environment
 
 ## Prerequisites
+
 You'll need to have a VM running in the same GCP project that you can SSH to,
-with [Go](https://go.dev/doc/install) and 
-[terragrunt](https://terragrunt.gruntwork.io/docs/getting-started/install/) 
+with [Go](https://go.dev/doc/install) and
+[terragrunt](https://terragrunt.gruntwork.io/docs/getting-started/install/)
 installed, and your favourite terminal multiplexer.
 
 ## Overview
 
 This config uses the [gcp/test](/deployment/modules/gcp/test) module to
-define a test environment to run TesseraCT, backed by Trillian Tessera.
+deploy resources necessary to run a test TesseraCT log. TesseraCT itself
+will run on a VM.
 
-At a high level, this environment consists of:
+At a high level, these resources consists of:
+
 - One Spanner instance with two databases:
   - one for Tessera
   - one for antispam
 - A GCS Bucket
 - Secret Manager
 
-## Manual deployment 
+## Manual deployment
 
-First authenticate via `gcloud` as a principle with sufficient ACLs for
-the project:
-
-```bash
-gcloud auth application-default login
-```
-
-Set the required environment variables:
+First, set the required environment variables:
 
 ```bash
 export GOOGLE_PROJECT={VALUE}
@@ -35,22 +31,39 @@ export GOOGLE_REGION={VALUE} # e.g: us-central1
 export TESSERA_BASE_NAME={VALUE} # e.g: test-static-ct
 ```
 
-Terraforming the project can be done by:
-  1. `cd` to the relevant directory for the environment to deploy/change (e.g. `ci`)
-  2. Run `terragrunt apply`
+> ![TIP]
+> `TESSERA_BASE_NAME` will be used to prefix the name of various resources, and
+> must be less than 21 characters to avoid hitting naming limits.
 
-Store the Secret Manager resource ID of signer key pair into the environment variables:
+Then authenticate via `gcloud` as a principle with sufficient ACLs for
+the project:
+
+```bash
+gcloud auth application-default login --project=$GOOGLE_PROJECT
+```
+
+Apply the Terragrunt config to deploy resources:
 
 ```sh
-export TESSERACT_SIGNER_ECDSA_P256_PUBLIC_KEY_ID=$(terragrunt output -raw ecdsa_p256_public_key_id)
-export TESSERACT_SIGNER_ECDSA_P256_PRIVATE_KEY_ID=$(terragrunt output -raw ecdsa_p256_private_key_id)
+terragrunt apply --terragrunt_working_dir=deployment/live/gcp/test
+```
+
+> ![NOTE]
+> The first time you run this command, Terragrunt will ask whether you want to
+> create a Terragrunt remote state bucket. Answer `y`.
+
+Store the Secret Manager resource ID of signer key pair into environment variables:
+
+```sh
+export TESSERACT_SIGNER_ECDSA_P256_PUBLIC_KEY_ID=$(terragrunt output -raw ecdsa_p256_public_key_id -terragrunt-working-dir=deployment/live/gcp/test)
+export TESSERACT_SIGNER_ECDSA_P256_PRIVATE_KEY_ID=$(terragrunt output -raw ecdsa_p256_private_key_id -terragrunt-working-dir=deployment/live/gcp/test)
 ```
 
 ## Run TesseraCT
 
 ### With fake chains
 
-On the VM, run the following command to bring up TesseraCT:
+On the VM, run the following command to bring TesseraCT up:
 
 ```bash
 go run ./cmd/gcp/ \
@@ -60,12 +73,12 @@ go run ./cmd/gcp/ \
   --roots_pem_file=./internal/testdata/fake-ca.cert \
   --origin=${TESSERA_BASE_NAME} \
   --signer_public_key_secret_name=${TESSERACT_SIGNER_ECDSA_P256_PUBLIC_KEY_ID} \
-  --signer_private_key_secret_name=${TESSERACT_SIGNER_ECDSA_P256_PRIVATE_KEY_ID}
+  --signer_private_key_secret_name=${TESSERACT_SIGNER_ECDSA_P256_PRIVATE_KEY_ID} \
+  --otel_project_id=${GOOGLE_PROJECT}
 ```
 
 In a different terminal you can either mint and submit certificates manually, or
-use the [ct_hammer
-tool](https://github.com/google/certificate-transparency-go/blob/master/trillian/integration/ct_hammer/main.go)
+use the [ct_hammer tool](https://github.com/google/certificate-transparency-go/blob/master/trillian/integration/ct_hammer/main.go)
 to do this.
 
 #### Generate chains manually
@@ -88,16 +101,10 @@ go run github.com/google/certificate-transparency-go/client/ctclient@master uplo
 
 #### Automatically generate chains
 
-Save TesseraCT repo's path:
+Run [certificate-transparency-go' CT hammer](https://github.com/google/certificate-transparency-go/blob/master/trillian/integration/ct_hammer/main.go):
 
 ```bash
-export TESSERACT_REPO=$(pwd)
-```
-
-Clone the [certificate-transparency-go](https://github.com/google/certificate-transparency-go) repo, and from there run:
-
-```bash
-go run ./trillian/integration/ct_hammer/ \
+go run github.com/google/certificate-transparency-go/trillian/integration/ct_hammer@master
   --ct_http_servers=localhost:6962/${TESSERA_BASE_NAME} \
   --max_retry=2m \
   --invalid_chance=0 \
@@ -111,37 +118,41 @@ go run ./trillian/integration/ct_hammer/ \
   --skip_https_verify=true \
   --operations=10000 \
   --rate_limit=150 \
-  --log_config=${TESSERACT_REPO}/internal/testdata/hammer.cfg \
+  --log_config=./internal/testdata/hammer.cfg \
   --testdata_dir=./trillian/testdata/
 ```
 
 ### With real HTTPS certificates
 
-We'll run a TESSERACT and copy certificates from an existing RFC6962 log to it.
-It uses the [ct_hammer tool from certificate-transparency-go](https://github.com/google/certificate-transparency-go/tree/aceb1d4481907b00c087020a3930c7bd691a0110/trillian/integration/ct_hammer).
+We'll run a TesseraCT instance and copy certificates from an existing RFC6962
+log to it.  It uses the [ct_hammer tool from certificate-transparency-go](https://github.com/google/certificate-transparency-go/blob/master/trillian/integration/ct_hammer/main.go).
 
-First, set a few environment variables:
+First, save the source log URI:
 
 ```bash
-export TESSERACT_REPO=$(pwd)
 export SRC_LOG_URI=https://ct.googleapis.com/logs/xenon2022
 ```
 
 Then, get fetch the roots the source logs accepts, and edit configs accordingly.
-To do so, clone the [certificate-transparency-go](https://github.com/google/certificate-transparency-go) repo, and from there run:
+Two roots that TesseraCT cannot load with the [internal/lax509](/internal/lax509/)
+library need to be removed.
 
 ```bash
-export CTGO_REPO=$(pwd)
 mkdir -p /tmp/hammercfg
-cp ${TESSERACT_REPO}/internal/testdata/hammer.cfg /tmp/hammercfg
-go run ./client/ctclient get-roots --log_uri=${SRC_LOG_URI} --text=false > /tmp/hammercfg/roots.pem
+cp ./internal/testdata/hammer.cfg /tmp/hammercfg
+go run github.com/google/certificate-transparency-go/client/ctclient@master get-roots --log_uri=${SRC_LOG_URI} --text=false | \
+awk \
+  '/-----BEGIN CERTIFICATE-----/{c=1; pem=$0; show=1; next}
+   c{pem=pem ORS $0}
+   /-----END CERTIFICATE-----/{c=0; if(show) print pem}
+   ($0=="MIIFxDCCBKygAwIBAgIBAzANBgkqhkiG9w0BAQUFADCCAUsxGDAWBgNVBC0DDwBT"||$0=="MIIFVjCCBD6gAwIBAgIQ7is969Qh3hSoYqwE893EATANBgkqhkiG9w0BAQUFADCB"){show=0}' \
+   > /tmp/hammercfg/roots.pem
 sed -i 's-""-"/tmp/hammercfg/roots.pem"-g' /tmp/hammercfg/hammer.cfg
 ```
 
 Run TesseraCT with the same roots:
 
 ```bash
-cd ${TESSERACT_REPO}
 go run ./cmd/gcp/ \
   --bucket=${GOOGLE_PROJECT}-${TESSERA_BASE_NAME}-bucket \
   --spanner_db_path=projects/${GOOGLE_PROJECT}/instances/${TESSERA_BASE_NAME}/databases/${TESSERA_BASE_NAME}-db \
@@ -150,14 +161,14 @@ go run ./cmd/gcp/ \
   --spanner_antispam_db_path=projects/${GOOGLE_PROJECT}/instances/${TESSERA_BASE_NAME}/databases/${TESSERA_BASE_NAME}-antispam-db \
   --signer_public_key_secret_name=${TESSERACT_SIGNER_ECDSA_P256_PUBLIC_KEY_ID} \
   --signer_private_key_secret_name=${TESSERACT_SIGNER_ECDSA_P256_PRIVATE_KEY_ID} \
+  --otel_project_id=${GOOGLE_PROJECT}
   -v=3
 ```
 
 Run `ct_hammer` in a different terminal:
 
 ```bash
-cd ${CTGO_REPO}
-go run ./trillian/integration/ct_hammer/ \
+go run github.com/google/certificate-transparency-go/trillian/integration/ct_hammer@master \
   --ct_http_servers=localhost:6962/${TESSERA_BASE_NAME} \
   --max_retry=2m \
   --invalid_chance=0 \
