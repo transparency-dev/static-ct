@@ -123,21 +123,29 @@ go run github.com/google/certificate-transparency-go/trillian/integration/ct_ham
 
 ### With real HTTPS certificates
 
-We'll run a TESSERACT and copy certificates from an existing RFC6962 log to it.
-It uses the [ct_hammer tool from certificate-transparency-go](https://github.com/google/certificate-transparency-go/blob/master/trillian/integration/ct_hammer/main.go).
+We'll run a TesseraCT instance and copy certificates from an existing RFC6962
+log to it.  It uses the [ct_hammer tool from certificate-transparency-go](https://github.com/google/certificate-transparency-go/blob/master/trillian/integration/ct_hammer/main.go).
 
-First, set a few environment variables:
+First, save the source log URI:
 
 ```bash
 export SRC_LOG_URI=https://ct.googleapis.com/logs/xenon2022
 ```
 
 Then, get fetch the roots the source logs accepts, and edit configs accordingly.
+Two roots that TesseraCT cannot load with the [internal/lax509](/internal/lax509/)
+library need to be removed.
 
 ```bash
 mkdir -p /tmp/hammercfg
 cp ./internal/testdata/hammer.cfg /tmp/hammercfg
-go run github.com/google/certificate-transparency-go/client/ctclient@master get-roots --log_uri=${SRC_LOG_URI} --text=false > /tmp/hammercfg/roots.pem
+go run github.com/google/certificate-transparency-go/client/ctclient@master get-roots --log_uri=${SRC_LOG_URI} --text=false | \
+awk \
+  '/-----BEGIN CERTIFICATE-----/{c=1; pem=$0; show=1; next}
+   c{pem=pem ORS $0}
+   /-----END CERTIFICATE-----/{c=0; if(show) print pem}
+   ($0=="MIIFxDCCBKygAwIBAgIBAzANBgkqhkiG9w0BAQUFADCCAUsxGDAWBgNVBC0DDwBT"||$0=="MIIFVjCCBD6gAwIBAgIQ7is969Qh3hSoYqwE893EATANBgkqhkiG9w0BAQUFADCB"){show=0}' \
+   > /tmp/hammercfg/roots.pem
 sed -i 's-""-"/tmp/hammercfg/roots.pem"-g' /tmp/hammercfg/hammer.cfg
 ```
 
