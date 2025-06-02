@@ -8,7 +8,7 @@ log implementation. It implements [static-ct-api](https://c2sp.org/static-ct-api
 using the [Tessera](https://github.com/transparency-dev/tessera)
 library to store data, and is aimed at running production-grade CT logs.
 
-At the moment, TesseraCT can be [deployed](#-deployment) on GCP and AWS.
+At the moment, TesseraCT can be [deployed](#️-deployment) on GCP and AWS.
 
 ## 📣 Status
 
