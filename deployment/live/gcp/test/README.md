@@ -77,8 +77,7 @@ go run ./cmd/gcp/ \
 ```
 
 In a different terminal you can either mint and submit certificates manually, or
-use the [ct_hammer
-tool](https://github.com/google/certificate-transparency-go/blob/master/trillian/integration/ct_hammer/main.go)
+use the [ct_hammer tool](https://github.com/google/certificate-transparency-go/blob/master/trillian/integration/ct_hammer/main.go)
 to do this.
 
 #### Generate chains manually
@@ -101,18 +100,10 @@ go run github.com/google/certificate-transparency-go/client/ctclient@master uplo
 
 #### Automatically generate chains
 
-Save TesseraCT repo's path:
+Run [certificate-transparency-go' CT hammer](https://github.com/google/certificate-transparency-go/blob/master/trillian/integration/ct_hammer/main.go):
 
 ```bash
-export TESSERACT_REPO=$(pwd)
-```
-
-Clone the
-[certificate-transparency-go](https://github.com/google/certificate-transparency-go)
-repo, and from there run:
-
-```bash
-go run ./trillian/integration/ct_hammer/ \
+go run github.com/google/certificate-transparency-go/trillian/integration/ct_hammer@master
   --ct_http_servers=localhost:6962/${TESSERA_BASE_NAME} \
   --max_retry=2m \
   --invalid_chance=0 \
@@ -126,39 +117,33 @@ go run ./trillian/integration/ct_hammer/ \
   --skip_https_verify=true \
   --operations=10000 \
   --rate_limit=150 \
-  --log_config=${TESSERACT_REPO}/internal/testdata/hammer.cfg \
+  --log_config=./internal/testdata/hammer.cfg \
   --testdata_dir=./trillian/testdata/
 ```
 
 ### With real HTTPS certificates
 
 We'll run a TESSERACT and copy certificates from an existing RFC6962 log to it.
-It uses the [ct_hammer tool from certificate-transparency-go](https://github.com/google/certificate-transparency-go/tree/aceb1d4481907b00c087020a3930c7bd691a0110/trillian/integration/ct_hammer).
+It uses the [ct_hammer tool from certificate-transparency-go](https://github.com/google/certificate-transparency-go/blob/master/trillian/integration/ct_hammer/main.go).
 
 First, set a few environment variables:
 
 ```bash
-export TESSERACT_REPO=$(pwd)
 export SRC_LOG_URI=https://ct.googleapis.com/logs/xenon2022
 ```
 
 Then, get fetch the roots the source logs accepts, and edit configs accordingly.
-To do so, clone the
-[certificate-transparency-go](https://github.com/google/certificate-transparency-go)
-repo, and from there run:
 
 ```bash
-export CTGO_REPO=$(pwd)
 mkdir -p /tmp/hammercfg
-cp ${TESSERACT_REPO}/internal/testdata/hammer.cfg /tmp/hammercfg
-go run ./client/ctclient get-roots --log_uri=${SRC_LOG_URI} --text=false > /tmp/hammercfg/roots.pem
+cp ./internal/testdata/hammer.cfg /tmp/hammercfg
+go run github.com/google/certificate-transparency-go/client/ctclient@master get-roots --log_uri=${SRC_LOG_URI} --text=false > /tmp/hammercfg/roots.pem
 sed -i 's-""-"/tmp/hammercfg/roots.pem"-g' /tmp/hammercfg/hammer.cfg
 ```
 
 Run TesseraCT with the same roots:
 
 ```bash
-cd ${TESSERACT_REPO}
 go run ./cmd/gcp/ \
   --bucket=${GOOGLE_PROJECT}-${TESSERA_BASE_NAME}-bucket \
   --spanner_db_path=projects/${GOOGLE_PROJECT}/instances/${TESSERA_BASE_NAME}/databases/${TESSERA_BASE_NAME}-db \
@@ -173,8 +158,7 @@ go run ./cmd/gcp/ \
 Run `ct_hammer` in a different terminal:
 
 ```bash
-cd ${CTGO_REPO}
-go run ./trillian/integration/ct_hammer/ \
+go run github.com/google/certificate-transparency-go/trillian/integration/ct_hammer@master \
   --ct_http_servers=localhost:6962/${TESSERA_BASE_NAME} \
   --max_retry=2m \
   --invalid_chance=0 \
