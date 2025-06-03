@@ -86,7 +86,7 @@ func (cts *CTStorage) dedupFuture(ctx context.Context, f tessera.IndexFuture) (i
 
 	idx, cpRaw, err := cts.awaiter.Await(ctx, f)
 	if err != nil {
-		return 0, 0, fmt.Errorf("error waiting for Tessera future and its integration: %v", err)
+		return 0, 0, fmt.Errorf("error waiting for Tessera future and its integration: %w", err)
 	}
 
 	// A https://c2sp.org/static-ct-api logsize is on the second line
@@ -133,7 +133,7 @@ func (cts *CTStorage) Add(ctx context.Context, entry *ctonly.Entry) (uint64, uin
 	future := cts.storeData(ctx, entry)
 	idx, err := future()
 	if err != nil {
-		return 0, 0, fmt.Errorf("error waiting for Tessera future: %v", err)
+		return 0, 0, fmt.Errorf("error waiting for Tessera future: %w", err)
 	}
 	if idx.IsDup {
 		return cts.dedupFuture(ctx, future)
