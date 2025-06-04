@@ -16,6 +16,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"crypto/ecdh"
 	"crypto/ecdsa"
@@ -24,20 +25,27 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/base64"
+	"encoding/json"
 	"encoding/pem"
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"math/rand/v2"
 	"net/http"
+	"net/url"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
 
 	tdnote "github.com/transparency-dev/formats/note"
 	"github.com/transparency-dev/tesseract/internal/client"
+	"github.com/transparency-dev/tesseract/internal/client/gcp"
 	"github.com/transparency-dev/tesseract/internal/hammer/loadtest"
+	"github.com/transparency-dev/tesseract/internal/types/rfc6962"
+	"github.com/transparency-dev/tesseract/internal/types/staticct"
 	"golang.org/x/mod/sumdb/note"
 	"golang.org/x/net/http2"
 
@@ -113,18 +121,15 @@ func main() {
 		klog.Exitf("Failed to create verifier: %v", err)
 	}
 
-	f, w, err := loadtest.NewLogClients(ctx, logURL, writeLogURL, loadtest.ClientOpts{
-		Client:           hc,
-		BearerToken:      *bearerToken,
-		BearerTokenWrite: *bearerTokenWrite,
-	})
-	if err != nil {
-		klog.Exit(err)
+	r := mustCreateReaders(ctx, logURL)
+	if len(writeLogURL) == 0 {
+		writeLogURL = logURL
 	}
+	w := mustCreateWriters(writeLogURL)
 
 	var cpRaw []byte
-	cons := client.UnilateralConsensus(f.ReadCheckpoint)
-	tracker, err := client.NewLogStateTracker(ctx, f.ReadCheckpoint, f.ReadTile, cpRaw, logSigV, logSigV.Name(), cons)
+	cons := client.UnilateralConsensus(r.ReadCheckpoint)
+	tracker, err := client.NewLogStateTracker(ctx, r.ReadCheckpoint, r.ReadTile, cpRaw, logSigV, logSigV.Name(), cons)
 	if err != nil {
 		klog.Exitf("Failed to create LogStateTracker: %v", err)
 	}
@@ -166,7 +171,7 @@ func main() {
 		NumMMDVerifiers:      *numMMDVerifiers,
 		MMDDuration:          *mmdDuration,
 	}
-	hammer := loadtest.NewHammer(&tracker, f.ReadEntryBundle, w, gen, ha.SeqLeafChan, ha.ErrChan, opts)
+	hammer := loadtest.NewHammer(&tracker, r.ReadEntryBundle, w, gen, ha.SeqLeafChan, ha.ErrChan, opts)
 
 	exitCode := 0
 	if *leafWriteGoal > 0 {
@@ -392,4 +397,127 @@ func logSigVerifier(origin, b64PubKey string) (note.Verifier, error) {
 	}
 
 	return logSigV, nil
+}
+
+func mustCreateReaders(ctx context.Context, us []string) loadtest.LogReader {
+	r := []loadtest.LogReader{}
+	for _, u := range us {
+		if !strings.HasSuffix(u, "/") {
+			u += "/"
+		}
+		rURL, err := url.Parse(u)
+		if err != nil {
+			klog.Exitf("Invalid log reader URL %q: %v", u, err)
+		}
+
+		switch rURL.Scheme {
+		case "http", "https":
+			c, err := client.NewHTTPFetcher(rURL, http.DefaultClient)
+			if err != nil {
+				klog.Exitf("Failed to create HTTP fetcher for %q: %v", u, err)
+			}
+			if *bearerToken != "" {
+				c.SetAuthorizationHeader(fmt.Sprintf("Bearer %s", *bearerToken))
+			}
+			r = append(r, c)
+		case "file":
+			r = append(r, client.FileFetcher{Root: rURL.Path})
+		case "gs":
+			c, err := gcp.NewGSFetcher(ctx, rURL.Host, nil)
+			if err != nil {
+				klog.Exitf("NewGSFetcher: %v", err)
+			}
+			r = append(r, c)
+		default:
+			klog.Exitf("Unsupported scheme %s on log URL", rURL.Scheme)
+		}
+	}
+	return loadtest.NewRoundRobinReader(r)
+}
+
+func mustCreateWriters(us []string) loadtest.LeafWriter {
+	w := []loadtest.LeafWriter{}
+	for _, u := range us {
+		if !strings.HasSuffix(u, "/") {
+			u += "/"
+		}
+		u += "ct/v1/add-chain"
+		wURL, err := url.Parse(u)
+		if err != nil {
+			klog.Exitf("Invalid log writer URL %q: %v", u, err)
+		}
+		w = append(w, httpWriter(wURL, http.DefaultClient, *bearerTokenWrite))
+	}
+	return loadtest.NewRoundRobinWriter(w)
+}
+
+func httpWriter(u *url.URL, hc *http.Client, bearerToken string) loadtest.LeafWriter {
+	return func(ctx context.Context, newLeaf []byte) (uint64, uint64, error) {
+		req, err := http.NewRequest(http.MethodPost, u.String(), bytes.NewReader(newLeaf))
+		if err != nil {
+			return 0, 0, fmt.Errorf("failed to create request: %v", err)
+		}
+		if bearerToken != "" {
+			req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", bearerToken))
+		}
+		resp, err := hc.Do(req.WithContext(ctx))
+		if err != nil {
+			return 0, 0, fmt.Errorf("failed to write leaf: %v", err)
+		}
+		body, err := io.ReadAll(resp.Body)
+		_ = resp.Body.Close()
+		if err != nil {
+			return 0, 0, fmt.Errorf("failed to read body: %v", err)
+		}
+		switch resp.StatusCode {
+		case http.StatusOK:
+			if resp.Request.Method != http.MethodPost {
+				return 0, 0, fmt.Errorf("write leaf was redirected to %s", resp.Request.URL)
+			}
+			// Continue below
+		case http.StatusServiceUnavailable, http.StatusBadGateway, http.StatusGatewayTimeout, http.StatusTooManyRequests:
+			// These status codes may indicate a delay before retrying, so handle that here:
+			time.Sleep(retryDelay(resp.Header.Get("Retry-After"), time.Second))
+
+			return 0, 0, fmt.Errorf("log not available. Status code: %d. Body: %q %w", resp.StatusCode, body, loadtest.ErrRetry)
+		default:
+			return 0, 0, fmt.Errorf("write leaf was not OK. Status code: %d. Body: %q", resp.StatusCode, body)
+		}
+		index, timestamp, err := parseAddChainResponse(body)
+		if err != nil {
+			return 0, 0, fmt.Errorf("write leaf failed to parse response: %v", body)
+		}
+		return index, timestamp, nil
+	}
+}
+
+func retryDelay(retryAfter string, defaultDur time.Duration) time.Duration {
+	if retryAfter == "" {
+		return defaultDur
+	}
+	d, err := time.Parse(http.TimeFormat, retryAfter)
+	if err == nil {
+		return time.Until(d)
+	}
+	s, err := strconv.Atoi(retryAfter)
+	if err == nil {
+		return time.Duration(s) * time.Second
+	}
+	return defaultDur
+}
+
+// parseAddChainResponse parses the add-chain response and returns the leaf
+// index from the extensions and timestamp from the response.
+// Code is inspired by https://github.com/FiloSottile/sunlight/blob/main/tile.go.
+func parseAddChainResponse(body []byte) (uint64, uint64, error) {
+	var resp rfc6962.AddChainResponse
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return 0, 0, fmt.Errorf("can't parse add-chain response: %v", err)
+	}
+
+	leafIdx, err := staticct.ParseCTExtensions(resp.Extensions)
+	if err != nil {
+		return 0, 0, fmt.Errorf("can't parse extensions: %v", err)
+	}
+	return uint64(leafIdx), resp.Timestamp, nil
 }
