@@ -70,6 +70,8 @@ var (
 	signerPublicKeySecretName  = flag.String("signer_public_key_secret_name", "", "Public key secret name for checkpoints and SCTs signer")
 	signerPrivateKeySecretName = flag.String("signer_private_key_secret_name", "", "Private key secret name for checkpoints and SCTs signer")
 	checkpointInterval         = flag.Duration("checkpoint_interval", tessera.DefaultCheckpointInterval, "Interval between checkpoint publishing")
+	batchMaxSize               = flag.Uint("batch_max_size", tessera.DefaultBatchMaxSize, "Maximum number of entries to process in a single Tessera sequencing batch.")
+	batchMaxAge                = flag.Duration("batch_max_age", tessera.DefaultBatchMaxAge, "Maximum age of entries in a single Tessera sequencing batch.")
 )
 
 // nolint:staticcheck
@@ -162,7 +164,8 @@ func newAWSStorage(ctx context.Context, signer note.Signer) (*storage.CTStorage,
 		WithCheckpointSigner(signer).
 		WithCTLayout().
 		WithAntispam(*inMemoryAntispamCacheSize, antispam).
-		WithCheckpointInterval(*checkpointInterval)
+		WithCheckpointInterval(*checkpointInterval).
+		WithBatching(*batchMaxSize, *batchMaxAge)
 
 	appender, _, reader, err := tessera.NewAppender(ctx, driver, opts)
 	if err != nil {
