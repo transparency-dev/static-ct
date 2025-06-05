@@ -76,7 +76,8 @@ var (
 	numMMDVerifiers      = flag.Int("num_mmd_verifiers", 0, "The number of MMD verifiers performing inclusion proof for the added leaves")
 	mmdDuration          = flag.Duration("mmd_duration", 10*time.Second, "The Maximum Merge Delay (MMD) duration of the log")
 
-	dupChance = flag.Float64("dup_chance", 0.1, "The probability of a generated leaf being a duplicate of a previous value")
+	dupChance    = flag.Float64("dup_chance", 0.1, "The probability of a generated leaf being a duplicate of a previous value")
+	serialOffset = flag.Int64("serial_offset", 0, "The certificate serial number offset")
 
 	leafWriteGoal = flag.Int64("leaf_write_goal", 0, "Exit after writing this number of leaves, or 0 to keep going indefinitely")
 	maxRunTime    = flag.Duration("max_runtime", 0, "Fail after this amount of time has passed, or 0 to keep going indefinitely")
@@ -246,7 +247,7 @@ func newLeafGenerator(startSize uint64, dupChance float64, intermediateCACert *x
 		mu.Unlock()
 
 		// Do this outside of the protected block so that writers don't block on leaf generation (especially for larger leaves).
-		return certGen.addChainRequestBody(int64(thisSize))
+		return certGen.addChainRequestBody(int64(thisSize) + *serialOffset)
 	}
 }
 
