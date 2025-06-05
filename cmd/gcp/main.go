@@ -66,6 +66,7 @@ var (
 	checkpointInterval         = flag.Duration("checkpoint_interval", tessera.DefaultCheckpointInterval, "Interval between checkpoint publishing")
 	batchMaxSize               = flag.Uint("batch_max_size", tessera.DefaultBatchMaxSize, "Maximum number of entries to process in a single sequencing batch.")
 	batchMaxAge                = flag.Duration("batch_max_age", tessera.DefaultBatchMaxAge, "Maximum age of entries in a single sequencing batch.")
+	pushbackMaxOutstanding     = flag.Uint("pushback_max_outstanding", tessera.DefaultPushbackMaxOutstanding, "Maximum number of number of in-flight add requests - i.e. the number of entries with sequence numbers assigned, but which are not yet integrated into the log.")
 	traceFraction              = flag.Float64("trace_fraction", 0, "Fraction of open-telemetry span traces to sample")
 	otelProjectID              = flag.String("otel_project_id", "", "GCP project ID for OpenTelemetry exporter. This is only required for local runs.")
 )
@@ -176,7 +177,8 @@ func newGCPStorage(ctx context.Context, signer note.Signer) (*storage.CTStorage,
 		WithCTLayout().
 		WithAntispam(*inMemoryAntispamCacheSize, antispam).
 		WithCheckpointInterval(*checkpointInterval).
-		WithBatching(*batchMaxSize, *batchMaxAge)
+		WithBatching(*batchMaxSize, *batchMaxAge).
+		WithPushback(*pushbackMaxOutstanding)
 
 	// TODO(phbnf): figure out the best way to thread the `shutdown` func NewAppends returns back out to main so we can cleanly close Tessera down
 	// when it's time to exit.
