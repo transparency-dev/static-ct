@@ -132,6 +132,36 @@ MiB Swap:      0.0 total,      0.0 free,      0.0 used.   5921.5 avail Mem
 
 </details>
 
+##### Publication Awaiter Enabled
+
+The following flags are used:
+
+- `--enable_publication_awaiter`
+- `--checkpoint_interval=1500ms`
+
+When the publication awaiter is enabled, the write QPS drops to around 500. The bottleneck comes from the checkpoint publishing wait time. The VM CPU utilization is around 75%. The Cloud Spanner CPU utilization is around 35%.
+
+```
+┌───────────────────────────────────────────────────────────────────────┐
+│Read (0 workers): Current max: 0/s. Oversupply in last second: 0       │
+│Write (4096 workers): Current max: 526/s. Oversupply in last second: 0 │
+│TreeSize: 23350671 (Δ 499qps over 30s)                                 │
+│Time-in-queue: 105ms/1245ms/5556ms (min/avg/max)                       │
+│Observed-time-to-integrate: 168ms/1769ms/7150ms (min/avg/max)          │
+└───────────────────────────────────────────────────────────────────────┘
+```
+
+```
+top - 00:06:07 up  1:06,  2 users,  load average: 1.81, 1.83, 1.65
+Tasks:  97 total,   2 running,  95 sleeping,   0 stopped,   0 zombie
+%Cpu(s): 70.8 us,  3.8 sy,  0.0 ni, 21.4 id,  0.0 wa,  0.0 hi,  3.8 si,  0.2 st 
+MiB Mem :   7950.7 total,   4186.9 free,   2370.5 used,   1657.7 buff/cache     
+MiB Swap:      0.0 total,      0.0 free,      0.0 used.   5580.2 avail Mem 
+
+    PID USER      PR  NI    VIRT    RES    SHR S  %CPU  %MEM     TIME+ COMMAND                                                                                                               
+   4886 user      20   0 5289880   1.2g  28172 R 154.8  15.2  46:12.52 gcp                                                                                                                   
+```
+
 ### AWS
 
 The indicative figures below were measured using the [CT hammer tool](/internal/hammer/) as of [commit `fe7687c`](https://github.com/transparency-dev/tesseract/commit/fe7687c9ed35d11f42a211ee35544ff6c5610ee6).

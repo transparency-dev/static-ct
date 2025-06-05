@@ -73,6 +73,7 @@ var (
 	batchMaxSize               = flag.Uint("batch_max_size", tessera.DefaultBatchMaxSize, "Maximum number of entries to process in a single Tessera sequencing batch.")
 	batchMaxAge                = flag.Duration("batch_max_age", tessera.DefaultBatchMaxAge, "Maximum age of entries in a single Tessera sequencing batch.")
 	pushbackMaxOutstanding     = flag.Uint("pushback_max_outstanding", tessera.DefaultPushbackMaxOutstanding, "Maximum number of number of in-flight add requests - i.e. the number of entries with sequence numbers assigned, but which are not yet integrated into the log.")
+	enablePublicationAwaiter   = flag.Bool("enable_publication_awaiter", false, "If true then the certificate is integrated into log before returning the response.")
 )
 
 // nolint:staticcheck
@@ -179,7 +180,7 @@ func newAWSStorage(ctx context.Context, signer note.Signer) (*storage.CTStorage,
 		return nil, fmt.Errorf("failed to initialize AWS issuer storage: %v", err)
 	}
 
-	return storage.NewCTStorage(ctx, appender, issuerStorage, reader)
+	return storage.NewCTStorage(ctx, appender, issuerStorage, reader, *enablePublicationAwaiter)
 }
 
 type timestampFlag struct {
