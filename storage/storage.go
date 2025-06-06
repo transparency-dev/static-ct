@@ -57,20 +57,22 @@ type IssuerStorage interface {
 
 // CTStorage implements ct.Storage and tessera.LogReader.
 type CTStorage struct {
-	storeData    func(context.Context, *ctonly.Entry) tessera.IndexFuture
-	storeIssuers func(context.Context, []KV) error
-	reader       tessera.LogReader
-	awaiter      *tessera.PublicationAwaiter
+	storeData     func(context.Context, *ctonly.Entry) tessera.IndexFuture
+	storeIssuers  func(context.Context, []KV) error
+	reader        tessera.LogReader
+	awaiter       *tessera.PublicationAwaiter
+	enableAwaiter bool
 }
 
 // NewCTStorage instantiates a CTStorage object.
-func NewCTStorage(ctx context.Context, logStorage *tessera.Appender, issuerStorage IssuerStorage, reader tessera.LogReader) (*CTStorage, error) {
+func NewCTStorage(ctx context.Context, logStorage *tessera.Appender, issuerStorage IssuerStorage, reader tessera.LogReader, enableAwaiter bool) (*CTStorage, error) {
 	awaiter := tessera.NewPublicationAwaiter(ctx, reader.ReadCheckpoint, 200*time.Millisecond)
 	ctStorage := &CTStorage{
-		storeData:    tessera.NewCertificateTransparencyAppender(logStorage),
-		storeIssuers: cachedStoreIssuers(issuerStorage),
-		reader:       reader,
-		awaiter:      awaiter,
+		storeData:     tessera.NewCertificateTransparencyAppender(logStorage),
+		storeIssuers:  cachedStoreIssuers(issuerStorage),
+		reader:        reader,
+		awaiter:       awaiter,
+		enableAwaiter: enableAwaiter,
 	}
 	return ctStorage, nil
 }
@@ -86,7 +88,7 @@ func (cts *CTStorage) dedupFuture(ctx context.Context, f tessera.IndexFuture) (i
 
 	idx, cpRaw, err := cts.awaiter.Await(ctx, f)
 	if err != nil {
-		return 0, 0, fmt.Errorf("error waiting for Tessera future and its integration: %w", err)
+		return 0, 0, fmt.Errorf("error waiting for Tessera index future and its integration: %w", err)
 	}
 
 	// A https://c2sp.org/static-ct-api logsize is on the second line
@@ -130,16 +132,26 @@ func (cts *CTStorage) Add(ctx context.Context, entry *ctonly.Entry) (uint64, uin
 	ctx, span := tracer.Start(ctx, "tesseract.storage.Add")
 	defer span.End()
 
+	var idx tessera.Index
+	var err error
 	future := cts.storeData(ctx, entry)
-	idx, err := future()
-	if err != nil {
-		return 0, 0, fmt.Errorf("error waiting for Tessera future: %w", err)
+
+	if cts.enableAwaiter {
+		idx, _, err = cts.awaiter.Await(ctx, future)
+		if err != nil {
+			return 0, 0, fmt.Errorf("error waiting for Tessera index future and its integration: %w", err)
+		}
+	} else {
+		idx, err = future()
+		if err != nil {
+			return 0, 0, fmt.Errorf("error waiting for Tessera index future: %w", err)
+		}
 	}
 	if idx.IsDup {
 		return cts.dedupFuture(ctx, future)
 	}
-	return idx.Index, entry.Timestamp, nil
 
+	return idx.Index, entry.Timestamp, nil
 }
 
 // AddIssuerChain stores every chain certificate under its sha256.
