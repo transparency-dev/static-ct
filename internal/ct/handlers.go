@@ -34,6 +34,7 @@ import (
 	"github.com/transparency-dev/tesseract/internal/types/tls"
 	"github.com/transparency-dev/tesseract/internal/x509util"
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/metric"
 	"k8s.io/klog/v2"
 )
@@ -117,13 +118,16 @@ type appHandler struct {
 // ServeHTTP for an AppHandler invokes the underlying handler function but
 // does additional common error and stats processing.
 func (a appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	logCtx := a.opts.RequestLog.start(r.Context())
+	logCtx, span := tracer.Start(logCtx, fmt.Sprintf("tesseract.ServeHTTP.%s", a.name))
+	defer span.End()
+
 	originAttr := originKey.String(a.log.origin)
 	operationAttr := operationKey.String(a.name)
 	attrs := []attribute.KeyValue{originAttr, operationAttr}
 
-	reqCounter.Add(r.Context(), 1, metric.WithAttributes(attrs...))
+	reqCounter.Add(logCtx, 1, metric.WithAttributes(attrs...))
 	startTime := time.Now()
-	logCtx := a.opts.RequestLog.start(r.Context())
 	a.opts.RequestLog.origin(logCtx, a.log.origin)
 	defer func() {
 		latency := time.Since(startTime).Seconds()
@@ -159,10 +163,11 @@ func (a appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	attrs = append(attrs, codeKey.Int(statusCode))
 	a.opts.RequestLog.status(ctx, statusCode)
 	klog.V(2).Infof("%s: %s <= st=%d", a.log.origin, a.name, statusCode)
-	rspCounter.Add(r.Context(), 1, metric.WithAttributes(attrs...))
+	rspCounter.Add(logCtx, 1, metric.WithAttributes(attrs...))
 	if err != nil {
 		klog.Warningf("%s: %s handler error: %v", a.log.origin, a.name, err)
 		a.opts.sendHTTPError(w, statusCode, err)
+		span.SetStatus(codes.Error, err.Error())
 		return
 	}
 
@@ -170,6 +175,9 @@ func (a appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if statusCode != http.StatusOK {
 		klog.Warningf("%s: %s handler non 200 without error: %d %v", a.log.origin, a.name, statusCode, err)
 		a.opts.sendHTTPError(w, http.StatusInternalServerError, fmt.Errorf("http handler misbehaved, st: %d", statusCode))
+		if statusCode >= 500 {
+			span.SetStatus(codes.Error, "handler non-200 without error")
+		}
 		return
 	}
 }
@@ -243,6 +251,9 @@ func parseBodyAsJSONChain(r *http.Request) (rfc6962.AddChainRequest, error) {
 // addChainInternal is called by add-chain and add-pre-chain as the logic involved in
 // processing these requests is almost identical
 func addChainInternal(ctx context.Context, opts *HandlerOptions, log *log, w http.ResponseWriter, r *http.Request, isPrecert bool) (int, []attribute.KeyValue, error) {
+	ctx, span := tracer.Start(ctx, "tesseract.addChainInternal")
+	defer span.End()
+
 	var method entrypointName
 	if isPrecert {
 		method = addPreChainName

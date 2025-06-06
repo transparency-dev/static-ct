@@ -34,6 +34,7 @@ import (
 	"github.com/transparency-dev/tesseract"
 	"github.com/transparency-dev/tesseract/storage"
 	"github.com/transparency-dev/tesseract/storage/aws"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"golang.org/x/mod/sumdb/note"
 	"k8s.io/klog/v2"
 )
@@ -103,13 +104,13 @@ func main() {
 
 	klog.CopyStandardLogTo("WARNING")
 	klog.Info("**** CT HTTP Server Starting ****")
-	http.Handle("/", logHandler)
+	http.Handle("/", otelhttp.NewHandler(logHandler, "/"))
 
 	// Bring up the HTTP server and serve until we get a signal not to.
 	srv := http.Server{Addr: *httpEndpoint}
 	shutdownWG := new(sync.WaitGroup)
+	shutdownWG.Add(1)
 	go awaitSignal(func() {
-		shutdownWG.Add(1)
 		defer shutdownWG.Done()
 		// Allow 60s for any pending requests to finish then terminate any stragglers
 		// TODO(phboneff): maybe wait for the sequencer queue to be empty?
