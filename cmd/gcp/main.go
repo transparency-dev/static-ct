@@ -51,7 +51,6 @@ var (
 
 	// Functionality flags
 	httpEndpoint       = flag.String("http_endpoint", "localhost:6962", "Endpoint for HTTP (host:port).")
-	httpDeadline       = flag.Duration("http_deadline", time.Second*10, "Deadline for HTTP requests.")
 	maskInternalErrors = flag.Bool("mask_internal_errors", false, "Don't return error strings with Internal Server Error HTTP responses.")
 	origin             = flag.String("origin", "", "Origin of the log, for checkpoints and the monitoring prefix.")
 	rootsPemFile       = flag.String("roots_pem_file", "", "Path to the file containing root certificates that are acceptable to the log. The certs are served through get-roots endpoint.")
@@ -61,6 +60,7 @@ var (
 	rejectExtensions   = flag.String("reject_extension", "", "A list of X.509 extension OIDs, in dotted string form (e.g. '2.3.4.5') which, if present, should cause submissions to be rejected.")
 
 	// Performance flags
+	httpDeadline              = flag.Duration("http_deadline", time.Second*10, "Deadline for HTTP requests.")
 	enablePublicationAwaiter  = flag.Bool("enable_publication_awaiter", false, "If true then the certificate is integrated into log before returning the response.")
 	inMemoryAntispamCacheSize = flag.Uint("inmemory_antispam_cache_size", 256<<10, "Maximum number of entries to keep in the in-memory antispam cache.")
 	checkpointInterval        = flag.Duration("checkpoint_interval", tessera.DefaultCheckpointInterval, "Interval between checkpoint publishing")
