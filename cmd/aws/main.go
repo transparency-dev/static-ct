@@ -49,11 +49,27 @@ var (
 	notAfterStart timestampFlag
 	notAfterLimit timestampFlag
 
-	httpEndpoint               = flag.String("http_endpoint", "localhost:6962", "Endpoint for HTTP (host:port).")
-	httpDeadline               = flag.Duration("http_deadline", time.Second*10, "Deadline for HTTP requests.")
-	maskInternalErrors         = flag.Bool("mask_internal_errors", false, "Don't return error strings with Internal Server Error HTTP responses.")
-	origin                     = flag.String("origin", "", "Origin of the log, for checkpoints and the monitoring prefix.")
-	bucket                     = flag.String("bucket", "", "Name of the bucket to store the log in.")
+	// Functionality flags
+	httpEndpoint       = flag.String("http_endpoint", "localhost:6962", "Endpoint for HTTP (host:port).")
+	httpDeadline       = flag.Duration("http_deadline", time.Second*10, "Deadline for HTTP requests.")
+	maskInternalErrors = flag.Bool("mask_internal_errors", false, "Don't return error strings with Internal Server Error HTTP responses.")
+	origin             = flag.String("origin", "", "Origin of the log, for checkpoints and the monitoring prefix.")
+	bucket             = flag.String("bucket", "", "Name of the bucket to store the log in.")
+	rootsPemFile       = flag.String("roots_pem_file", "", "Path to the file containing root certificates that are acceptable to the log. The certs are served through get-roots endpoint.")
+	rejectExpired      = flag.Bool("reject_expired", false, "If true then the certificate validity period will be checked against the current time during the validation of submissions. This will cause expired certificates to be rejected.")
+	rejectUnexpired    = flag.Bool("reject_unexpired", false, "If true then TesseraCT rejects certificates that are either currently valid or not yet valid.")
+	extKeyUsages       = flag.String("ext_key_usages", "", "If set, will restrict the set of such usages that the server will accept. By default all are accepted. The values specified must be ones known to the x509 package.")
+	rejectExtensions   = flag.String("reject_extension", "", "A list of X.509 extension OIDs, in dotted string form (e.g. '2.3.4.5') which, if present, should cause submissions to be rejected.")
+
+	// Performance flags
+	enablePublicationAwaiter  = flag.Bool("enable_publication_awaiter", false, "If true then the certificate is integrated into log before returning the response.")
+	inMemoryAntispamCacheSize = flag.Uint("inmemory_antispam_cache_size", 256<<10, "Maximum number of entries to keep in the in-memory antispam cache.")
+	checkpointInterval        = flag.Duration("checkpoint_interval", tessera.DefaultCheckpointInterval, "Interval between checkpoint publishing")
+	batchMaxSize              = flag.Uint("batch_max_size", tessera.DefaultBatchMaxSize, "Maximum number of entries to process in a single Tessera sequencing batch.")
+	batchMaxAge               = flag.Duration("batch_max_age", tessera.DefaultBatchMaxAge, "Maximum age of entries in a single Tessera sequencing batch.")
+	pushbackMaxOutstanding    = flag.Uint("pushback_max_outstanding", tessera.DefaultPushbackMaxOutstanding, "Maximum number of number of in-flight add requests - i.e. the number of entries with sequence numbers assigned, but which are not yet integrated into the log.")
+
+	// AWS specific flags
 	dbName                     = flag.String("db_name", "", "AuroraDB name")
 	antispamDBName             = flag.String("antispam_db_name", "", "AuroraDB antispam name")
 	dbHost                     = flag.String("db_host", "", "AuroraDB host")
@@ -62,19 +78,8 @@ var (
 	dbPassword                 = flag.String("db_password", "", "AuroraDB password")
 	dbMaxConns                 = flag.Int("db_max_conns", 0, "Maximum connections to the database, defaults to 0, i.e unlimited")
 	dbMaxIdle                  = flag.Int("db_max_idle_conns", 2, "Maximum idle database connections in the connection pool, defaults to 2")
-	inMemoryAntispamCacheSize  = flag.Uint("inmemory_antispam_cache_size", 256<<10, "Maximum number of entries to keep in the in-memory antispam cache.")
-	rootsPemFile               = flag.String("roots_pem_file", "", "Path to the file containing root certificates that are acceptable to the log. The certs are served through get-roots endpoint.")
-	rejectExpired              = flag.Bool("reject_expired", false, "If true then the certificate validity period will be checked against the current time during the validation of submissions. This will cause expired certificates to be rejected.")
-	rejectUnexpired            = flag.Bool("reject_unexpired", false, "If true then TesseraCT rejects certificates that are either currently valid or not yet valid.")
-	extKeyUsages               = flag.String("ext_key_usages", "", "If set, will restrict the set of such usages that the server will accept. By default all are accepted. The values specified must be ones known to the x509 package.")
-	rejectExtensions           = flag.String("reject_extension", "", "A list of X.509 extension OIDs, in dotted string form (e.g. '2.3.4.5') which, if present, should cause submissions to be rejected.")
 	signerPublicKeySecretName  = flag.String("signer_public_key_secret_name", "", "Public key secret name for checkpoints and SCTs signer")
 	signerPrivateKeySecretName = flag.String("signer_private_key_secret_name", "", "Private key secret name for checkpoints and SCTs signer")
-	checkpointInterval         = flag.Duration("checkpoint_interval", tessera.DefaultCheckpointInterval, "Interval between checkpoint publishing")
-	batchMaxSize               = flag.Uint("batch_max_size", tessera.DefaultBatchMaxSize, "Maximum number of entries to process in a single Tessera sequencing batch.")
-	batchMaxAge                = flag.Duration("batch_max_age", tessera.DefaultBatchMaxAge, "Maximum age of entries in a single Tessera sequencing batch.")
-	pushbackMaxOutstanding     = flag.Uint("pushback_max_outstanding", tessera.DefaultPushbackMaxOutstanding, "Maximum number of number of in-flight add requests - i.e. the number of entries with sequence numbers assigned, but which are not yet integrated into the log.")
-	enablePublicationAwaiter   = flag.Bool("enable_publication_awaiter", false, "If true then the certificate is integrated into log before returning the response.")
 )
 
 // nolint:staticcheck
