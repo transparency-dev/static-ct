@@ -83,13 +83,13 @@ func (cts *CTStorage) ReadCheckpoint(ctx context.Context) ([]byte, error) {
 
 // TODO(phbnf): cache timestamps (or more) to avoid reparsing the entire leaf bundle
 func (cts *CTStorage) dedupFuture(ctx context.Context, f tessera.IndexFuture) (index, timestamp uint64, err error) {
+	ctx, span := tracer.Start(ctx, "tesseract.storage.dedupFuture")
+	defer span.End()
+
 	idx, cpRaw, err := cts.awaiter.Await(ctx, f)
 	if err != nil {
 		return 0, 0, fmt.Errorf("error waiting for Tessera index future and its integration: %w", err)
 	}
-
-	ctx, span := tracer.Start(ctx, "tesseract.storage.dedup")
-	defer span.End()
 
 	// A https://c2sp.org/static-ct-api logsize is on the second line
 	l := bytes.SplitN(cpRaw, []byte("\n"), 3)
