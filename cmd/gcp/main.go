@@ -54,7 +54,6 @@ var (
 	httpDeadline       = flag.Duration("http_deadline", time.Second*10, "Deadline for HTTP requests.")
 	maskInternalErrors = flag.Bool("mask_internal_errors", false, "Don't return error strings with Internal Server Error HTTP responses.")
 	origin             = flag.String("origin", "", "Origin of the log, for checkpoints and the monitoring prefix.")
-	bucket             = flag.String("bucket", "", "Name of the bucket to store the log in.")
 	rootsPemFile       = flag.String("roots_pem_file", "", "Path to the file containing root certificates that are acceptable to the log. The certs are served through get-roots endpoint.")
 	rejectExpired      = flag.Bool("reject_expired", false, "If true then the certificate validity period will be checked against the current time during the validation of submissions. This will cause expired certificates to be rejected.")
 	rejectUnexpired    = flag.Bool("reject_unexpired", false, "If true then TesseraCT rejects certificates that are either currently valid or not yet valid.")
@@ -69,7 +68,8 @@ var (
 	batchMaxAge               = flag.Duration("batch_max_age", tessera.DefaultBatchMaxAge, "Maximum age of entries in a single sequencing batch.")
 	pushbackMaxOutstanding    = flag.Uint("pushback_max_outstanding", tessera.DefaultPushbackMaxOutstanding, "Maximum number of number of in-flight add requests - i.e. the number of entries with sequence numbers assigned, but which are not yet integrated into the log.")
 
-	// GCP specific flags
+	// Infrastructure setup flags
+	bucket                     = flag.String("bucket", "", "Name of the GCS bucket to store the log in.")
 	spannerDB                  = flag.String("spanner_db_path", "", "Spanner database path: projects/{projectId}/instances/{instanceId}/databases/{databaseId}.")
 	spannerAntispamDB          = flag.String("spanner_antispam_db_path", "", "Spanner antispam deduplication database path projects/{projectId}/instances/{instanceId}/databases/{databaseId}.")
 	signerPublicKeySecretName  = flag.String("signer_public_key_secret_name", "", "Public key secret name for checkpoints and SCTs signer. Format: projects/{projectId}/secrets/{secretName}/versions/{secretVersion}.")
