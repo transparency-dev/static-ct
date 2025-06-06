@@ -132,29 +132,26 @@ func (cts *CTStorage) Add(ctx context.Context, entry *ctonly.Entry) (uint64, uin
 	ctx, span := tracer.Start(ctx, "tesseract.storage.Add")
 	defer span.End()
 
+	var idx tessera.Index
+	var err error
 	future := cts.storeData(ctx, entry)
 
 	if cts.enableAwaiter {
-		idx, _, err := cts.awaiter.Await(ctx, future)
+		idx, _, err = cts.awaiter.Await(ctx, future)
 		if err != nil {
 			return 0, 0, fmt.Errorf("error waiting for Tessera index future and its integration: %w", err)
 		}
-		if idx.IsDup {
-			return cts.dedupFuture(ctx, future)
-		}
-
-		return idx.Index, entry.Timestamp, nil
 	} else {
-		idx, err := future()
+		idx, err = future()
 		if err != nil {
 			return 0, 0, fmt.Errorf("error waiting for Tessera index future: %w", err)
 		}
-		if idx.IsDup {
-			return cts.dedupFuture(ctx, future)
-		}
-
-		return idx.Index, entry.Timestamp, nil
 	}
+	if idx.IsDup {
+		return cts.dedupFuture(ctx, future)
+	}
+
+	return idx.Index, entry.Timestamp, nil
 }
 
 // AddIssuerChain stores every chain certificate under its sha256.
