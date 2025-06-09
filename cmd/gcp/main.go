@@ -50,18 +50,18 @@ var (
 	notAfterLimit timestampFlag
 
 	// Functionality flags
-	httpEndpoint       = flag.String("http_endpoint", "localhost:6962", "Endpoint for HTTP (host:port).")
-	maskInternalErrors = flag.Bool("mask_internal_errors", false, "Don't return error strings with Internal Server Error HTTP responses.")
-	origin             = flag.String("origin", "", "Origin of the log, for checkpoints and the monitoring prefix.")
-	rootsPemFile       = flag.String("roots_pem_file", "", "Path to the file containing root certificates that are acceptable to the log. The certs are served through get-roots endpoint.")
-	rejectExpired      = flag.Bool("reject_expired", false, "If true then the certificate validity period will be checked against the current time during the validation of submissions. This will cause expired certificates to be rejected.")
-	rejectUnexpired    = flag.Bool("reject_unexpired", false, "If true then TesseraCT rejects certificates that are either currently valid or not yet valid.")
-	extKeyUsages       = flag.String("ext_key_usages", "", "If set, will restrict the set of such usages that the server will accept. By default all are accepted. The values specified must be ones known to the x509 package.")
-	rejectExtensions   = flag.String("reject_extension", "", "A list of X.509 extension OIDs, in dotted string form (e.g. '2.3.4.5') which, if present, should cause submissions to be rejected.")
+	httpEndpoint             = flag.String("http_endpoint", "localhost:6962", "Endpoint for HTTP (host:port).")
+	maskInternalErrors       = flag.Bool("mask_internal_errors", false, "Don't return error strings with Internal Server Error HTTP responses.")
+	origin                   = flag.String("origin", "", "Origin of the log, for checkpoints and the monitoring prefix.")
+	rootsPemFile             = flag.String("roots_pem_file", "", "Path to the file containing root certificates that are acceptable to the log. The certs are served through get-roots endpoint.")
+	rejectExpired            = flag.Bool("reject_expired", false, "If true then the certificate validity period will be checked against the current time during the validation of submissions. This will cause expired certificates to be rejected.")
+	rejectUnexpired          = flag.Bool("reject_unexpired", false, "If true then TesseraCT rejects certificates that are either currently valid or not yet valid.")
+	extKeyUsages             = flag.String("ext_key_usages", "", "If set, will restrict the set of such usages that the server will accept. By default all are accepted. The values specified must be ones known to the x509 package.")
+	rejectExtensions         = flag.String("reject_extension", "", "A list of X.509 extension OIDs, in dotted string form (e.g. '2.3.4.5') which, if present, should cause submissions to be rejected.")
+	enablePublicationAwaiter = flag.Bool("enable_publication_awaiter", false, "If true then the certificate is integrated into log before returning the response.")
 
 	// Performance flags
 	httpDeadline              = flag.Duration("http_deadline", time.Second*10, "Deadline for HTTP requests.")
-	enablePublicationAwaiter  = flag.Bool("enable_publication_awaiter", false, "If true then the certificate is integrated into log before returning the response.")
 	inMemoryAntispamCacheSize = flag.Uint("inmemory_antispam_cache_size", 256<<10, "Maximum number of entries to keep in the in-memory antispam cache.")
 	checkpointInterval        = flag.Duration("checkpoint_interval", tessera.DefaultCheckpointInterval, "Interval between checkpoint publishing")
 	batchMaxSize              = flag.Uint("batch_max_size", tessera.DefaultBatchMaxSize, "Maximum number of entries to process in a single sequencing batch.")
