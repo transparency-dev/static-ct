@@ -129,17 +129,27 @@ go run github.com/google/certificate-transparency-go/client/ctclient@master uplo
 
 #### Automatically generate chains
 
-Save TesseraCT repo's path:
+Retrieve the log public key in PEM format, convert it to DER format, and generate the hammer configuration file.
 
 ```bash
-export TESSERACT_REPO=$(pwd)
+aws secretsmanager get-secret-value --secret-id test-static-ct-ecdsa-p256-public-key --query SecretString --output text > /tmp/log_public_key.pem
+LOG_PUBLIC_KEY_DER=$(openssl pkey -pubin -in /tmp/log_public_key.pem -outform DER | xxd -i -c1000 | sed s/\,\ 0/\\\\/g | sed s/^..0x/\\\\x/g)
+mkdir -p /tmp/hammercfg
+cat > /tmp/hammercfg/hammer.cfg << EOF
+config {
+  roots_pem_file: ""
+  public_key: {
+    der: "$LOG_PUBLIC_KEY_DER"
+  }
+}
+EOF
 ```
 
-Clone the [certificate-transparency-go](https://github.com/google/certificate-transparency-go) repo, and from there run:
+Finally, submit the chain to TesseraCT:
 
 ```bash
-go run ./trillian/integration/ct_hammer/ \
-  --ct_http_servers=localhost:6962/${TESSERA_BASE_NAME} \
+go run github.com/google/certificate-transparency-go/trillian/integration/ct_hammer@master \
+  --ct_http_servers=localhost:6962/test-static-ct \
   --max_retry=2m \
   --invalid_chance=0 \
   --get_sth=0 \
@@ -152,7 +162,7 @@ go run ./trillian/integration/ct_hammer/ \
   --skip_https_verify=true \
   --operations=10000 \
   --rate_limit=150 \
-  --log_config=${TESSERACT_REPO}/testdata/hammer.cfg \
+  --log_config=/tmp/hammercfg/hammer.cfg \
   --testdata_dir=./trillian/testdata/
 ```
 
@@ -161,28 +171,40 @@ go run ./trillian/integration/ct_hammer/ \
 We'll run a TesseraCT and copy certificates from an existing RFC6962 log to it.
 It uses the [ct_hammer tool from certificate-transparency-go](https://github.com/google/certificate-transparency-go/tree/aceb1d4481907b00c087020a3930c7bd691a0110/trillian/integration/ct_hammer).
 
-First, set a few environment variables:
+First, save the source log URI:
 
 ```bash
-export TESSERACT_REPO=$(pwd)
 export SRC_LOG_URI=https://ct.googleapis.com/logs/xenon2022
 ```
 
 Then, get fetch the roots the source logs accepts, and edit configs accordingly.
-To do so, clone the [certificate-transparency-go](https://github.com/google/certificate-transparency-go) repo, and from there run:
+Two roots that TesseraCT cannot load with the [internal/lax509](/internal/lax509/)
+library need to be removed.
 
 ```bash
-export CTGO_REPO=$(pwd)
+aws secretsmanager get-secret-value --secret-id test-static-ct-ecdsa-p256-public-key --query SecretString --output text > /tmp/log_public_key.pem
+LOG_PUBLIC_KEY_DER=$(openssl pkey -pubin -in /tmp/log_public_key.pem -outform DER | xxd -i -c1000 | sed s/\,\ 0/\\\\/g | sed s/^..0x/\\\\x/g)
 mkdir -p /tmp/hammercfg
-cp ${TESSERACT_REPO}/testdata/hammer.cfg /tmp/hammercfg
-go run ./client/ctclient get-roots --log_uri=${SRC_LOG_URI} --text=false > /tmp/hammercfg/roots.pem
-sed -i 's-""-"/tmp/hammercfg/roots.pem"-g' /tmp/hammercfg/hammer.cfg
+go run github.com/google/certificate-transparency-go/client/ctclient@master get-roots --log_uri=${SRC_LOG_URI} --text=false | \
+awk \
+  '/-----BEGIN CERTIFICATE-----/{c=1; pem=$0; show=1; next}
+   c{pem=pem ORS $0}
+   /-----END CERTIFICATE-----/{c=0; if(show) print pem}
+   ($0=="MIIFxDCCBKygAwIBAgIBAzANBgkqhkiG9w0BAQUFADCCAUsxGDAWBgNVBC0DDwBT"||$0=="MIIFVjCCBD6gAwIBAgIQ7is969Qh3hSoYqwE893EATANBgkqhkiG9w0BAQUFADCB"){show=0}' \
+   > /tmp/hammercfg/roots.pem
+cat > /tmp/hammercfg/hammer.cfg << EOF
+config {
+  roots_pem_file: "/tmp/hammercfg/roots.pem"
+  public_key: {
+    der: "$LOG_PUBLIC_KEY_DER"
+  }
+}
+EOF
 ```
 
 Run TesseraCT with the same roots:
 
 ```bash
-cd ${TESSERACT_REPO}
 go run ./cmd/aws \
   --http_endpoint=localhost:6962 \
   --roots_pem_file=/tmp/hammercfg/roots.pem \
@@ -195,15 +217,14 @@ go run ./cmd/aws \
   --db_password=${TESSERACT_DB_PASSWORD} \
   --antispam_db_name=antispam_db \
   --signer_public_key_secret_name=${TESSERACT_SIGNER_ECDSA_P256_PUBLIC_KEY_ID} \
-  --signer_private_key_secret_name=${TESSERACT_SIGNER_ECDSA_P256_PRIVATE_KEY_ID}
+  --signer_private_key_secret_name=${TESSERACT_SIGNER_ECDSA_P256_PRIVATE_KEY_ID} \
   -v=3
 ```
 
 Run `ct_hammer` in a different terminal:
 
 ```bash
-cd ${CTGO_REPO}
-go run ./trillian/integration/ct_hammer/ \
+go run github.com/google/certificate-transparency-go/trillian/integration/ct_hammer@master \
   --ct_http_servers=localhost:6962/test-static-ct \
   --max_retry=2m \
   --invalid_chance=0 \
